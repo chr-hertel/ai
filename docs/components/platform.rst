@@ -1102,6 +1102,7 @@ Some platforms provide built-in server-side tools for enhanced capabilities with
 * :doc:`platform/anthropic-server-tools` - Bash, Text Editor, Code Execution
 * :doc:`platform/gemini-server-tools` - URL Context, Google Search, Code Execution
 * :doc:`platform/vertexai-server-tools` - URL Context, Google Search, Code Execution
+* :doc:`platform/openai-mcp` - Remote MCP Tools & Connectors
 
 For complete Vertex AI setup and usage guide, see :doc:`platform/vertexai`.
 
