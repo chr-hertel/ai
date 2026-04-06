@@ -13,7 +13,6 @@ namespace Symfony\AI\Platform\Bridge\Ollama\Contract;
 
 use Symfony\AI\Platform\Bridge\Ollama\Ollama;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
-use Symfony\AI\Platform\Message\Role;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\ToolCall;
 
@@ -26,15 +25,11 @@ final class ToolCallNormalizer extends ModelContractNormalizer
      * @param ToolCall $data
      *
      * @return array{
-     *     role: Role::Assistant,
-     *     content: string,
-     *     tool_calls: list<array{
-     *         type: 'function',
-     *         function: array{
-     *             name: string,
-     *             arguments: array<string, mixed>
-     *         }
-     *     }>
+     *     type: 'function',
+     *     function: array{
+     *         name: string,
+     *         arguments: array<string, mixed>|\stdClass
+     *     }
      * }
      */
     public function normalize(mixed $data, ?string $format = null, array $context = []): array
