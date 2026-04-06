@@ -13,22 +13,17 @@ namespace Symfony\AI\Platform\Bridge\Ollama\Contract;
 
 use Symfony\AI\Platform\Bridge\Ollama\Ollama;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
-use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Role;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\ToolCall;
-use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
-use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 
 /**
  * @author Joshua Behrens <code@joshua-behrens.de>
  */
-final class AssistantMessageNormalizer extends ModelContractNormalizer implements NormalizerAwareInterface
+final class ToolCallNormalizer extends ModelContractNormalizer
 {
-    use NormalizerAwareTrait;
-
     /**
-     * @param AssistantMessage $data
+     * @param ToolCall $data
      *
      * @return array{
      *     role: Role::Assistant,
@@ -45,24 +40,18 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer implement
     public function normalize(mixed $data, ?string $format = null, array $context = []): array
     {
         return [
-            'role' => Role::Assistant,
-            'content' => $data->getContent() ?? '',
-            'tool_calls' => array_values(array_map(static function (ToolCall $message): array {
-                return [
-                    'type' => 'function',
-                    'function' => [
-                        'name' => $message->getName(),
-                        // stdClass forces empty object
-                        'arguments' => [] === $message->getArguments() ? new \stdClass() : $message->getArguments(),
-                    ],
-                ];
-            }, $data->getToolCalls() ?? [])),
+            'type' => 'function',
+            'function' => [
+                'name' => $data->getName(),
+                // stdClass forces empty object
+                'arguments' => [] === $data->getArguments() ? new \stdClass() : $data->getArguments(),
+            ],
         ];
     }
 
     protected function supportedDataClass(): string
     {
-        return AssistantMessage::class;
+        return ToolCall::class;
     }
 
     protected function supportsModel(Model $model): bool
