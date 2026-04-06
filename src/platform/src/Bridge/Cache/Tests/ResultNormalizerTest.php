@@ -14,6 +14,7 @@ namespace Symfony\AI\Platform\Bridge\Cache\Tests;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Cache\ResultNormalizer;
+use Symfony\AI\Platform\Contract\Normalizer\Result\ToolCallNormalizer;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Result\BinaryResult;
 use Symfony\AI\Platform\Result\ChoiceResult;
@@ -21,9 +22,12 @@ use Symfony\AI\Platform\Result\ObjectResult;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\StreamResult;
 use Symfony\AI\Platform\Result\TextResult;
+use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\AI\Platform\Result\VectorResult;
 use Symfony\AI\Platform\Vector\Vector;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Serializer;
 
 final class ResultNormalizerTest extends TestCase
 {
@@ -45,6 +49,7 @@ final class ResultNormalizerTest extends TestCase
     public function testNormalizerCannotNormalizeStreamResult()
     {
         $normalizer = new ResultNormalizer(new ObjectNormalizer());
+        new Serializer([new ToolCallNormalizer(), $normalizer]);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage(\sprintf('"%s" cannot be normalized.', StreamResult::class));
@@ -62,6 +67,7 @@ final class ResultNormalizerTest extends TestCase
     public function testNormalizerCanNormalize(ResultInterface $result, array $expectedOutput)
     {
         $normalizer = new ResultNormalizer(new ObjectNormalizer());
+        new Serializer([new ToolCallNormalizer(), $normalizer]);
 
         $this->assertSame($expectedOutput, $normalizer->normalize($result));
     }
@@ -140,6 +146,24 @@ final class ResultNormalizerTest extends TestCase
             [
                 'class' => TextResult::class,
                 'payload' => 'foo',
+            ],
+        ];
+        yield ToolCallResult::class => [
+            new ToolCallResult(
+                new ToolCall('call_123', 'get_weather', ['city' => 'Berlin']),
+            ),
+            [
+                'class' => ToolCallResult::class,
+                'payload' => [
+                    [
+                        'id' => 'call_123',
+                        'type' => 'function',
+                        'function' => [
+                            'name' => 'get_weather',
+                            'arguments' => '{"city":"Berlin"}',
+                        ],
+                    ],
+                ],
             ],
         ];
         yield VectorResult::class => [
