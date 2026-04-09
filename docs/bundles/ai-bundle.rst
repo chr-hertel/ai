@@ -56,6 +56,8 @@ Advanced Example with Multiple Agents
                 default: ~
                 eu:
                     bedrock_runtime_client: 'async_aws.client.bedrock_runtime_eu'
+            deepgram:
+                api_key: '%env(DEEPGRAM_API_KEY)%'
             elevenlabs:
                 api_key: '%env(ELEVEN_LABS_API_KEY)%'
             gemini:
