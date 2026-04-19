@@ -14,6 +14,8 @@ namespace Symfony\AI\Platform\Bridge\AiMlApi;
 use Symfony\AI\Platform\Bridge\AiMlApi\Contract\AssistantMessageNormalizer;
 use Symfony\AI\Platform\Bridge\Generic\Factory as GenericFactory;
 use Symfony\AI\Platform\Contract;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\ProviderInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -56,9 +58,12 @@ class Factory
         string $baseUrl = 'https://api.aimlapi.com',
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'aimlapi',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($apiKey, $httpClient, $contract, $baseUrl, $eventDispatcher, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($apiKey, $httpClient, $contract, $baseUrl, $eventDispatcher, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }

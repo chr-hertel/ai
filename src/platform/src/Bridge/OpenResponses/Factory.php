@@ -14,6 +14,8 @@ namespace Symfony\AI\Platform\Bridge\OpenResponses;
 use Symfony\AI\Platform\Bridge\OpenResponses\Contract\OpenResponsesContract;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\ProviderInterface;
@@ -63,9 +65,12 @@ class Factory
         ?EventDispatcherInterface $eventDispatcher = null,
         string $responsesPath = '/v1/responses',
         string $name = 'openresponses',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($baseUrl, $apiKey, $httpClient, $modelCatalog, $contract, $eventDispatcher, $responsesPath, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($baseUrl, $apiKey, $httpClient, $modelCatalog, $contract, $eventDispatcher, $responsesPath, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }

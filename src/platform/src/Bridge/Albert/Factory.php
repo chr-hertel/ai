@@ -14,6 +14,8 @@ namespace Symfony\AI\Platform\Bridge\Albert;
 use Symfony\AI\Platform\Bridge\Generic\Factory as GenericFactory;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\ProviderInterface;
 use Symfony\Component\HttpClient\EventSourceHttpClient;
@@ -73,9 +75,12 @@ final class Factory
         ModelCatalogInterface $modelCatalog = new ModelCatalog(),
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'albert',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($apiKey, $baseUrl, $httpClient, $modelCatalog, $eventDispatcher, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($apiKey, $baseUrl, $httpClient, $modelCatalog, $eventDispatcher, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }

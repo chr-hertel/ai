@@ -13,6 +13,8 @@ namespace Symfony\AI\Platform\Bridge\DeepSeek;
 
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\ProviderInterface;
@@ -55,9 +57,12 @@ final class Factory
         ?Contract $contract = null,
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'deepseek',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($apiKey, $httpClient, $modelCatalog, $contract, $eventDispatcher, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($apiKey, $httpClient, $modelCatalog, $contract, $eventDispatcher, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }

@@ -14,6 +14,8 @@ namespace Symfony\AI\Platform\Bridge\OpenAi;
 use Symfony\AI\Platform\Bridge\OpenAi\Contract\OpenAiContract;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\ProviderInterface;
@@ -76,9 +78,12 @@ final class Factory
         ?string $region = null,
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'openai',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($apiKey, $httpClient, $modelCatalog, $contract, $region, $eventDispatcher, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($apiKey, $httpClient, $modelCatalog, $contract, $region, $eventDispatcher, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }

@@ -13,6 +13,8 @@ namespace Symfony\AI\Platform\Bridge\Generic;
 
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\ProviderInterface;
@@ -72,9 +74,12 @@ class Factory
         string $completionsPath = '/v1/chat/completions',
         string $embeddingsPath = '/v1/embeddings',
         string $name = 'generic',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($baseUrl, $apiKey, $httpClient, $modelCatalog, $contract, $eventDispatcher, $supportsCompletions, $supportsEmbeddings, $completionsPath, $embeddingsPath, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($baseUrl, $apiKey, $httpClient, $modelCatalog, $contract, $eventDispatcher, $supportsCompletions, $supportsEmbeddings, $completionsPath, $embeddingsPath, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }

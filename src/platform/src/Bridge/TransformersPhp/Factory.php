@@ -14,6 +14,8 @@ namespace Symfony\AI\Platform\Bridge\TransformersPhp;
 use Codewithkyrian\Transformers\Transformers;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\ProviderInterface;
@@ -46,9 +48,12 @@ final class Factory
         ModelCatalogInterface $modelCatalog = new ModelCatalog(),
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'transformersphp',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($modelCatalog, $eventDispatcher, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($modelCatalog, $eventDispatcher, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }

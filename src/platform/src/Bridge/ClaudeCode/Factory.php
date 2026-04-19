@@ -16,6 +16,8 @@ use Psr\Log\NullLogger;
 use Symfony\AI\Platform\Bridge\ClaudeCode\Contract\ClaudeCodeContract;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
+use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\ProviderInterface;
@@ -65,9 +67,12 @@ final class Factory
         ?EventDispatcherInterface $eventDispatcher = null,
         LoggerInterface $logger = new NullLogger(),
         string $name = 'claudecode',
+        ?ModelRouterInterface $modelRouter = null,
     ): Platform {
-        return new Platform([
-            self::createProvider($cliBinary, $workingDirectory, $timeout, $environment, $modelCatalog, $contract, $eventDispatcher, $logger, $name),
-        ], eventDispatcher: $eventDispatcher);
+        return new Platform(
+            [self::createProvider($cliBinary, $workingDirectory, $timeout, $environment, $modelCatalog, $contract, $eventDispatcher, $logger, $name)],
+            $modelRouter ?? new CatalogBasedModelRouter(),
+            $eventDispatcher,
+        );
     }
 }
