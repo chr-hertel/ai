@@ -25,6 +25,7 @@ final class ToolCall implements ContentInterface
         private readonly string $id,
         private readonly string $name,
         private readonly array $arguments = [],
+        private readonly ?string $signature = null,
     ) {
     }
 
@@ -44,5 +45,15 @@ final class ToolCall implements ContentInterface
     public function getArguments(): array
     {
         return $this->arguments;
+    }
+
+    /**
+     * Provider-scoped signature guarding this tool call when replayed on a subsequent turn.
+     * Currently only Google Gemini / Vertex AI emit signatures on function-call parts (for
+     * parallel calls, only the first part carries one).
+     */
+    public function getSignature(): ?string
+    {
+        return $this->signature;
     }
 }

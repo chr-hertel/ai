@@ -85,7 +85,7 @@ final class Message
         }
 
         if ($part instanceof TextResult) {
-            return [new Text($part->getContent())];
+            return [new Text($part->getContent(), $part->getSignature())];
         }
 
         if ($part instanceof ThinkingResult) {

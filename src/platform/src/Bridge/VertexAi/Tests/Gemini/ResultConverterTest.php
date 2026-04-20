@@ -194,6 +194,47 @@ final class ResultConverterTest extends TestCase
         $this->assertSame('sig_abc', $parts[0]->getSignature());
     }
 
+    public function testConvertsSignedTextPartCarriesSignature()
+    {
+        $converter = new ResultConverter();
+        $httpResponse = $this->createMock(ResponseInterface::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+        $httpResponse->method('toArray')->willReturn([
+            'candidates' => [
+                ['content' => ['parts' => [
+                    ['text' => 'Signed visible text.', 'thoughtSignature' => 'sig_text'],
+                ]]],
+            ],
+        ]);
+
+        $result = $converter->convert(new RawHttpResult($httpResponse));
+
+        $this->assertInstanceOf(TextResult::class, $result);
+        $this->assertSame('Signed visible text.', $result->getContent());
+        $this->assertSame('sig_text', $result->getSignature());
+    }
+
+    public function testConvertsSignedFunctionCallCarriesSignature()
+    {
+        $converter = new ResultConverter();
+        $httpResponse = $this->createMock(ResponseInterface::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+        $httpResponse->method('toArray')->willReturn([
+            'candidates' => [
+                ['content' => ['parts' => [
+                    ['functionCall' => ['name' => 'run', 'args' => ['x' => 1]], 'thoughtSignature' => 'sig_call'],
+                ]]],
+            ],
+        ]);
+
+        $result = $converter->convert(new RawHttpResult($httpResponse));
+
+        $this->assertInstanceOf(ToolCallResult::class, $result);
+        $toolCalls = $result->getContent();
+        $this->assertCount(1, $toolCalls);
+        $this->assertSame('sig_call', $toolCalls[0]->getSignature());
+    }
+
     public function testConvertsInlineDataToBinaryResult()
     {
         $response = $this->createStub(ResponseInterface::class);

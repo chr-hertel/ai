@@ -149,10 +149,12 @@ final class ResultConverter implements ResultConverterInterface
      */
     private function convertPart(array $contentPart): ToolCallResult|TextResult|ThinkingResult|BinaryResult|ExecutableCodeResult|CodeExecutionResult|null
     {
+        $signature = $contentPart['thoughtSignature'] ?? null;
+
         return match (true) {
-            isset($contentPart['functionCall']) => new ToolCallResult([$this->convertToolCall($contentPart['functionCall'])]),
-            true === ($contentPart['thought'] ?? false) => new ThinkingResult($contentPart['text'] ?? '', $contentPart['thoughtSignature'] ?? null),
-            isset($contentPart['text']) => new TextResult($contentPart['text']),
+            isset($contentPart['functionCall']) => new ToolCallResult([$this->convertToolCall($contentPart['functionCall'], $signature)]),
+            true === ($contentPart['thought'] ?? false) => new ThinkingResult($contentPart['text'] ?? '', $signature),
+            isset($contentPart['text']) => new TextResult($contentPart['text'], $signature),
             isset($contentPart['inlineData']) => BinaryResult::fromBase64($contentPart['inlineData']['data'], $contentPart['inlineData']['mimeType'] ?? null),
             isset($contentPart['executableCode']) => new ExecutableCodeResult(
                 $contentPart['executableCode']['code'],
@@ -175,8 +177,8 @@ final class ResultConverter implements ResultConverterInterface
      *     args: mixed[]
      * } $toolCall
      */
-    private function convertToolCall(array $toolCall): ToolCall
+    private function convertToolCall(array $toolCall, ?string $signature = null): ToolCall
     {
-        return new ToolCall($toolCall['id'] ?? '', $toolCall['name'], $toolCall['args']);
+        return new ToolCall($toolCall['id'] ?? '', $toolCall['name'], $toolCall['args'], $signature);
     }
 }

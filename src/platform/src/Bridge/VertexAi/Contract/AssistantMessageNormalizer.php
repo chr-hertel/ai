@@ -38,7 +38,11 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer
 
         foreach ($data->getContent() as $part) {
             if ($part instanceof Text) {
-                $normalized[] = ['text' => $part->getText()];
+                $textPart = ['text' => $part->getText()];
+                if (null !== $part->getSignature()) {
+                    $textPart['thoughtSignature'] = $part->getSignature();
+                }
+                $normalized[] = $textPart;
                 continue;
             }
 
@@ -60,7 +64,11 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer
                     $functionCall['args'] = $part->getArguments();
                 }
 
-                $normalized[] = ['functionCall' => $functionCall];
+                $toolPart = ['functionCall' => $functionCall];
+                if (null !== $part->getSignature()) {
+                    $toolPart['thoughtSignature'] = $part->getSignature();
+                }
+                $normalized[] = $toolPart;
             }
         }
 

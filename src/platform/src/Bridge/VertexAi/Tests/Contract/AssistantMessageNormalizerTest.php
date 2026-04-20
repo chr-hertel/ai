@@ -99,5 +99,17 @@ final class AssistantMessageNormalizerTest extends TestCase
                 ['text' => 'Second thought.', 'thought' => true, 'thoughtSignature' => 'sig_2'],
             ],
         ];
+        yield 'signed text part (non-thought)' => [
+            new AssistantMessage(new Text('Signed visible text.', 'sig_text')),
+            [
+                ['text' => 'Signed visible text.', 'thoughtSignature' => 'sig_text'],
+            ],
+        ];
+        yield 'signed function call' => [
+            new AssistantMessage(new ToolCall('id1', 'run', ['x' => 1], 'sig_call')),
+            [
+                ['functionCall' => ['name' => 'run', 'args' => ['x' => 1]], 'thoughtSignature' => 'sig_call'],
+            ],
+        ];
     }
 }
