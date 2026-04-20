@@ -18,6 +18,7 @@ use Symfony\AI\Platform\Bridge\Gemini\Gemini;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Result\ToolCall;
 
 final class AssistantMessageNormalizerTest extends TestCase
@@ -68,6 +69,32 @@ final class AssistantMessageNormalizerTest extends TestCase
         yield 'function call without parameters' => [
             new AssistantMessage(new ToolCall('id1', 'name1')),
             [['functionCall' => ['id' => 'id1', 'name' => 'name1']]],
+        ];
+        yield 'thinking with signature' => [
+            new AssistantMessage(
+                new Thinking('Let me reason about this...', 'sig_abc123'),
+                new Text('The answer is 42.'),
+            ),
+            [
+                ['text' => 'Let me reason about this...', 'thought' => true, 'thoughtSignature' => 'sig_abc123'],
+                ['text' => 'The answer is 42.'],
+            ],
+        ];
+        yield 'thinking without signature' => [
+            new AssistantMessage(new Thinking('Quick thought.')),
+            [['text' => 'Quick thought.', 'thought' => true]],
+        ];
+        yield 'multiple thinking parts with signatures' => [
+            new AssistantMessage(
+                new Thinking('First thought.', 'sig_1'),
+                new Text('Intermediate.'),
+                new Thinking('Second thought.', 'sig_2'),
+            ),
+            [
+                ['text' => 'First thought.', 'thought' => true, 'thoughtSignature' => 'sig_1'],
+                ['text' => 'Intermediate.'],
+                ['text' => 'Second thought.', 'thought' => true, 'thoughtSignature' => 'sig_2'],
+            ],
         ];
     }
 }

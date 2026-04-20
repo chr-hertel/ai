@@ -16,6 +16,7 @@ use Symfony\AI\Platform\Bridge\VertexAi\Gemini\ResultConverter;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Model as BaseModel;
 use Symfony\AI\Platform\Result\ToolCall;
 
@@ -38,6 +39,15 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer
         foreach ($data->getContent() as $part) {
             if ($part instanceof Text) {
                 $normalized[] = ['text' => $part->getText()];
+                continue;
+            }
+
+            if ($part instanceof Thinking) {
+                $thoughtPart = ['text' => $part->getContent(), 'thought' => true];
+                if (null !== $part->getSignature()) {
+                    $thoughtPart['thoughtSignature'] = $part->getSignature();
+                }
+                $normalized[] = $thoughtPart;
                 continue;
             }
 

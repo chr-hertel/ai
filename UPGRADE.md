@@ -21,8 +21,55 @@ AI Bundle
    +$container->get('ai.platform.response_format_factory');
    ```
 
+Chat
+----
+
+ * `MessageNormalizer` now emits an ordered `parts` field for `AssistantMessage` to preserve the sequence
+   of `Text`, `Thinking`, and `ToolCall` blocks. Payloads stored under the previous format (only `content`
+   and `toolsCalls`) still denormalize, but the ordering between text and tool calls is not reconstructed.
+   Re-normalize stored chat history to upgrade it to the new format.
+
 Platform
 --------
+
+ * `AssistantMessage` now takes a variadic list of `ContentInterface` parts instead of a single string
+   content plus separate `toolCalls`/`thinkingContent`/`thinkingSignature` arguments. A new
+   `Symfony\AI\Platform\Message\Content\Thinking` class represents thinking/reasoning blocks, and
+   `Symfony\AI\Platform\Result\ToolCall` now implements `ContentInterface` so it can be passed directly
+   as an assistant part:
+
+   ```diff
+   -new AssistantMessage(
+   -    content: 'Hello',
+   -    toolCalls: [new ToolCall('id1', 'fn', ['a' => 1])],
+   -    thinkingContent: 'reasoning',
+   -    thinkingSignature: 'sig',
+   -);
+   +new AssistantMessage(
+   +    new Thinking('reasoning', 'sig'),
+   +    new Text('Hello'),
+   +    new ToolCall('id1', 'fn', ['a' => 1]),
+   +);
+   ```
+
+   `AssistantMessage::getContent()` now returns `ContentInterface[]` (symmetric with `UserMessage`).
+   Use `AssistantMessage::asText()` to get the concatenated text. `getToolCalls()` returns a (possibly
+   empty) array of `ToolCall`s — no longer `?array`. `getThinking()` returns a (possibly empty) array of
+   `Thinking` parts and replaces `hasThinkingContent()`/`getThinkingContent()`/`getThinkingSignature()`.
+
+ * `Message::ofAssistant()` is now variadic and accepts `string`, `ContentInterface`, or `ResultInterface`
+   arguments. Strings and `TextResult` become `Text`; `ThinkingResult` becomes `Thinking`; `ToolCallResult`
+   is unwrapped to its inner `ToolCall`s; `MultiPartResult` is recursively mapped. Structured outputs
+   (`ObjectResult`, `BinaryResult`, …) are not auto-mapped and must be stringified by the caller:
+
+   ```diff
+   -Message::ofAssistant($objectResult);
+   +Message::ofAssistant($objectResult->getContent()->toString());
+   ```
+
+ * `MessageInterface::getContent()` return type no longer includes `ResultInterface`. Any custom
+   implementation of `MessageInterface` that previously declared `ResultInterface` in its union return
+   type must be updated accordingly.
 
  * The `#[With]` attribute has been renamed to `#[Schema]`. The `WithAttributeDescriber` class has been renamed to
    `SchemaAttributeDescriber` and the related service id `ai.platform.json_schema.describer.with_attribute` to

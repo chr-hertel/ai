@@ -16,6 +16,7 @@ use Symfony\AI\Chat\MessageNormalizer;
 use Symfony\AI\Platform\Contract\Normalizer\Result\ToolCallNormalizer;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\Role;
@@ -148,6 +149,42 @@ final class MessageNormalizerTest extends TestCase
         $this->assertSame('call-2', $toolCalls[1]->getId());
         $this->assertSame('get_time', $toolCalls[1]->getName());
         $this->assertSame([], $toolCalls[1]->getArguments());
+    }
+
+    public function testItPreservesAssistantPartOrderingAcrossRoundtrip()
+    {
+        $serializer = new Serializer([
+            new ArrayDenormalizer(),
+            new ToolCallNormalizer(),
+            new MessageNormalizer(),
+        ], [new JsonEncoder()]);
+
+        $message = new AssistantMessage(
+            new Thinking('First thought.', 'sig_1'),
+            new Text('Intermediate text.'),
+            new ToolCall('call-1', 'run', ['x' => 1]),
+            new Thinking('Second thought.', 'sig_2'),
+            new Text('Trailing text.'),
+        );
+
+        $payload = $serializer->normalize($message);
+        /** @var AssistantMessage $denormalized */
+        $denormalized = $serializer->denormalize($payload, MessageInterface::class);
+
+        $parts = $denormalized->getContent();
+        $this->assertCount(5, $parts);
+        $this->assertInstanceOf(Thinking::class, $parts[0]);
+        $this->assertSame('First thought.', $parts[0]->getContent());
+        $this->assertSame('sig_1', $parts[0]->getSignature());
+        $this->assertInstanceOf(Text::class, $parts[1]);
+        $this->assertSame('Intermediate text.', $parts[1]->getText());
+        $this->assertInstanceOf(ToolCall::class, $parts[2]);
+        $this->assertSame('call-1', $parts[2]->getId());
+        $this->assertInstanceOf(Thinking::class, $parts[3]);
+        $this->assertSame('Second thought.', $parts[3]->getContent());
+        $this->assertSame('sig_2', $parts[3]->getSignature());
+        $this->assertInstanceOf(Text::class, $parts[4]);
+        $this->assertSame('Trailing text.', $parts[4]->getText());
     }
 
     public function testItCanNormalizeAndDenormalizeToolCallMessage()

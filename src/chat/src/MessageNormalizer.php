@@ -55,7 +55,7 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
 
         $message = match ($type) {
             SystemMessage::class => new SystemMessage($content),
-            AssistantMessage::class => new AssistantMessage(...self::buildAssistantParts($data)),
+            AssistantMessage::class => new AssistantMessage(...self::denormalizeAssistantParts($data)),
             UserMessage::class => new UserMessage(...array_map(
                 static fn (array $contentAsBase64): ContentInterface => \in_array($contentAsBase64['type'], [File::class, Image::class, Audio::class], true)
                     ? $contentAsBase64['type']::fromDataUrl($contentAsBase64['content'])
@@ -102,16 +102,14 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
         }
 
         $toolsCalls = [];
-        $thinking = [];
+        $parts = [];
         $content = '';
 
         if ($data instanceof AssistantMessage) {
             $content = $data->asText() ?? '';
+            $parts = $this->normalizeAssistantParts($data, $format, $context);
             if ($data->hasToolCalls()) {
                 $toolsCalls = $this->normalizer->normalize($data->getToolCalls(), $format, $context);
-            }
-            foreach ($data->getThinking() as $part) {
-                $thinking[] = ['content' => $part->getContent(), 'signature' => $part->getSignature()];
             }
         } elseif ($data instanceof SystemMessage) {
             $content = $data->getContent();
@@ -141,7 +139,7 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
                 $data->getContent(),
             ) : [],
             'toolsCalls' => $toolsCalls,
-            'thinking' => $thinking,
+            'parts' => $parts,
             'metadata' => $data->getMetadata()->all(),
             'addedAt' => (new \DateTimeImmutable())->getTimestamp(),
         ];
@@ -160,18 +158,53 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
     }
 
     /**
+     * @param array<string, mixed> $context
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeAssistantParts(AssistantMessage $message, ?string $format, array $context): array
+    {
+        $parts = [];
+        foreach ($message->getContent() as $part) {
+            if ($part instanceof Text) {
+                $parts[] = ['type' => Text::class, 'text' => $part->getText()];
+            } elseif ($part instanceof Thinking) {
+                $parts[] = ['type' => Thinking::class, 'content' => $part->getContent(), 'signature' => $part->getSignature()];
+            } elseif ($part instanceof ToolCall) {
+                $parts[] = ['type' => ToolCall::class, 'toolCall' => $this->normalizer->normalize($part, $format, $context)];
+            }
+        }
+
+        return $parts;
+    }
+
+    /**
      * @param array<string, mixed> $data
      *
      * @return list<ContentInterface>
      */
-    private static function buildAssistantParts(array $data): array
+    private static function denormalizeAssistantParts(array $data): array
     {
-        $parts = [];
+        if (isset($data['parts']) && [] !== $data['parts']) {
+            $parts = [];
+            foreach ($data['parts'] as $part) {
+                $parts[] = match ($part['type']) {
+                    Text::class => new Text($part['text']),
+                    Thinking::class => new Thinking($part['content'] ?? '', $part['signature'] ?? null),
+                    ToolCall::class => new ToolCall(
+                        $part['toolCall']['id'],
+                        $part['toolCall']['function']['name'],
+                        json_decode($part['toolCall']['function']['arguments'], true),
+                    ),
+                    default => throw new LogicException(\sprintf('Unknown assistant part type "%s".', $part['type'])),
+                };
+            }
 
-        foreach ($data['thinking'] ?? [] as $thinking) {
-            $parts[] = new Thinking($thinking['content'] ?? '', $thinking['signature'] ?? null);
+            return $parts;
         }
 
+        // Legacy format: content + toolsCalls (no ordering preserved).
+        $parts = [];
         $content = $data['content'] ?? '';
         if ('' !== $content) {
             $parts[] = new Text($content);

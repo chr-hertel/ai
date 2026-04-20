@@ -4,6 +4,8 @@ CHANGELOG
 0.8
 ---
 
+ * [BC BREAK] Rework `AssistantMessage` to hold `ContentInterface` parts (variadic constructor) instead of a single string content plus separate tool-call/thinking fields. Introduces `Message\Content\Thinking` as a first-class content block and makes `Result\ToolCall` implement `ContentInterface`. `Message::ofAssistant()` accepts strings, `ContentInterface` instances, and `ResultInterface` values (mapping `TextResult`, `ThinkingResult`, `ToolCallResult` and `MultiPartResult` to their content equivalents).
+ * Add `thought`/`thoughtSignature` round-trip in Gemini and VertexAI bridges: `ResultConverter` emits a `ThinkingResult` for a part with `thought: true`, and `AssistantMessageNormalizer` sends `Thinking` content parts back with `thought: true` (and `thoughtSignature` when set).
  * [BC BREAK] Reduce visibility of `ImageResult::$revisedPrompt` to `private readonly`; use `getRevisedPrompt()` instead
  * Add `MultiPartResult` for exposing the parts inside a message
  * Add `ExecutableCodeResult`, `CodeExecutionResult` for exposing the executed code blocks and results

@@ -26,6 +26,7 @@ use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 use Symfony\AI\Platform\Result\Stream\Delta\ToolCallComplete;
 use Symfony\AI\Platform\Result\StreamResult;
 use Symfony\AI\Platform\Result\TextResult;
+use Symfony\AI\Platform\Result\ThinkingResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -163,6 +164,34 @@ final class ResultConverterTest extends TestCase
         ];
 
         $this->assertEquals($parts, $result->getContent());
+    }
+
+    public function testConvertsThoughtPartToThinkingResult()
+    {
+        $converter = new ResultConverter();
+        $httpResponse = $this->createMock(ResponseInterface::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+        $httpResponse->method('toArray')->willReturn([
+            'candidates' => [
+                [
+                    'content' => [
+                        'parts' => [
+                            ['text' => 'Reasoning step.', 'thought' => true, 'thoughtSignature' => 'sig_abc'],
+                            ['text' => 'Final answer.'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = $converter->convert(new RawHttpResult($httpResponse));
+
+        $this->assertInstanceOf(MultiPartResult::class, $result);
+        $parts = $result->getContent();
+        $this->assertCount(2, $parts);
+        $this->assertInstanceOf(ThinkingResult::class, $parts[0]);
+        $this->assertSame('Reasoning step.', $parts[0]->getContent());
+        $this->assertSame('sig_abc', $parts[0]->getSignature());
     }
 
     public function testConvertsInlineDataToBinaryResult()
