@@ -9,20 +9,23 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\Platform\Result;
+namespace Symfony\AI\Platform\Message\Content;
 
 /**
- * Represents a separate thinking block/part.
+ * Represents a thinking/reasoning block emitted by an assistant.
+ *
+ * The optional signature is used by providers such as Anthropic to verify
+ * thinking blocks when they are replayed on a subsequent turn.
  */
-final class ThinkingResult extends BaseResult
+final class Thinking implements ContentInterface
 {
     public function __construct(
-        private readonly ?string $content = null,
+        private readonly string $content,
         private readonly ?string $signature = null,
     ) {
     }
 
-    public function getContent(): ?string
+    public function getContent(): string
     {
         return $this->content;
     }

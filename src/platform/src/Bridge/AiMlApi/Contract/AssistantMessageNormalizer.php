@@ -12,10 +12,9 @@
 namespace Symfony\AI\Platform\Bridge\AiMlApi\Contract;
 
 use Symfony\AI\Platform\Message\AssistantMessage;
-use Symfony\AI\Platform\Result\MultiPartResult;
-use Symfony\AI\Platform\Result\TextResult;
-use Symfony\AI\Platform\Result\ThinkingResult;
-use Symfony\AI\Platform\Result\ToolCallResult;
+use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Content\Thinking;
+use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
@@ -46,32 +45,33 @@ final class AssistantMessageNormalizer implements NormalizerInterface, Normalize
      */
     public function normalize(mixed $data, ?string $format = null, array $context = []): array
     {
-        $content = $data->getContent();
+        $text = '';
+        $reasoning = '';
+        $toolCalls = [];
 
-        if ($content instanceof MultiPartResult) {
-            $array = [
-                'role' => $data->getRole()->value,
-                'content' => '',
-            ];
-
-            foreach ($content as $part) {
-                if ($part instanceof TextResult) {
-                    $array['content'] .= $part->getContent();
-                } elseif ($part instanceof ToolCallResult) {
-                    $array['tool_calls'] = array_merge($array['tool_calls'] ?? [], $this->normalizer->normalize($part->getContent(), $format, $context));
-                } elseif ($part instanceof ThinkingResult) {
-                    $array['reasoning_content'] = ($array['reasoning_content'] ?? '').$part->getContent();
-                }
+        foreach ($data->getContent() as $part) {
+            if ($part instanceof Text) {
+                $text .= $part->getText();
+            } elseif ($part instanceof Thinking) {
+                $reasoning .= $part->getContent();
+            } elseif ($part instanceof ToolCall) {
+                $toolCalls[] = $part;
             }
-
-            return $array;
         }
 
-        $content = $data->getContent()?->getContent();
-
-        return [
+        $array = [
             'role' => $data->getRole()->value,
-            'content' => $content,
+            'content' => $text,
         ];
+
+        if ([] !== $toolCalls) {
+            $array['tool_calls'] = $this->normalizer->normalize($toolCalls, $format, $context);
+        }
+
+        if ('' !== $reasoning) {
+            $array['reasoning_content'] = $reasoning;
+        }
+
+        return $array;
     }
 }

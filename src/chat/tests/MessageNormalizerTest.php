@@ -107,9 +107,9 @@ final class MessageNormalizerTest extends TestCase
             new MessageNormalizer(),
         ], [new JsonEncoder()]);
 
-        $message = new AssistantMessage('', [
+        $message = new AssistantMessage(
             new ToolCall('call-1', 'get_weather', ['city' => 'Paris']),
-        ]);
+        );
 
         $payload = $serializer->normalize($message);
 
@@ -129,10 +129,10 @@ final class MessageNormalizerTest extends TestCase
             new MessageNormalizer(),
         ], [new JsonEncoder()]);
 
-        $message = new AssistantMessage('', [
+        $message = new AssistantMessage(
             new ToolCall('call-1', 'get_weather', ['city' => 'Paris']),
             new ToolCall('call-2', 'get_time', []),
-        ]);
+        );
 
         $payload = $serializer->normalize($message);
         $denormalized = $serializer->denormalize($payload, MessageInterface::class);

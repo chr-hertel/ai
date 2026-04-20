@@ -15,10 +15,9 @@ use Symfony\AI\Platform\Bridge\VertexAi\Gemini\Model;
 use Symfony\AI\Platform\Bridge\VertexAi\Gemini\ResultConverter;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
 use Symfony\AI\Platform\Message\AssistantMessage;
+use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Model as BaseModel;
-use Symfony\AI\Platform\Result\MultiPartResult;
-use Symfony\AI\Platform\Result\TextResult;
-use Symfony\AI\Platform\Result\ToolCallResult;
+use Symfony\AI\Platform\Result\ToolCall;
 
 /**
  * @author Junaid Farooq <ulislam.junaid125@gmail.com>
@@ -36,29 +35,26 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer
     {
         $normalized = [];
 
-        $parts = $data->getContent();
-        if (!$parts instanceof MultiPartResult) {
-            $parts = [$parts];
-        }
-
-        foreach ($parts as $i => $content) {
-            if ($content instanceof TextResult) {
-                $normalized[$i]['text'] = $content->getContent();
+        foreach ($data->getContent() as $part) {
+            if ($part instanceof Text) {
+                $normalized[] = ['text' => $part->getText()];
+                continue;
             }
 
-            if ($content instanceof ToolCallResult) {
-                $toolCall = $content->getContent()[0];
-                $normalized[$i]['functionCall'] = [
-                    'name' => $toolCall->getName(),
+            if ($part instanceof ToolCall) {
+                $functionCall = [
+                    'name' => $part->getName(),
                 ];
 
-                if ($toolCall->getArguments()) {
-                    $normalized[$i]['functionCall']['args'] = $toolCall->getArguments();
+                if ([] !== $part->getArguments()) {
+                    $functionCall['args'] = $part->getArguments();
                 }
+
+                $normalized[] = ['functionCall' => $functionCall];
             }
         }
 
-        return array_values($normalized);
+        return $normalized;
     }
 
     protected function supportedDataClass(): string

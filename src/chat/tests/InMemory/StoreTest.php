@@ -18,7 +18,6 @@ use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
-use Symfony\AI\Platform\Result\TextResult;
 
 final class StoreTest extends TestCase
 {
@@ -110,7 +109,7 @@ final class StoreTest extends TestCase
         $store = new Store();
         $store->setup();
         $store->save(new MessageBag(new UserMessage(new Text('Hello'))));
-        $store->save(new MessageBag(new UserMessage(new Text('Hello')), new AssistantMessage(new TextResult('Hi'))));
+        $store->save(new MessageBag(new UserMessage(new Text('Hello')), new AssistantMessage(new Text('Hi'))));
 
         $this->assertCount(2, $store->load());
 

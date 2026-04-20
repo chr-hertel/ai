@@ -17,11 +17,9 @@ use Symfony\AI\Platform\Bridge\Anthropic\Claude;
 use Symfony\AI\Platform\Bridge\Anthropic\Contract\AssistantMessageNormalizer;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\AssistantMessage;
-use Symfony\AI\Platform\Result\MultiPartResult;
-use Symfony\AI\Platform\Result\TextResult;
-use Symfony\AI\Platform\Result\ThinkingResult;
+use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Result\ToolCall;
-use Symfony\AI\Platform\Result\ToolCallResult;
 
 final class AssistantMessageNormalizerTest extends TestCase
 {
@@ -29,7 +27,7 @@ final class AssistantMessageNormalizerTest extends TestCase
     {
         $normalizer = new AssistantMessageNormalizer();
 
-        $this->assertTrue($normalizer->supportsNormalization(new AssistantMessage(new TextResult('Hello')), context: [
+        $this->assertTrue($normalizer->supportsNormalization(new AssistantMessage(new Text('Hello')), context: [
             Contract::CONTEXT_MODEL => new Claude('claude-3-5-sonnet-latest'),
         ]));
         $this->assertFalse($normalizer->supportsNormalization('not an assistant message'));
@@ -75,14 +73,14 @@ final class AssistantMessageNormalizerTest extends TestCase
     public static function normalizeDataProvider(): iterable
     {
         yield 'assistant message' => [
-            new AssistantMessage(new TextResult('Great to meet you. What would you like to know?')),
+            new AssistantMessage(new Text('Great to meet you. What would you like to know?')),
             [
                 'role' => 'assistant',
                 'content' => 'Great to meet you. What would you like to know?',
             ],
         ];
         yield 'function call' => [
-            new AssistantMessage(new ToolCallResult([new ToolCall('id1', 'name1', ['arg1' => '123'])])),
+            new AssistantMessage(new ToolCall('id1', 'name1', ['arg1' => '123'])),
             [
                 'role' => 'assistant',
                 'content' => [
@@ -96,7 +94,7 @@ final class AssistantMessageNormalizerTest extends TestCase
             ],
         ];
         yield 'function call without parameters' => [
-            new AssistantMessage(new ToolCallResult([new ToolCall('id1', 'name1')])),
+            new AssistantMessage(new ToolCall('id1', 'name1')),
             [
                 'role' => 'assistant',
                 'content' => [
@@ -112,10 +110,8 @@ final class AssistantMessageNormalizerTest extends TestCase
 
         yield 'text prefix with single tool call' => [
             new AssistantMessage(
-                new MultiPartResult([
-                    new TextResult('I\'ll look that up for you.'),
-                    new ToolCallResult([new ToolCall('id1', 'search', ['query' => 'symfony'])]),
-                ]),
+                new Text('I\'ll look that up for you.'),
+                new ToolCall('id1', 'search', ['query' => 'symfony']),
             ),
             [
                 'role' => 'assistant',
@@ -128,13 +124,9 @@ final class AssistantMessageNormalizerTest extends TestCase
 
         yield 'text prefix with multiple tool calls' => [
             new AssistantMessage(
-                new MultiPartResult([
-                    new TextResult('Let me run both tools.'),
-                    new ToolCallResult([
-                        new ToolCall('id1', 'read', ['path' => '/etc/hosts']),
-                        new ToolCall('id2', 'write', ['path' => '/tmp/out', 'content' => 'ok']),
-                    ]),
-                ]),
+                new Text('Let me run both tools.'),
+                new ToolCall('id1', 'read', ['path' => '/etc/hosts']),
+                new ToolCall('id2', 'write', ['path' => '/tmp/out', 'content' => 'ok']),
             ),
             [
                 'role' => 'assistant',
@@ -148,10 +140,8 @@ final class AssistantMessageNormalizerTest extends TestCase
 
         yield 'text prefix with no-argument tool call' => [
             new AssistantMessage(
-                new MultiPartResult([
-                    new TextResult('Checking the current date.'),
-                    new ToolCallResult([new ToolCall('id1', 'get_date')]),
-                ]),
+                new Text('Checking the current date.'),
+                new ToolCall('id1', 'get_date'),
             ),
             [
                 'role' => 'assistant',
@@ -164,10 +154,8 @@ final class AssistantMessageNormalizerTest extends TestCase
 
         yield 'thinking with text' => [
             new AssistantMessage(
-                new MultiPartResult([
-                    new ThinkingResult('Let me reason about this...', 'sig_abc123'),
-                    new TextResult('The answer is 42.'),
-                ]),
+                new Thinking('Let me reason about this...', 'sig_abc123'),
+                new Text('The answer is 42.'),
             ),
             [
                 'role' => 'assistant',
@@ -180,11 +168,9 @@ final class AssistantMessageNormalizerTest extends TestCase
 
         yield 'thinking with text and tool calls' => [
             new AssistantMessage(
-                new MultiPartResult([
-                    new ThinkingResult('I need to look this up.', 'sig_xyz'),
-                    new TextResult('Let me search.'),
-                    new ToolCallResult([new ToolCall('id1', 'search', ['query' => 'symfony'])]),
-                ]),
+                new Thinking('I need to look this up.', 'sig_xyz'),
+                new Text('Let me search.'),
+                new ToolCall('id1', 'search', ['query' => 'symfony']),
             ),
             [
                 'role' => 'assistant',
@@ -198,10 +184,8 @@ final class AssistantMessageNormalizerTest extends TestCase
 
         yield 'thinking without signature' => [
             new AssistantMessage(
-                new MultiPartResult([
-                    new ThinkingResult('Quick thought.'),
-                    new TextResult('Done.'),
-                ]),
+                new Thinking('Quick thought.'),
+                new Text('Done.'),
             ),
             [
                 'role' => 'assistant',
@@ -214,10 +198,8 @@ final class AssistantMessageNormalizerTest extends TestCase
 
         yield 'thinking with tool calls but no text' => [
             new AssistantMessage(
-                new MultiPartResult([
-                    new ThinkingResult('I should read this file.', 'sig_123'),
-                    new ToolCallResult([new ToolCall('id1', 'read', ['path' => '/etc/hosts'])]),
-                ]),
+                new Thinking('I should read this file.', 'sig_123'),
+                new ToolCall('id1', 'read', ['path' => '/etc/hosts']),
             ),
             [
                 'role' => 'assistant',

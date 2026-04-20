@@ -14,20 +14,16 @@ namespace Symfony\AI\Platform\Bridge\Anthropic\Contract;
 use Symfony\AI\Platform\Bridge\Anthropic\Claude;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
 use Symfony\AI\Platform\Message\AssistantMessage;
+use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Model;
-use Symfony\AI\Platform\Result\TextResult;
-use Symfony\AI\Platform\Result\ThinkingResult;
-use Symfony\AI\Platform\Result\ToolCallResult;
-use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
-use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
+use Symfony\AI\Platform\Result\ToolCall;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class AssistantMessageNormalizer extends ModelContractNormalizer implements NormalizerAwareInterface
+final class AssistantMessageNormalizer extends ModelContractNormalizer
 {
-    use NormalizerAwareTrait;
-
     /**
      * @param AssistantMessage $data
      *
@@ -46,53 +42,41 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer implement
      */
     public function normalize(mixed $data, ?string $format = null, array $context = []): array
     {
-        $content = $data->getContent();
+        $parts = $data->getContent();
 
-        if (!is_iterable($content)) {
-            if (!$data->hasToolCalls() && !$data->hasThinking()) {
-                $value = $content->getContent();
-                return [
-                    'role' => 'assistant',
-                    'content' => match (true) {
-                        $content instanceof TextResult, \is_string($value) => $value,
-                        $value instanceof \Stringable => (string) $value,
-                        default => $this->normalizer->normalize($value, $format, $context),
-                    },
-                ];
-            }
-
-            $content = [$content];
+        if (1 === \count($parts) && $parts[0] instanceof Text) {
+            return [
+                'role' => 'assistant',
+                'content' => $parts[0]->getText(),
+            ];
         }
 
         $blocks = [];
-
-        foreach ($content as $block) {
-            if ($block instanceof ThinkingResult) {
-                $thinkingBlock = [
+        foreach ($parts as $part) {
+            if ($part instanceof Thinking) {
+                $block = [
                     'type' => 'thinking',
-                    'thinking' => $block->getContent(),
+                    'thinking' => $part->getContent(),
                 ];
-                if (null !== $block->getSignature()) {
-                    $thinkingBlock['signature'] = $block->getSignature();
+                if (null !== $part->getSignature()) {
+                    $block['signature'] = $part->getSignature();
                 }
-                $blocks[] = $thinkingBlock;
+                $blocks[] = $block;
                 continue;
             }
 
-            if ($block instanceof TextResult) {
-                $blocks[] = ['type' => 'text', 'text' => $block->getContent()];
+            if ($part instanceof Text) {
+                $blocks[] = ['type' => 'text', 'text' => $part->getText()];
                 continue;
             }
 
-            if ($block instanceof ToolCallResult) {
-                foreach ($block->getContent() as $toolCall) {
-                    $blocks[] = [
-                        'type' => 'tool_use',
-                        'id' => $toolCall->getId(),
-                        'name' => $toolCall->getName(),
-                        'input' => [] !== $toolCall->getArguments() ? $toolCall->getArguments() : new \stdClass(),
-                    ];
-                }
+            if ($part instanceof ToolCall) {
+                $blocks[] = [
+                    'type' => 'tool_use',
+                    'id' => $part->getId(),
+                    'name' => $part->getName(),
+                    'input' => [] !== $part->getArguments() ? $part->getArguments() : new \stdClass(),
+                ];
             }
         }
 

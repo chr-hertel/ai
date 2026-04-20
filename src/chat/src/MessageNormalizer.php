@@ -21,6 +21,7 @@ use Symfony\AI\Platform\Message\Content\File;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Content\ImageUrl;
 use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\SystemMessage;
 use Symfony\AI\Platform\Message\ToolCallMessage;
@@ -54,14 +55,7 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
 
         $message = match ($type) {
             SystemMessage::class => new SystemMessage($content),
-            AssistantMessage::class => new AssistantMessage($content, array_map(
-                static fn (array $toolsCall): ToolCall => new ToolCall(
-                    $toolsCall['id'],
-                    $toolsCall['function']['name'],
-                    json_decode($toolsCall['function']['arguments'], true)
-                ),
-                $data['toolsCalls'],
-            )),
+            AssistantMessage::class => new AssistantMessage(...self::buildAssistantParts($data)),
             UserMessage::class => new UserMessage(...array_map(
                 static fn (array $contentAsBase64): ContentInterface => \in_array($contentAsBase64['type'], [File::class, Image::class, Audio::class], true)
                     ? $contentAsBase64['type']::fromDataUrl($contentAsBase64['content'])
@@ -108,19 +102,28 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
         }
 
         $toolsCalls = [];
+        $thinking = [];
+        $content = '';
 
-        if ($data instanceof AssistantMessage && $data->hasToolCalls()) {
-            $toolsCalls = $this->normalizer->normalize($data->getToolCalls(), $format, $context);
-        }
-
-        if ($data instanceof ToolCallMessage) {
+        if ($data instanceof AssistantMessage) {
+            $content = $data->asText() ?? '';
+            if ($data->hasToolCalls()) {
+                $toolsCalls = $this->normalizer->normalize($data->getToolCalls(), $format, $context);
+            }
+            foreach ($data->getThinking() as $part) {
+                $thinking[] = ['content' => $part->getContent(), 'signature' => $part->getSignature()];
+            }
+        } elseif ($data instanceof SystemMessage) {
+            $content = $data->getContent();
+        } elseif ($data instanceof ToolCallMessage) {
+            $content = $data->getContent();
             $toolsCalls = $this->normalizer->normalize($data->getToolCall(), $format, $context);
         }
 
         return [
             $context['identifier'] ?? 'id' => $data->getId()->toRfc4122(),
             'type' => $data::class,
-            'content' => ($data instanceof SystemMessage || $data instanceof AssistantMessage || $data instanceof ToolCallMessage) ? $data->getContent() : '',
+            'content' => $content,
             'contentAsBase64' => ($data instanceof UserMessage && [] !== $data->getContent()) ? array_map(
                 static fn (ContentInterface $content) => [
                     'type' => $content::class,
@@ -138,6 +141,7 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
                 $data->getContent(),
             ) : [],
             'toolsCalls' => $toolsCalls,
+            'thinking' => $thinking,
             'metadata' => $data->getMetadata()->all(),
             'addedAt' => (new \DateTimeImmutable())->getTimestamp(),
         ];
@@ -153,5 +157,34 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
         return [
             MessageInterface::class => true,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return list<ContentInterface>
+     */
+    private static function buildAssistantParts(array $data): array
+    {
+        $parts = [];
+
+        foreach ($data['thinking'] ?? [] as $thinking) {
+            $parts[] = new Thinking($thinking['content'] ?? '', $thinking['signature'] ?? null);
+        }
+
+        $content = $data['content'] ?? '';
+        if ('' !== $content) {
+            $parts[] = new Text($content);
+        }
+
+        foreach ($data['toolsCalls'] ?? [] as $toolCall) {
+            $parts[] = new ToolCall(
+                $toolCall['id'],
+                $toolCall['function']['name'],
+                json_decode($toolCall['function']['arguments'], true),
+            );
+        }
+
+        return $parts;
     }
 }

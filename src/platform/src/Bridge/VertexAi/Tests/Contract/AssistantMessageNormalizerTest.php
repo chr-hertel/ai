@@ -17,9 +17,8 @@ use Symfony\AI\Platform\Bridge\VertexAi\Contract\AssistantMessageNormalizer;
 use Symfony\AI\Platform\Bridge\VertexAi\Gemini\Model;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\AssistantMessage;
-use Symfony\AI\Platform\Result\TextResult;
+use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Result\ToolCall;
-use Symfony\AI\Platform\Result\ToolCallResult;
 
 final class AssistantMessageNormalizerTest extends TestCase
 {
@@ -27,7 +26,7 @@ final class AssistantMessageNormalizerTest extends TestCase
     {
         $normalizer = new AssistantMessageNormalizer();
 
-        $this->assertTrue($normalizer->supportsNormalization(new AssistantMessage(new TextResult('Hello')), context: [
+        $this->assertTrue($normalizer->supportsNormalization(new AssistantMessage(new Text('Hello')), context: [
             Contract::CONTEXT_MODEL => new Model('gemini-2.5-pro'),
         ]));
         $this->assertFalse($normalizer->supportsNormalization('not an assistant message'));
@@ -62,15 +61,15 @@ final class AssistantMessageNormalizerTest extends TestCase
     public static function normalizeDataProvider(): iterable
     {
         yield 'assistant message' => [
-            new AssistantMessage(new TextResult('Great to meet you. What would you like to know?')),
+            new AssistantMessage(new Text('Great to meet you. What would you like to know?')),
             [['text' => 'Great to meet you. What would you like to know?']],
         ];
         yield 'function call' => [
-            new AssistantMessage(new ToolCallResult([new ToolCall('name1', 'name1', ['arg1' => '123'])])),
+            new AssistantMessage(new ToolCall('name1', 'name1', ['arg1' => '123'])),
             [['functionCall' => ['name' => 'name1', 'args' => ['arg1' => '123']]]],
         ];
         yield 'function call without parameters' => [
-            new AssistantMessage(new ToolCallResult([new ToolCall('name1', 'name1')])),
+            new AssistantMessage(new ToolCall('name1', 'name1')),
             [['functionCall' => ['name' => 'name1']]],
         ];
     }

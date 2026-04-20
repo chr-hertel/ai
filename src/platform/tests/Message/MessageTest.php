@@ -16,9 +16,7 @@ use Symfony\AI\Platform\Message\Content\ContentInterface;
 use Symfony\AI\Platform\Message\Content\ImageUrl;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Message;
-use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ToolCall;
-use Symfony\AI\Platform\Result\ToolCallResult;
 
 final class MessageTest extends TestCase
 {
@@ -45,8 +43,9 @@ final class MessageTest extends TestCase
     {
         $message = Message::ofAssistant('It is time to sleep.');
 
-        $this->assertInstanceOf(TextResult::class, $message->getContent());
-        $this->assertSame('It is time to sleep.', $message->getContent()->getContent());
+        $this->assertCount(1, $message->getContent());
+        $this->assertInstanceOf(Text::class, $message->getContent()[0]);
+        $this->assertSame('It is time to sleep.', $message->asText());
     }
 
     public function testCreateAssistantMessageWithToolCalls()
@@ -55,7 +54,7 @@ final class MessageTest extends TestCase
             new ToolCall('call_123456', 'my_tool', ['foo' => 'bar']),
             new ToolCall('call_456789', 'my_faster_tool'),
         ];
-        $message = Message::ofAssistant(new ToolCallResult($toolCalls));
+        $message = Message::ofAssistant(...$toolCalls);
 
         $this->assertCount(2, $message->getToolCalls());
         $this->assertTrue($message->hasToolCalls());

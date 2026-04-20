@@ -25,7 +25,6 @@ use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\ToolCall;
-use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\Component\Serializer\Serializer;
 
 class MessageBagNormalizerTest extends TestCase
@@ -58,7 +57,7 @@ class MessageBagNormalizerTest extends TestCase
         $toolCallMessage = Message::ofToolCall($toolCall, 'Critical hit');
         $systemMessage = Message::forSystem('You\'re a nice bot that will not overthrow humanity.');
         $assistantMessage = Message::ofAssistant('Anything else?');
-        $toolCallAssistantMessage = Message::ofAssistant(new ToolCallResult([$toolCall]));
+        $toolCallAssistantMessage = Message::ofAssistant($toolCall);
 
         $messageBag = new MessageBag($message, $assistantMessage, $toolCallAssistantMessage, $toolCallMessage);
         $expected = ['input' => [
