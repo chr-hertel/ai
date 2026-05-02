@@ -15,6 +15,7 @@ Getting Started Guides
     dynamic-tools
     human-in-the-loop
     multi-agent-orchestration
+    runtime-driven-tool-parameters
     chatbot-with-memory
     context-compression
     rag-implementation
@@ -32,6 +33,7 @@ Agents & Tools
 * :doc:`dynamic-tools` - Build a dynamic Toolbox for flexible tool management at runtime
 * :doc:`human-in-the-loop` - Implement human-in-the-loop confirmation for tool execution
 * :doc:`multi-agent-orchestration` - Route questions to specialist agents with an orchestrator
+* :doc:`runtime-driven-tool-parameters` - Constrain tool parameters and structured output with values from env, database or services
 
 Memory & Context Management
 ---------------------------
