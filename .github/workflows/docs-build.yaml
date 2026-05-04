@@ -1,0 +1,37 @@
+name: Docs Build
+
+on:
+    pull_request:
+        paths:
+            - '**.rst'
+            - 'docs/**'
+            - '.github/workflows/docs-build.yaml'
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
+
+jobs:
+    docs-build:
+        name: Build (symfony-tools/docs-builder)
+        runs-on: ubuntu-latest
+        continue-on-error: true
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 8.3
+                  coverage: none
+
+            - name: Install dependencies
+              uses: ramsey/composer-install@v4
+              with:
+                  working-directory: docs/_build
+
+            - name: Build the docs
+              working-directory: docs/_build
+              run: php build.php --disable-cache
