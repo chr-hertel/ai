@@ -50,10 +50,15 @@ final class Factory
             ]);
         }
 
+        $clients = [
+            new SpeakClient($httpClient),
+            new ListenClient($httpClient),
+        ];
+
         return new Provider(
             $name,
-            [new DeepgramClient($httpClient)],
-            [new DeepgramResultConverter($httpClient)],
+            $clients,
+            $clients,
             new ModelCatalog($httpClient),
             $contract ?? DeepgramContract::create(),
             $eventDispatcher,

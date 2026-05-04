@@ -11,6 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Mistral;
 
+use Symfony\AI\Platform\Bridge\Generic\ChatCompletionsClient;
+use Symfony\AI\Platform\Bridge\Generic\EmbeddingsClient;
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\DocumentNormalizer;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\DocumentUrlNormalizer;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\ImageUrlNormalizer;
@@ -45,10 +48,14 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $transport = new HttpTransport($httpClient, $baseUrl, $apiKey, ['Accept' => 'application/json']);
+        $clients = [new ChatCompletionsClient($transport), new EmbeddingsClient($transport)];
+
         return new Provider(
             $name,
-            [new Embeddings\ModelClient($httpClient, $apiKey, $baseUrl), new Llm\ModelClient($httpClient, $apiKey, $baseUrl), new Ocr\ModelClient($httpClient, $apiKey)],
-            [new Embeddings\ResultConverter(), new Llm\ResultConverter(), new Ocr\ResultConverter()],
+            // Ocr models declare no endpoint in the catalog and fall through to the legacy client.
+            [...$clients, new Ocr\ModelClient($httpClient, $apiKey)],
+            [...$clients, new Ocr\ResultConverter()],
             $modelCatalog,
             $contract ?? Contract::create([
                 new ToolNormalizer(),

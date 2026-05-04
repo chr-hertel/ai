@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\OpenAi;
 
 use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Endpoint;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -679,5 +680,20 @@ final class ModelCatalog extends AbstractModelCatalog
         // STATIC LIST END
 
         $this->models = array_merge($defaultModels, $additionalModels);
+    }
+
+    protected function endpointsForModel(array $modelConfig): array
+    {
+        return match ($modelConfig['class']) {
+            // Listed in priority order — the Responses API stays the default
+            // for GPT to preserve current behavior; chat_completions is the
+            // opt-in alternative via $options['endpoint'].
+            Gpt::class => [new Endpoint(ResponsesClient::ENDPOINT), new Endpoint(ChatCompletionsClient::ENDPOINT)],
+            Embeddings::class => [new Endpoint(EmbeddingsClient::ENDPOINT)],
+            Whisper::class => [new Endpoint(TranscriptionClient::ENDPOINT)],
+            Image::class => [new Endpoint(ImageGenerationClient::ENDPOINT)],
+            TextToSpeech::class => [new Endpoint(TextToSpeechClient::ENDPOINT)],
+            default => [],
+        };
     }
 }

@@ -31,13 +31,28 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
             return null;
         }
 
+        return $this->fromUsageMetadata($content['usageMetadata']);
+    }
+
+    /**
+     * @param array{
+     *     promptTokenCount?: int,
+     *     candidatesTokenCount?: int,
+     *     thoughtsTokenCount?: int,
+     *     toolUsePromptTokenCount?: int,
+     *     cachedContentTokenCount?: int,
+     *     totalTokenCount?: int
+     * } $usage
+     */
+    public function fromUsageMetadata(array $usage): TokenUsage
+    {
         return new TokenUsage(
-            promptTokens: $content['usageMetadata']['promptTokenCount'] ?? null,
-            completionTokens: $content['usageMetadata']['candidatesTokenCount'] ?? null,
-            thinkingTokens: $content['usageMetadata']['thoughtsTokenCount'] ?? null,
-            toolTokens: $content['usageMetadata']['toolUsePromptTokenCount'] ?? null,
-            cachedTokens: $content['usageMetadata']['cachedContentTokenCount'] ?? null,
-            totalTokens: $content['usageMetadata']['totalTokenCount'] ?? null,
+            promptTokens: $usage['promptTokenCount'] ?? null,
+            completionTokens: $usage['candidatesTokenCount'] ?? null,
+            thinkingTokens: $usage['thoughtsTokenCount'] ?? null,
+            toolTokens: $usage['toolUsePromptTokenCount'] ?? null,
+            cachedTokens: $usage['cachedContentTokenCount'] ?? null,
+            totalTokens: $usage['totalTokenCount'] ?? null,
         );
     }
 }

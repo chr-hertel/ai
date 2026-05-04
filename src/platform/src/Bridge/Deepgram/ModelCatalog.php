@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\Deepgram;
 
 use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Endpoint;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Exception\RuntimeException;
@@ -50,7 +51,9 @@ final class ModelCatalog implements ModelCatalogInterface
             throw new ModelNotFoundException(\sprintf('Model "%s" does not exist.', $modelName));
         }
 
-        return new Deepgram($modelName, $models[$modelName]['capabilities']);
+        $modelConfig = $models[$modelName];
+
+        return new Deepgram($modelName, $modelConfig['capabilities'], [], $this->endpointsForModel($modelConfig));
     }
 
     public function getModels(): array
@@ -102,5 +105,26 @@ final class ModelCatalog implements ModelCatalogInterface
         }
 
         return $this->models = $models;
+    }
+
+    /**
+     * Declares which contract each model kind speaks: TTS models hit
+     * /v1/speak, STT models hit /v1/listen.
+     *
+     * @param array{class: class-string<Deepgram>, capabilities: list<Capability>} $modelConfig
+     *
+     * @return list<Endpoint>
+     */
+    protected function endpointsForModel(array $modelConfig): array
+    {
+        if (\in_array(Capability::TEXT_TO_SPEECH, $modelConfig['capabilities'], true)) {
+            return [new Endpoint(SpeakClient::ENDPOINT)];
+        }
+
+        if (\in_array(Capability::SPEECH_TO_TEXT, $modelConfig['capabilities'], true)) {
+            return [new Endpoint(ListenClient::ENDPOINT)];
+        }
+
+        return [];
     }
 }
