@@ -90,7 +90,7 @@ $result = $platform->invoke('sentence-transformers/all-MiniLM-L6-v2', 'Hello wor
     'task' => Task::FEATURE_EXTRACTION,
 ]);
 
-$vector = $result->asVector();
+$vectors = $result->asVectors();
 ```
 
 ## Providers
