@@ -76,6 +76,9 @@ final class Context implements \Countable, \IteratorAggregate
         return \count($this->items);
     }
 
+    /**
+     * @return \ArrayIterator<int, object>
+     */
     public function getIterator(): \ArrayIterator
     {
         return new \ArrayIterator($this->items);

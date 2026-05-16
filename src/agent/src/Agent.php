@@ -50,11 +50,11 @@ final class Agent implements AgentInterface
     private ?Runner $runner = null;
 
     /**
-     * @param non-empty-string                                                                           $name
-     * @param iterable<object|AgentInterface|ToolboxInterface>                                           $tools             local tools, subagents, or a pre-built toolbox
-     * @param Handoff\Handoff[]                                                                          $handoffs
-     * @param non-empty-string|null                                                                      $model             default model, overridable per call via the "model" option
-     * @param iterable<ContextProcessorInterface|InputProcessorInterface|OutputProcessorInterface>        $contextProcessors
+     * @param non-empty-string                                                                     $name
+     * @param iterable<object|AgentInterface|ToolboxInterface>                                     $tools             local tools, subagents, or a pre-built toolbox
+     * @param Handoff\Handoff[]                                                                    $handoffs
+     * @param non-empty-string|null                                                                $model             default model, overridable per call via the "model" option
+     * @param iterable<ContextProcessorInterface|InputProcessorInterface|OutputProcessorInterface> $contextProcessors
      */
     public function __construct(
         private readonly PlatformInterface $platform,
@@ -94,7 +94,9 @@ final class Agent implements AgentInterface
         $mergedContext = $this->context->merge($context);
         $model = $this->resolveModel($options);
 
-        return new Execution(fn (): \Generator => $this->runner()->run($this, $model, $messages, $mergedContext, $options));
+        return new Execution(function () use ($model, $messages, $mergedContext, $options): \Generator {
+            yield from $this->runner()->run($this, $model, $messages, $mergedContext, $options);
+        });
     }
 
     private function normalizeInput(string|MessageBag|UserMessage $input): MessageBag

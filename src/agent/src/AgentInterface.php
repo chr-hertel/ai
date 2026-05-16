@@ -30,8 +30,8 @@ interface AgentInterface
      *
      * @param array<string, mixed> $options
      *
-     * @throws ExceptionInterface            When the agent encounters an error (e.g., unsupported model capabilities, invalid arguments, network failures, or processor errors)
-     * @throws InteractionRequiredException  When the execution pauses for human interaction; use {@see self::run()} instead
+     * @throws ExceptionInterface           When the agent encounters an error (e.g., unsupported model capabilities, invalid arguments, network failures, or processor errors)
+     * @throws InteractionRequiredException When the execution pauses for human interaction; use {@see self::run()} instead
      */
     public function call(string|MessageBag|UserMessage $input, Context $context = new Context(), array $options = []): ResultInterface;
 

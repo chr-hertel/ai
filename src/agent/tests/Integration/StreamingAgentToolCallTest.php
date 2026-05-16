@@ -130,14 +130,14 @@ final class StreamingAgentToolCallTest extends TestCase
         });
 
         $processor = new AgentProcessor($toolbox, includeSources: true);
-        $agent = new Agent($platform, 'gpt-4', [$processor], [$processor]);
+        $agent = new Agent($platform, model: 'gpt-4', contextProcessors: [$processor]);
 
         $messages = new MessageBag(
             Message::forSystem('You are a helpful assistant. Check the current date for time-sensitive questions.'),
             Message::ofUser('Who is the mayor of Berlin?'),
         );
 
-        $result = $agent->call($messages, ['stream' => true]);
+        $result = $agent->call($messages, options: ['stream' => true]);
 
         // Consume the stream to trigger all tool calls
         $content = '';

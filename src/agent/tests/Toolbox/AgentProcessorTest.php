@@ -281,7 +281,7 @@ class AgentProcessorTest extends TestCase
             );
 
         $processor = new AgentProcessor($toolbox, includeSources: true);
-        $agent = new Agent($platform, 'foo-bar', [$processor], [$processor]);
+        $agent = new Agent($platform, model: 'foo-bar', contextProcessors: [$processor]);
         $processor->setAgent($agent);
 
         $output = new Output('gpt-4', $result, new MessageBag());

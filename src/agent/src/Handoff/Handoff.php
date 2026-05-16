@@ -22,8 +22,8 @@ use Symfony\AI\Agent\Exception\InvalidArgumentException;
 final class Handoff
 {
     /**
-     * @param string        $description natural-language description of when this handoff applies
-     * @param (\Closure(): bool)|null $condition optional programmatic guard
+     * @param string                  $description natural-language description of when this handoff applies
+     * @param (\Closure(): bool)|null $condition   optional programmatic guard
      */
     public function __construct(
         private readonly AgentInterface $to,
