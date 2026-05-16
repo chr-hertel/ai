@@ -1,6 +1,18 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Rework `AgentInterface`: `call()` now accepts `string|MessageBag|UserMessage` plus a `Context`, and a new `run()` method returns a lazy, iterable `Execution`
+ * [BC BREAK] Remove `AgentInterface::getModel()`; the model is configured on the `Agent` constructor and overridable via the `model` option
+ * [BC BREAK] Change the `Agent` constructor to first-class named arguments: `name`, `instruction`, `tools`, `handoffs`, `model`, `context`, `contextProcessors`
+ * Add a first-class `Context` of data objects processed by per-type `ContextProcessorInterface` strategies
+ * Add the `Execution` model with `Progress`, `Interaction` and `Result` updates for progress reporting and human-in-the-loop
+ * Add agent-level events (`AgentInvocationStarted`, `ModelRequested`, `ModelResponded`, `HandoffRequested`, `HandoffCompleted`, `AgentInvocationCompleted`) dispatched via an optional event dispatcher set with `Agent::setEventDispatcher()`
+ * Add first-class handoffs (`Handoff`, `HandoffResolver`) and a pluggable `ToolExecutorInterface`
+ * Deprecate `InputProcessorInterface`, `OutputProcessorInterface`, `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `Toolbox\AgentProcessor` and `MultiAgent\MultiAgent`
+
 0.10
 ----
 
