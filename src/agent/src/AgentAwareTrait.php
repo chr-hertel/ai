@@ -13,6 +13,8 @@ namespace Symfony\AI\Agent;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
+ *
+ * @deprecated since Symfony AI 1.0, context processors receive the agent via {@see \Symfony\AI\Agent\Context\AgentContext}.
  */
 trait AgentAwareTrait
 {
