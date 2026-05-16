@@ -1,3 +1,44 @@
+UPGRADE FROM 0.10 to 1.0
+========================
+
+Agent
+-----
+
+ * `AgentInterface::call()` now takes the input as `string|MessageBag|UserMessage`, an
+   optional `Context` and an options array, instead of `(MessageBag $messages, array $options)`:
+
+   ```diff
+   -$result = $agent->call($messageBag, ['temperature' => 0.5]);
+   +$result = $agent->call($messageBag, options: ['temperature' => 0.5]);
+   +$result = $agent->call('A plain string input works too.');
+   ```
+
+ * `AgentInterface` gained `run()`, which returns a lazy, iterable `Execution` yielding
+   `Progress`, `Interaction` and `Result` updates for progress reporting and human-in-the-loop.
+
+ * `AgentInterface::getModel()` was removed. The model is configured on the `Agent`
+   constructor and overridable per call via the `model` option.
+
+ * The `Agent` constructor changed to first-class named arguments:
+
+   ```diff
+   -$agent = new Agent($platform, 'gpt-4o', $inputProcessors, $outputProcessors, 'research');
+   +$agent = new Agent($platform, name: 'research', instruction: '...', tools: [...], model: 'gpt-4o');
+   ```
+
+ * Tools are passed directly via the `tools:` argument (local tools, subagents or a
+   pre-built `ToolboxInterface`) and routing via the `handoffs:` argument, instead of
+   being wired through `Toolbox\AgentProcessor` and `MultiAgent\MultiAgent`.
+
+ * An optional `MessageStoreInterface` can be passed via the `store:` argument to make
+   the agent stateful: it loads, appends and persists the conversation across calls.
+
+ * `InputProcessorInterface`, `OutputProcessorInterface`, `Input`, `Output`,
+   `AgentAwareInterface`, `AgentAwareTrait`, `Toolbox\AgentProcessor` and
+   `MultiAgent\MultiAgent` are deprecated. Implement `Context\ContextProcessorInterface`
+   instead; deprecated processors still work when passed via the `contextProcessors`
+   argument, bridged by `Context\LegacyProcessorAdapter`.
+
 UPGRADE FROM 0.9 to 0.10
 ========================
 
