@@ -221,4 +221,15 @@ final class AgentTest extends TestCase
         $agent->call('How are you?');
         $this->assertCount(4, $store->load());
     }
+
+    public function testRunManyReturnsResultsKeyedByInput()
+    {
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4');
+
+        $results = $agent->runMany(['first' => 'Hello', 'second' => 'Hey'])->await();
+
+        $this->assertSame(['first', 'second'], array_keys($results));
+        $this->assertSame('Hi', $results['first']->getContent());
+        $this->assertSame('Hi', $results['second']->getContent());
+    }
 }

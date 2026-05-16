@@ -21,6 +21,7 @@ use Symfony\AI\Agent\Context\Processor\ToolProcessor;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\ParallelExecution;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Handoff\HandoffResolver;
 use Symfony\AI\Agent\Store\MessageStoreInterface;
@@ -99,6 +100,22 @@ final class Agent implements AgentInterface
         return new Execution(function () use ($model, $messages, $mergedContext, $options): \Generator {
             yield from $this->runner()->run($this, $model, $messages, $mergedContext, $options);
         });
+    }
+
+    /**
+     * Runs the agent for several inputs and returns their merged execution.
+     *
+     * @param iterable<int|string, string|MessageBag|UserMessage> $inputs
+     * @param array<string, mixed>                                $options
+     */
+    public function runMany(iterable $inputs, Context $context = new Context(), array $options = []): ParallelExecution
+    {
+        $executions = [];
+        foreach ($inputs as $key => $input) {
+            $executions[$key] = $this->run($input, $context, $options);
+        }
+
+        return new ParallelExecution($executions);
     }
 
     private function normalizeInput(string|MessageBag|UserMessage $input): MessageBag
