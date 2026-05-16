@@ -21,6 +21,7 @@ use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Store\InMemoryStore;
 use Symfony\AI\Platform\Message\Content\Audio;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -207,5 +208,17 @@ final class AgentTest extends TestCase
         $this->assertInstanceOf(MessageBag::class, $captured);
         $this->assertNotNull($captured->getSystemMessage());
         $this->assertSame('You are a helpful assistant.', $captured->getSystemMessage()->getContent());
+    }
+
+    public function testStatefulAgentPersistsConversationAcrossCalls()
+    {
+        $store = new InMemoryStore();
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4', store: $store);
+
+        $agent->call('Hello');
+        $this->assertCount(2, $store->load());
+
+        $agent->call('How are you?');
+        $this->assertCount(4, $store->load());
     }
 }
