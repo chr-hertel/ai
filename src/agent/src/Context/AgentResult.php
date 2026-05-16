@@ -9,29 +9,35 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\Agent;
+namespace Symfony\AI\Agent\Context;
 
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\ResultInterface;
 
 /**
- * @author Christopher Hertel <mail@christopher-hertel.de>
+ * Mutable result envelope passed through result-aware context processors after
+ * the platform has been invoked. Replaces the former Output class.
  *
- * @deprecated since Symfony AI 1.0, use {@see \Symfony\AI\Agent\Context\AgentResult} instead.
+ * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class Output
+final class AgentResult
 {
     /**
+     * @param non-empty-string     $model
      * @param array<string, mixed> $options
      */
     public function __construct(
         private readonly string $model,
         private ResultInterface $result,
         private readonly MessageBag $messageBag,
-        private readonly array $options = [],
+        private readonly array $options,
+        private readonly Context $context,
     ) {
     }
 
+    /**
+     * @return non-empty-string
+     */
     public function getModel(): string
     {
         return $this->model;
@@ -58,5 +64,10 @@ final class Output
     public function getOptions(): array
     {
         return $this->options;
+    }
+
+    public function getContext(): Context
+    {
+        return $this->context;
     }
 }

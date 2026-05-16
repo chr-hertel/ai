@@ -31,6 +31,8 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
+ *
+ * @deprecated since Symfony AI 1.0, pass tools to the Agent constructor instead.
  */
 final class AgentProcessor implements InputProcessorInterface, OutputProcessorInterface, AgentAwareInterface
 {
@@ -137,7 +139,7 @@ final class AgentProcessor implements InputProcessorInterface, OutputProcessorIn
                 $event = new ToolCallsExecuted($results);
                 $this->eventDispatcher?->dispatch($event);
 
-                $result = $event->hasResult() ? $event->getResult() : $this->agent->call($messages, $output->getOptions());
+                $result = $event->hasResult() ? $event->getResult() : $this->agent->call($messages, options: $output->getOptions());
             } while ($result instanceof ToolCallResult);
         } finally {
             --$this->nestingLevel;
