@@ -74,6 +74,11 @@ final class MultiAgent implements AgentInterface
         $userText = $userMessage->asText();
         $this->logger->debug('MultiAgent: Processing user message', ['user_text' => $userText]);
 
+        $this->logger->debug('MultiAgent: Available agents for routing', ['agents' => array_map(static fn (Handoff $handoff): array => [
+            'to' => $handoff->getTo()->getName(),
+            'when' => $handoff->getWhen(),
+        ], $this->handoffs)]);
+
         $agentSelectionPrompt = $this->buildAgentSelectionPrompt($userText ?? '');
 
         $decision = $this->orchestrator->call(
@@ -86,6 +91,11 @@ final class MultiAgent implements AgentInterface
 
             return $this->orchestrator->call($messages, options: $options);
         }
+
+        $this->logger->debug('MultiAgent: Agent selection completed', [
+            'selected_agent' => $decision->getAgentName(),
+            'reasoning' => $decision->getReasoning(),
+        ]);
 
         if (!$decision->hasAgent()) {
             $this->logger->debug('MultiAgent: Using fallback agent', ['reason' => 'no_agent_selected']);

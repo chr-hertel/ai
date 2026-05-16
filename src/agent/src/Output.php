@@ -17,7 +17,7 @@ use Symfony\AI\Platform\Result\ResultInterface;
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  *
- * @deprecated since Symfony AI 1.0, use {@see \Symfony\AI\Agent\Context\AgentResult} instead.
+ * @deprecated since Symfony AI 1.0, use {@see Context\AgentResult} instead.
  */
 final class Output
 {

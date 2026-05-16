@@ -14,7 +14,7 @@ namespace Symfony\AI\Agent;
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  *
- * @deprecated since Symfony AI 1.0, use {@see \Symfony\AI\Agent\Context\ContextProcessorInterface} instead.
+ * @deprecated since Symfony AI 1.0, use {@see Context\ContextProcessorInterface} instead.
  */
 interface InputProcessorInterface
 {
