@@ -23,6 +23,7 @@ use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Handoff\HandoffResolver;
+use Symfony\AI\Agent\Store\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Tool\Subagent;
 use Symfony\AI\Agent\Toolbox\Toolbox;
@@ -63,6 +64,7 @@ final class Agent implements AgentInterface
         private readonly iterable $tools = [],
         private readonly array $handoffs = [],
         private readonly ?string $model = null,
+        private readonly ?MessageStoreInterface $store = null,
         Context $context = new Context(),
         private readonly iterable $contextProcessors = [],
         private readonly ?ToolExecutorInterface $toolExecutor = null,
@@ -167,6 +169,7 @@ final class Agent implements AgentInterface
             $handoffResolver,
             $this->maxToolCalls,
             $this->eventDispatcher,
+            $this->store,
         );
     }
 

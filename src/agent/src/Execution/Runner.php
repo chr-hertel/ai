@@ -29,12 +29,14 @@ use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
 use Symfony\AI\Agent\Handoff\HandoffResolver;
+use Symfony\AI\Agent\Store\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -58,6 +60,7 @@ final class Runner
         private readonly ?HandoffResolver $handoffResolver = null,
         private readonly ?int $maxToolCalls = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?MessageStoreInterface $store = null,
     ) {
     }
 
@@ -69,6 +72,10 @@ final class Runner
      */
     public function run(AgentInterface $agent, string $model, MessageBag $messages, Context $context, array $options): \Generator
     {
+        if (null !== $this->store) {
+            $messages = $this->store->load()->merge($messages);
+        }
+
         $request = new AgentRequest($model, $messages, $options, $context);
         $agentContext = new AgentContext($agent);
 
@@ -104,9 +111,25 @@ final class Runner
             }
         }
 
+        $this->persist($request, $agentResult->getResult());
+
         $this->eventDispatcher?->dispatch(new AgentInvocationCompleted($agent, $agentResult));
 
         yield new ResultUpdate($agentResult->getResult());
+    }
+
+    private function persist(AgentRequest $request, ResultInterface $result): void
+    {
+        if (null === $this->store) {
+            return;
+        }
+
+        $messages = $request->getMessageBag();
+        if ($result instanceof TextResult) {
+            $messages = $messages->with(Message::ofAssistant($result->getContent()));
+        }
+
+        $this->store->save($messages);
     }
 
     /**
