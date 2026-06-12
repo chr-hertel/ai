@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\OpenResponses\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\OpenResponses\ResultConverter;
 use Symfony\AI\Platform\Exception\AuthenticationException;
@@ -534,6 +535,157 @@ final class ResultConverterTest extends TestCase
         $this->assertSame('call_456', $toolCalls[0]->getId());
         $this->assertSame('get_weather', $toolCalls[0]->getName());
         $this->assertSame(['city' => 'Berlin'], $toolCalls[0]->getArguments());
+    }
+
+    public function testStreamWithToolCallOutputItemDone()
+    {
+        $converter = new ResultConverter();
+
+        $httpResponse = $this->createStub(ResponseInterface::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+
+        $events = [
+            [
+                'type' => 'response.output_item.done',
+                'item' => [
+                    'type' => 'function_call',
+                    'id' => 'call_456',
+                    'name' => 'get_weather',
+                    'arguments' => '{"city": "Berlin"}',
+                ],
+            ],
+            [
+                'type' => 'response.completed',
+                'response' => [
+                    'output' => [],
+                ],
+            ],
+        ];
+
+        $raw = new InMemoryRawResult([], $events, $httpResponse);
+        $streamResult = $converter->convert($raw, ['stream' => true]);
+
+        $chunks = iterator_to_array($streamResult->getContent());
+
+        $this->assertCount(1, $chunks);
+        $this->assertInstanceOf(ToolCallComplete::class, $chunks[0]);
+        $toolCalls = $chunks[0]->getToolCalls();
+        $this->assertCount(1, $toolCalls);
+        $this->assertSame('call_456', $toolCalls[0]->getId());
+        $this->assertSame('get_weather', $toolCalls[0]->getName());
+        $this->assertSame(['city' => 'Berlin'], $toolCalls[0]->getArguments());
+    }
+
+    public function testStreamThrowsWhenResponseCompletedIsMissing()
+    {
+        $converter = new ResultConverter();
+
+        $httpResponse = $this->createStub(ResponseInterface::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+
+        $raw = new InMemoryRawResult([], [
+            [
+                'type' => 'response.output_text.delta',
+                'delta' => 'Hello',
+            ],
+        ], $httpResponse);
+
+        $streamResult = $converter->convert($raw, ['stream' => true]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Responses API stream ended before response.completed.');
+
+        iterator_to_array($streamResult->getContent());
+    }
+
+    /**
+     * @param list<array<string, mixed>> $events
+     */
+    #[DataProvider('provideStreamTerminalErrorEvents')]
+    public function testStreamThrowsExceptionOnTerminalErrorEvents(array $events, string $expectedMessage)
+    {
+        $converter = new ResultConverter();
+
+        $httpResponse = $this->createStub(ResponseInterface::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+
+        $streamResult = $converter->convert(new InMemoryRawResult([], $events, $httpResponse), ['stream' => true]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage($expectedMessage);
+
+        iterator_to_array($streamResult->getContent());
+    }
+
+    /**
+     * @return iterable<string, array{0: list<array<string, mixed>>, 1: string}>
+     */
+    public static function provideStreamTerminalErrorEvents(): iterable
+    {
+        yield 'top-level error' => [[
+            [
+                'type' => 'error',
+                'code' => 'insufficient_quota',
+                'message' => 'You exceeded your current quota',
+                'param' => null,
+                'sequence_number' => 2,
+            ],
+        ], 'Error "insufficient_quota"-- (-): "You exceeded your current quota".'];
+
+        yield 'response failed' => [[
+            [
+                'type' => 'response.failed',
+                'response' => [
+                    'error' => [
+                        'code' => 'server_error',
+                        'message' => 'The model failed to generate a response',
+                    ],
+                ],
+            ],
+        ], 'Error "server_error"-- (-): "The model failed to generate a response".'];
+
+        yield 'response incomplete' => [[
+            [
+                'type' => 'response.incomplete',
+                'response' => [
+                    'incomplete_details' => [
+                        'reason' => 'max_tokens',
+                    ],
+                ],
+            ],
+        ], 'Responses API stream ended incomplete (max_tokens).'];
+    }
+
+    public function testStreamThrowsExceptionOnErrorEvent()
+    {
+        $converter = new ResultConverter();
+
+        $httpResponse = $this->createMock(ResponseInterface::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+
+        $events = [
+            [
+                'type' => 'error',
+                'error' => [
+                    'type' => 'insufficient_quota',
+                    'code' => 'insufficient_quota',
+                    'message' => 'You exceeded your current quota',
+                    'param' => null,
+                ],
+                'sequence_number' => 2,
+            ],
+        ];
+
+        $raw = new InMemoryRawResult([], $events, $httpResponse);
+
+        $streamResult = $converter->convert($raw, ['stream' => true]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Error "insufficient_quota"-insufficient_quota (-): "You exceeded your current quota".');
+
+        foreach ($streamResult->getContent() as $part) {
+            // Iterate to trigger the generator
+        }
     }
 
     public function testStreamWithReasoningContent()

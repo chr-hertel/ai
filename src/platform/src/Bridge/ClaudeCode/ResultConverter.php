@@ -87,13 +87,23 @@ final class ResultConverter implements ResultConverterInterface
         $toolCalls = [];
         $currentToolCall = null;
         $currentToolCallJson = '';
+        $inMessage = false;
 
         foreach ($result->getDataStream() as $data) {
             $type = $data['type'] ?? '';
+            $eventType = $data['event']['type'] ?? null;
+
+            if ('stream_event' === $type && 'error' === $eventType) {
+                throw new RuntimeException($data['event']['error']['message'] ?? 'Unknown Claude Code stream error.');
+            }
+
+            if ('stream_event' === $type && 'message_start' === $eventType) {
+                $inMessage = true;
+            }
 
             // Handle streaming text deltas (wrapped in stream_event)
             if ('stream_event' === $type
-                && 'content_block_delta' === ($data['event']['type'] ?? '')
+                && 'content_block_delta' === $eventType
                 && 'text_delta' === ($data['event']['delta']['type'] ?? '')
             ) {
                 yield new TextDelta($data['event']['delta']['text']);
@@ -101,7 +111,7 @@ final class ResultConverter implements ResultConverterInterface
 
             // Handle tool_use content block start
             if ('stream_event' === $type
-                && 'content_block_start' === ($data['event']['type'] ?? '')
+                && 'content_block_start' === $eventType
                 && 'tool_use' === ($data['event']['content_block']['type'] ?? '')
             ) {
                 $currentToolCall = [
@@ -114,7 +124,7 @@ final class ResultConverter implements ResultConverterInterface
 
             // Handle tool_use input JSON deltas
             if ('stream_event' === $type
-                && 'content_block_delta' === ($data['event']['type'] ?? '')
+                && 'content_block_delta' === $eventType
                 && 'input_json_delta' === ($data['event']['delta']['type'] ?? '')
             ) {
                 $partialJson = $data['event']['delta']['partial_json'] ?? '';
@@ -126,7 +136,7 @@ final class ResultConverter implements ResultConverterInterface
 
             // Handle content block stop - finalize current tool call
             if ('stream_event' === $type
-                && 'content_block_stop' === ($data['event']['type'] ?? '')
+                && 'content_block_stop' === $eventType
                 && null !== $currentToolCall
             ) {
                 $input = '' !== $currentToolCallJson
@@ -143,12 +153,19 @@ final class ResultConverter implements ResultConverterInterface
 
             // Handle message stop - yield tool calls if any were collected
             if ('stream_event' === $type
-                && 'message_stop' === ($data['event']['type'] ?? '')
-                && [] !== $toolCalls
+                && 'message_stop' === $eventType
             ) {
-                yield new ToolCallComplete($toolCalls);
+                $inMessage = false;
+
+                if ([] !== $toolCalls) {
+                    yield new ToolCallComplete($toolCalls);
+                }
                 $toolCalls = [];
             }
+        }
+
+        if ($inMessage) {
+            throw new RuntimeException('Claude Code stream ended before message_stop.');
         }
     }
 }

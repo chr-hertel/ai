@@ -141,9 +141,18 @@ class ResultConverter implements ResultConverterInterface
         $currentToolCallJson = '';
         $currentThinking = null;
         $currentThinkingSignature = null;
+        $inMessage = false;
 
         foreach ($result->getDataStream() as $data) {
             $type = $data['type'] ?? '';
+
+            if ('error' === $type) {
+                throw new RuntimeException($data['error']['message'] ?? 'Unknown Anthropic stream error.');
+            }
+
+            if ('message_start' === $type) {
+                $inMessage = true;
+            }
 
             // Handle usage from message_start and message_delta
             if ('message_start' === $type && isset($data['message']['usage'])) {
@@ -245,9 +254,17 @@ class ResultConverter implements ResultConverterInterface
             }
 
             // Handle message stop - yield tool calls if any were collected
-            if ('message_stop' === $type && [] !== $toolCalls) {
-                yield new ToolCallComplete($toolCalls);
+            if ('message_stop' === $type) {
+                $inMessage = false;
+
+                if ([] !== $toolCalls) {
+                    yield new ToolCallComplete($toolCalls);
+                }
             }
+        }
+
+        if ($inMessage) {
+            throw new RuntimeException('Anthropic stream ended before message_stop.');
         }
     }
 }

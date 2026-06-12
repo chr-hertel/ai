@@ -258,6 +258,49 @@ final class ResultConverterTest extends TestCase
         $this->assertSame(['location' => 'Berlin'], $toolCalls[0]->getArguments());
     }
 
+    public function testConvertStreamingThrowsWhenMessageStopIsMissing()
+    {
+        $converter = new ResultConverter();
+        $rawResult = new InMemoryRawResult(
+            [],
+            [
+                ['type' => 'stream_event', 'event' => ['type' => 'message_start']],
+                ['type' => 'stream_event', 'event' => ['type' => 'content_block_start', 'index' => 0, 'content_block' => ['type' => 'tool_use', 'id' => 'toolu_01ABC123', 'name' => 'get_weather']]],
+                ['type' => 'stream_event', 'event' => ['type' => 'content_block_delta', 'index' => 0, 'delta' => ['type' => 'input_json_delta', 'partial_json' => '{"location":"Berlin"}']]],
+                ['type' => 'stream_event', 'event' => ['type' => 'content_block_stop', 'index' => 0]],
+            ],
+        );
+
+        $result = $converter->convert($rawResult, ['stream' => true]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Claude Code stream ended before message_stop.');
+
+        iterator_to_array($result->getContent());
+    }
+
+    public function testConvertStreamingThrowsWhenSecondMessageIsTruncated()
+    {
+        $converter = new ResultConverter();
+        $rawResult = new InMemoryRawResult(
+            [],
+            [
+                ['type' => 'stream_event', 'event' => ['type' => 'message_start']],
+                ['type' => 'stream_event', 'event' => ['type' => 'content_block_delta', 'index' => 0, 'delta' => ['type' => 'text_delta', 'text' => 'First turn']]],
+                ['type' => 'stream_event', 'event' => ['type' => 'message_stop']],
+                ['type' => 'stream_event', 'event' => ['type' => 'message_start']],
+                ['type' => 'stream_event', 'event' => ['type' => 'content_block_delta', 'index' => 0, 'delta' => ['type' => 'text_delta', 'text' => 'Second turn']]],
+            ],
+        );
+
+        $result = $converter->convert($rawResult, ['stream' => true]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Claude Code stream ended before message_stop.');
+
+        iterator_to_array($result->getContent());
+    }
+
     public function testConvertStreamingYieldsToolCallWithEmptyInput()
     {
         $converter = new ResultConverter();
