@@ -18,6 +18,7 @@ use Symfony\AI\Platform\Exception\AuthenticationException;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Exception\ContentFilterException;
 use Symfony\AI\Platform\Exception\ExceedContextSizeException;
+use Symfony\AI\Platform\Exception\IncompleteStreamException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\MultiPartResult;
@@ -498,7 +499,7 @@ class ResultConverterTest extends TestCase
 
         $streamResult = $converter->convert($raw, ['stream' => true]);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(IncompleteStreamException::class);
         $this->expectExceptionMessage('OpenAI Responses stream ended before response.completed.');
 
         iterator_to_array($streamResult->getContent());

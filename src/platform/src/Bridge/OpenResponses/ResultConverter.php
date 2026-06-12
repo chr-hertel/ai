@@ -15,6 +15,7 @@ use Symfony\AI\Platform\Exception\AuthenticationException;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Exception\ContentFilterException;
 use Symfony\AI\Platform\Exception\ExceedContextSizeException;
+use Symfony\AI\Platform\Exception\IncompleteStreamException;
 use Symfony\AI\Platform\Exception\RateLimitExceededException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Model;
@@ -217,7 +218,7 @@ final class ResultConverter implements ResultConverterInterface
         }
 
         if ($sawResponseEvent && !$sawResponseCompleted) {
-            throw new RuntimeException('Responses API stream ended before response.completed.');
+            throw new IncompleteStreamException('Responses API stream ended before response.completed.');
         }
     }
 

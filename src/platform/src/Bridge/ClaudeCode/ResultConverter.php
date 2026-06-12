@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\ClaudeCode;
 
+use Symfony\AI\Platform\Exception\IncompleteStreamException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\MultiPartResult;
@@ -165,7 +166,7 @@ final class ResultConverter implements ResultConverterInterface
         }
 
         if ($inMessage) {
-            throw new RuntimeException('Claude Code stream ended before message_stop.');
+            throw new IncompleteStreamException('Claude Code stream ended before message_stop.');
         }
     }
 }

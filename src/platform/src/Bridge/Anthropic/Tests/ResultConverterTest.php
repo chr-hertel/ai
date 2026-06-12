@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Anthropic\ResultConverter;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Exception\ExceedContextSizeException;
+use Symfony\AI\Platform\Exception\IncompleteStreamException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Result\CodeExecutionResult;
 use Symfony\AI\Platform\Result\ExecutableCodeResult;
@@ -251,7 +252,7 @@ final class ResultConverterTest extends TestCase
 
         $streamResult = $converter->convert($raw, ['stream' => true]);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(IncompleteStreamException::class);
         $this->expectExceptionMessage('Anthropic stream ended before message_stop.');
 
         iterator_to_array($streamResult->getContent());

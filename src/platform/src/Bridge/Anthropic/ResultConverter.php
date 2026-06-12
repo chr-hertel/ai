@@ -14,6 +14,7 @@ namespace Symfony\AI\Platform\Bridge\Anthropic;
 use Symfony\AI\Platform\Exception\AuthenticationException;
 use Symfony\AI\Platform\Exception\BadRequestException;
 use Symfony\AI\Platform\Exception\ExceedContextSizeException;
+use Symfony\AI\Platform\Exception\IncompleteStreamException;
 use Symfony\AI\Platform\Exception\RateLimitExceededException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Model;
@@ -264,7 +265,7 @@ class ResultConverter implements ResultConverterInterface
         }
 
         if ($inMessage) {
-            throw new RuntimeException('Anthropic stream ended before message_stop.');
+            throw new IncompleteStreamException('Anthropic stream ended before message_stop.');
         }
     }
 }

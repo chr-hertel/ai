@@ -16,6 +16,7 @@ use Symfony\AI\Platform\Bridge\Anthropic\Claude;
 use Symfony\AI\Platform\Bridge\ClaudeCode\ClaudeCode;
 use Symfony\AI\Platform\Bridge\ClaudeCode\ResultConverter;
 use Symfony\AI\Platform\Bridge\ClaudeCode\TokenUsageExtractor;
+use Symfony\AI\Platform\Exception\IncompleteStreamException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\MultiPartResult;
@@ -273,7 +274,7 @@ final class ResultConverterTest extends TestCase
 
         $result = $converter->convert($rawResult, ['stream' => true]);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(IncompleteStreamException::class);
         $this->expectExceptionMessage('Claude Code stream ended before message_stop.');
 
         iterator_to_array($result->getContent());
@@ -295,7 +296,7 @@ final class ResultConverterTest extends TestCase
 
         $result = $converter->convert($rawResult, ['stream' => true]);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(IncompleteStreamException::class);
         $this->expectExceptionMessage('Claude Code stream ended before message_stop.');
 
         iterator_to_array($result->getContent());
