@@ -97,6 +97,35 @@ class Model
         return \count($this->inputModalities) > 1;
     }
 
+    public function satisfies(ModelRequirements $requirements): bool
+    {
+        foreach ($requirements->getTasks() as $task) {
+            if (!$this->handles($task)) {
+                return false;
+            }
+        }
+
+        foreach ($requirements->getInputModalities() as $modality) {
+            if (!$this->accepts($modality)) {
+                return false;
+            }
+        }
+
+        foreach ($requirements->getOutputModalities() as $modality) {
+            if (!$this->produces($modality)) {
+                return false;
+            }
+        }
+
+        foreach ($requirements->getFeatures() as $feature) {
+            if (!$this->has($feature)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * @return list<Task>
      */

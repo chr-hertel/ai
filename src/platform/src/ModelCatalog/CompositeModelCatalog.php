@@ -15,6 +15,7 @@ use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Feature;
 use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\Task;
 
 /**
@@ -69,5 +70,19 @@ final class CompositeModelCatalog implements ModelCatalogInterface
         }
 
         return $this->mergedModels = $merged;
+    }
+
+    public function findMatching(ModelRequirements $requirements): array
+    {
+        $matches = [];
+        foreach ($this->catalogs as $catalog) {
+            foreach ($catalog->findMatching($requirements) as $name => $model) {
+                if (!isset($matches[$name])) {
+                    $matches[$name] = $model;
+                }
+            }
+        }
+
+        return $matches;
     }
 }

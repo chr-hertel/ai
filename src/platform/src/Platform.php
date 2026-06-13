@@ -14,6 +14,7 @@ namespace Symfony\AI\Platform;
 use Symfony\AI\Platform\Event\ModelRoutingEvent;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
+use Symfony\AI\Platform\Exception\NoMatchingModelException;
 use Symfony\AI\Platform\ModelCatalog\CompositeModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -68,6 +69,28 @@ final class Platform implements PlatformInterface
                 $this->providers,
             ),
         );
+    }
+
+    public function selectModel(ModelRequirements $requirements): Model
+    {
+        foreach ($this->providers as $provider) {
+            foreach ($provider->getModelCatalog()->findMatching($requirements) as $model) {
+                return $model;
+            }
+        }
+
+        throw new NoMatchingModelException('No registered model satisfies the given requirements.');
+    }
+
+    public function supports(ModelRequirements $requirements): bool
+    {
+        foreach ($this->providers as $provider) {
+            if ([] !== $provider->getModelCatalog()->findMatching($requirements)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -17,6 +17,7 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\Component\Clock\ClockInterface;
@@ -59,7 +60,17 @@ final class FailoverPlatform implements PlatformInterface
         return $this->do(static fn (PlatformInterface $platform): ModelCatalogInterface => $platform->getModelCatalog());
     }
 
-    private function do(\Closure $func): DeferredResult|ModelCatalogInterface
+    public function selectModel(ModelRequirements $requirements): Model
+    {
+        return $this->do(static fn (PlatformInterface $platform): Model => $platform->selectModel($requirements));
+    }
+
+    public function supports(ModelRequirements $requirements): bool
+    {
+        return $this->do(static fn (PlatformInterface $platform): bool => $platform->supports($requirements));
+    }
+
+    private function do(\Closure $func): DeferredResult|ModelCatalogInterface|Model|bool
     {
         foreach ($this->platforms as $platform) {
             $limiter = $this->rateLimiterFactory->create($platform::class);

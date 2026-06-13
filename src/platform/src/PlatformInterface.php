@@ -27,4 +27,17 @@ interface PlatformInterface
     public function invoke(string|Model $model, array|string|object $input, array $options = []): DeferredResult;
 
     public function getModelCatalog(): ModelCatalogInterface;
+
+    /**
+     * Resolves a fully defined model that satisfies the given requirements, searching across
+     * all registered providers (capability-based model selection).
+     *
+     * @throws \Symfony\AI\Platform\Exception\NoMatchingModelException when no model matches
+     */
+    public function selectModel(ModelRequirements $requirements): Model;
+
+    /**
+     * Returns whether any registered model satisfies the given requirements, without invoking it.
+     */
+    public function supports(ModelRequirements $requirements): bool;
 }

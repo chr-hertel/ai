@@ -15,6 +15,7 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\PlainConverter;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
@@ -127,5 +128,15 @@ final class CachePlatform implements PlatformInterface
     public function getModelCatalog(): ModelCatalogInterface
     {
         return $this->platform->getModelCatalog();
+    }
+
+    public function selectModel(ModelRequirements $requirements): Model
+    {
+        return $this->platform->selectModel($requirements);
+    }
+
+    public function supports(ModelRequirements $requirements): bool
+    {
+        return $this->platform->supports($requirements);
     }
 }

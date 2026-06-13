@@ -197,6 +197,39 @@ directly::
 A model id resolves to the first provider (in array order) whose catalog knows it. When several
 providers expose the *same* id, order the array so the preferred one comes first.
 
+Selecting a Model by Capability
+-------------------------------
+
+Instead of naming a model, you can describe *what you need* and let the platform pick a matching
+model across all configured providers. Requirements are expressed with
+:class:`Symfony\\AI\\Platform\\ModelRequirements` (a combination of required
+:class:`Symfony\\AI\\Platform\\Task`, input/output :class:`Symfony\\AI\\Platform\\Modality`, and
+:class:`Symfony\\AI\\Platform\\Feature` cases), and matched against each model's declared
+capabilities::
+
+    use Symfony\AI\Platform\Feature;
+    use Symfony\AI\Platform\Modality;
+    use Symfony\AI\Platform\ModelRequirements;
+    use Symfony\AI\Platform\Task;
+
+    $requirements = new ModelRequirements(
+        tasks: [Task::TEXT_GENERATION],
+        inputModalities: [Modality::TEXT, Modality::IMAGE],
+        features: [Feature::TOOL_CALLING],
+    );
+
+    // Pre-flight check: would any configured model satisfy this, without invoking it?
+    if ($platform->supports($requirements)) {
+        // Returns a fully defined Model (throws NoMatchingModelException if none match).
+        $model = $platform->selectModel($requirements);
+        $result = $platform->invoke($model, $messages);
+    }
+
+Requirements can also be inferred from the prompt itself — an image part requires image input, a
+``tools`` option requires tool calling, a ``response_format`` requires structured output::
+
+    $requirements = ModelRequirements::fromInput($messages, $options);
+
 Choosing an Approach
 --------------------
 

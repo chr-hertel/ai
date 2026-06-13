@@ -14,6 +14,7 @@ namespace Symfony\AI\Platform\Bridge\ElevenLabs;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\Task;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -83,6 +84,19 @@ final class ModelCatalog implements ModelCatalogInterface
                 'output' => [Modality::TEXT],
             ],
         ];
+    }
+
+    public function findMatching(ModelRequirements $requirements): array
+    {
+        $matches = [];
+        foreach ($this->getModels() as $name => $modelConfig) {
+            $model = self::buildModel($name, $modelConfig);
+            if ($model->satisfies($requirements)) {
+                $matches[$name] = $model;
+            }
+        }
+
+        return $matches;
     }
 
     /**
