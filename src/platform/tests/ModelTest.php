@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Feature;
 use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\Task;
 
 final class ModelTest extends TestCase
@@ -53,6 +54,16 @@ final class ModelTest extends TestCase
     {
         $this->assertTrue((new Model('m', [Task::TEXT_GENERATION], [Modality::TEXT, Modality::IMAGE]))->isMultimodalInput());
         $this->assertFalse((new Model('m', [Task::TEXT_GENERATION], [Modality::TEXT]))->isMultimodalInput());
+    }
+
+    public function testSatisfiesRequirements()
+    {
+        $model = new Model('gpt-4', [Task::TEXT_GENERATION], [Modality::TEXT, Modality::IMAGE], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING]);
+
+        $this->assertTrue($model->satisfies(new ModelRequirements([Task::TEXT_GENERATION], [Modality::IMAGE], [Modality::TEXT], [Feature::TOOL_CALLING])));
+        $this->assertFalse($model->satisfies(new ModelRequirements([Task::EMBEDDING])));
+        $this->assertFalse($model->satisfies(new ModelRequirements([Task::TEXT_GENERATION], [], [], [Feature::FILL_IN_THE_MIDDLE])));
+        $this->assertTrue($model->satisfies(new ModelRequirements()));
     }
 
     public function testReturnsEmptyCapabilitiesByDefault()

@@ -17,6 +17,7 @@ use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Feature;
 use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\Task;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -143,6 +144,25 @@ final class ModelCatalog implements ModelCatalogInterface
             },
             $models['models'],
         ));
+    }
+
+    public function findMatching(ModelRequirements $requirements): array
+    {
+        $matches = [];
+        foreach ($this->getModels() as $name => $modelConfig) {
+            $model = new Ollama(
+                $name,
+                $modelConfig['tasks'] ?? [],
+                $modelConfig['input'] ?? [],
+                $modelConfig['output'] ?? [],
+                $modelConfig['features'] ?? [],
+            );
+            if ($model->satisfies($requirements)) {
+                $matches[$name] = $model;
+            }
+        }
+
+        return $matches;
     }
 
     private function extractErrorMessage(ResponseInterface $response): ?string

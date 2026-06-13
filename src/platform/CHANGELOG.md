@@ -10,8 +10,15 @@ CHANGELOG
    `outputModalities`/`features` constructor arguments. `Model::getCapabilities()`/
    `Model::supports(Capability)` are removed in favor of `getTasks()`/`getInputModalities()`/
    `getOutputModalities()`/`getFeatures()`, `handles(Task)`, `accepts(Modality)`, `produces(Modality)`,
-   `has(Feature)`, and `isMultimodalInput()`. Model catalog entries now use
-   `tasks`/`input`/`output`/`features` keys instead of `capabilities`. See `UPGRADE.md`.
+   `has(Feature)`, `isMultimodalInput()`, and `satisfies(ModelRequirements)`. Model catalog entries
+   now use `tasks`/`input`/`output`/`features` keys instead of `capabilities`. See `UPGRADE.md`.
+ * Add capability-based, cross-provider model selection: `ModelRequirements` describes what a model
+   must do, and `Platform::selectModel(ModelRequirements)` returns a matching model across all
+   configured providers (throwing `NoMatchingModelException` when none match)
+ * Add `Platform::supports(ModelRequirements)` as a pre-flight check, and
+   `ModelCatalogInterface::findMatching(ModelRequirements)` to query a catalog by capability
+ * Add `ModelRequirements::fromInput()` to infer the required task, input modalities and features
+   from a `MessageBag` and the invocation options
 
 0.10
 ----

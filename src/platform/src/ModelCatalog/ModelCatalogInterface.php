@@ -14,6 +14,7 @@ namespace Symfony\AI\Platform\ModelCatalog;
 use Symfony\AI\Platform\Feature;
 use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\Task;
 
 /**
@@ -30,4 +31,11 @@ interface ModelCatalogInterface
      * @return array<string, array{class: string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>
      */
     public function getModels(): array;
+
+    /**
+     * Returns all catalog models that satisfy the given requirements, keyed by model name.
+     *
+     * @return array<string, Model>
+     */
+    public function findMatching(ModelRequirements $requirements): array;
 }

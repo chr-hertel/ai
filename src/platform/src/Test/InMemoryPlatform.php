@@ -11,10 +11,14 @@
 
 namespace Symfony\AI\Platform\Test;
 
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\PlainConverter;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
@@ -63,6 +67,21 @@ class InMemoryPlatform implements PlatformInterface
     public function getModelCatalog(): ModelCatalogInterface
     {
         return $this->modelCatalog;
+    }
+
+    public function selectModel(ModelRequirements $requirements): Model
+    {
+        return new class('in-memory') extends Model {
+            public function __construct(string $name)
+            {
+                parent::__construct($name, Task::cases(), Modality::cases(), Modality::cases(), Feature::cases());
+            }
+        };
+    }
+
+    public function supports(ModelRequirements $requirements): bool
+    {
+        return true;
     }
 
     /**

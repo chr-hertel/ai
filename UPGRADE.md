@@ -50,8 +50,8 @@ Platform
    ```
 
    Use `getTasks()`, `getInputModalities()`, `getOutputModalities()`, `getFeatures()`,
-   `handles(Task)`, `accepts(Modality)`, `produces(Modality)`, `has(Feature)` and
-   `isMultimodalInput()` instead.
+   `handles(Task)`, `accepts(Modality)`, `produces(Modality)`, `has(Feature)`,
+   `isMultimodalInput()` and `satisfies(ModelRequirements)` instead.
 
  * Model catalog entries use the new keys instead of `capabilities`:
 
@@ -64,6 +64,23 @@ Platform
    +    'output' => [Modality::TEXT],
    +    'features' => [Feature::TOOL_CALLING],
     ],
+   ```
+
+   `ModelCatalogInterface` additionally requires a `findMatching(ModelRequirements): array` method.
+
+ * New capability-based selection: instead of always naming a model, you can describe what you need
+   and let the platform pick one across all configured providers:
+
+   ```php
+   use Symfony\AI\Platform\Feature;
+   use Symfony\AI\Platform\ModelRequirements;
+   use Symfony\AI\Platform\Task;
+
+   $requirements = new ModelRequirements(tasks: [Task::TEXT_GENERATION], features: [Feature::TOOL_CALLING]);
+   if ($platform->supports($requirements)) {
+       $model = $platform->selectModel($requirements); // throws NoMatchingModelException if none match
+       $result = $platform->invoke($model, $messages);
+   }
    ```
 
 AI Bundle

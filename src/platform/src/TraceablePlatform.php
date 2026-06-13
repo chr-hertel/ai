@@ -73,6 +73,16 @@ final class TraceablePlatform implements PlatformInterface, ResetInterface
         return $this->platform->getModelCatalog();
     }
 
+    public function selectModel(ModelRequirements $requirements): Model
+    {
+        return $this->platform->selectModel($requirements);
+    }
+
+    public function supports(ModelRequirements $requirements): bool
+    {
+        return $this->platform->supports($requirements);
+    }
+
     /**
      * @return PlatformCallData[]
      */

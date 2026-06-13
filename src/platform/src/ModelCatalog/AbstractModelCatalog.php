@@ -16,6 +16,7 @@ use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Feature;
 use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\ModelRequirements;
 use Symfony\AI\Platform\Task;
 
 /**
@@ -64,6 +65,23 @@ abstract class AbstractModelCatalog implements ModelCatalogInterface
     public function getModels(): array
     {
         return $this->models;
+    }
+
+    public function findMatching(ModelRequirements $requirements): array
+    {
+        $matches = [];
+        foreach ($this->models as $name => $modelConfig) {
+            if (!class_exists($modelConfig['class'])) {
+                continue;
+            }
+
+            $model = self::buildModel($modelConfig['class'], $name, $modelConfig);
+            if ($model instanceof Model && $model->satisfies($requirements)) {
+                $matches[$name] = $model;
+            }
+        }
+
+        return $matches;
     }
 
     /**
