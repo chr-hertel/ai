@@ -14,6 +14,7 @@ namespace Symfony\AI\Agent\Tests\Toolbox;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\MockAgent;
+use Symfony\AI\Agent\Tests\Fixtures\Tool\ExecutableToolFixture;
 use Symfony\AI\Agent\Tests\Fixtures\Tool\ToolCustomException;
 use Symfony\AI\Agent\Tests\Fixtures\Tool\ToolDate;
 use Symfony\AI\Agent\Tests\Fixtures\Tool\ToolException;
@@ -346,5 +347,22 @@ final class ToolboxTest extends TestCase
         $this->assertSame('Relevant Article', $source->getName());
         $this->assertSame('https://example.com/relevant-article', $source->getReference());
         $this->assertSame('Content of that relevant article.', $source->getContent());
+    }
+
+    public function testExecutableToolInterfaceDispatch()
+    {
+        $fixture = new ExecutableToolFixture();
+        $toolbox = new Toolbox([$fixture], $fixture);
+
+        $metadata = $toolbox->getTools();
+        $this->assertCount(2, $metadata);
+        $this->assertSame('remote_echo', $metadata[0]->getName());
+        $this->assertSame('remote_sum', $metadata[1]->getName());
+
+        $echoResult = $toolbox->execute(new ToolCall('call_echo', 'remote_echo', ['text' => 'hello']));
+        $this->assertSame('echo: hello', $echoResult->getResult());
+
+        $sumResult = $toolbox->execute(new ToolCall('call_sum', 'remote_sum', ['a' => 2, 'b' => 5]));
+        $this->assertSame(7, $sumResult->getResult());
     }
 }

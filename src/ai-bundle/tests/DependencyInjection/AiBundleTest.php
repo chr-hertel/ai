@@ -22,6 +22,9 @@ use Probots\Pinecone\Client as PineconeClient;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\AI\Agent\AgentInterface;
+use Symfony\AI\Agent\Bridge\Mcp\McpClient as McpBridgeClient;
+use Symfony\AI\Agent\Bridge\Mcp\McpClientAdapter;
+use Symfony\AI\Agent\Bridge\Mcp\McpToolFactory;
 use Symfony\AI\Agent\Memory\MemoryInputProcessor;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
 use Symfony\AI\Agent\MultiAgent\Handoff;
@@ -29,6 +32,7 @@ use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\AiBundle\AiBundle;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
+use Symfony\AI\AiBundle\DependencyInjection\McpToolboxCompilerPass;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\Chat\ChatInterface;
 use Symfony\AI\Chat\ManagedStoreInterface as ManagedMessageStoreInterface;
@@ -475,6 +479,69 @@ class AiBundleTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testMcpServersWireClientAdaptersAndFactoryIntoToolbox()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'research' => [
+                        'model' => 'gpt-4o-mini',
+                        'tools' => [
+                            'mcp_servers' => [
+                                'filesystem',
+                                ['client' => 'my.custom.mcp_client', 'name' => 'web', 'prefix' => 'web__'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+        $container->setDefinition('mcp.client.filesystem', new Definition(\stdClass::class));
+        $container->setDefinition('mcp.client.filesystem.transport', new Definition(\stdClass::class));
+        $container->setDefinition('my.custom.mcp_client', new Definition(\stdClass::class));
+        $container->setDefinition('mcp.client.web.transport', new Definition(\stdClass::class));
+
+        $this->assertTrue($container->hasDefinition('ai.toolbox.research.mcp_factory'));
+        $this->assertSame(McpToolFactory::class, $container->getDefinition('ai.toolbox.research.mcp_factory')->getClass());
+
+        $this->assertTrue($container->hasDefinition('ai.toolbox.research.mcp_client.filesystem'));
+        $fsClientDef = $container->getDefinition('ai.toolbox.research.mcp_client.filesystem');
+        $this->assertSame(McpBridgeClient::class, $fsClientDef->getClass());
+        $this->assertSame('filesystem', $fsClientDef->getArgument(0));
+        $this->assertSame('mcp.client.filesystem', (string) $fsClientDef->getArgument(1));
+        $this->assertSame('mcp.client.filesystem.transport', (string) $fsClientDef->getArgument(2));
+
+        $this->assertTrue($container->hasDefinition('ai.toolbox.research.mcp_adapter.filesystem'));
+        $fsAdapterDef = $container->getDefinition('ai.toolbox.research.mcp_adapter.filesystem');
+        $this->assertSame(McpClientAdapter::class, $fsAdapterDef->getClass());
+
+        $webClientDef = $container->getDefinition('ai.toolbox.research.mcp_client.web');
+        $this->assertSame('web', $webClientDef->getArgument(0));
+        $this->assertSame('my.custom.mcp_client', (string) $webClientDef->getArgument(1));
+        $this->assertSame('web__', $webClientDef->getArgument(3));
+
+        $chainFactoryArgs = $container->getDefinition('ai.toolbox.research.chain_factory')->getArgument(0);
+        $this->assertContains('ai.toolbox.research.mcp_factory', array_map(static fn ($r) => (string) $r, $chainFactoryArgs));
+
+        $toolboxDef = $container->getDefinition('ai.toolbox.research');
+        $this->assertTrue($toolboxDef->hasTag('ai.toolbox.mcp_pending'));
+        $pendingTags = $toolboxDef->getTag('ai.toolbox.mcp_pending');
+        $this->assertSame(
+            ['ai.toolbox.research.mcp_adapter.filesystem', 'ai.toolbox.research.mcp_adapter.web'],
+            $pendingTags[0]['adapters'],
+        );
+
+        (new \Symfony\Component\DependencyInjection\Compiler\ResolveChildDefinitionsPass())->process($container);
+        (new McpToolboxCompilerPass())->process($container);
+
+        $this->assertFalse($container->getDefinition('ai.toolbox.research')->hasTag('ai.toolbox.mcp_pending'));
+        $toolsArg = $container->getDefinition('ai.toolbox.research')->getArgument(0);
+        $toolsArgValue = $toolsArg instanceof \Symfony\Component\DependencyInjection\Argument\IteratorArgument ? $toolsArg->getValues() : $toolsArg;
+        $resolvedIds = array_map(static fn ($r) => (string) $r, $toolsArgValue);
+        $this->assertContains('ai.toolbox.research.mcp_adapter.filesystem', $resolvedIds);
+        $this->assertContains('ai.toolbox.research.mcp_adapter.web', $resolvedIds);
     }
 
     public function testAzureStoreCanBeConfigured()

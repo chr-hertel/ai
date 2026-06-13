@@ -94,6 +94,34 @@ final class Toolbox implements ToolboxInterface
 
         $tool = $this->getExecutable($metadata);
 
+        if ($tool instanceof ExecutableToolInterface) {
+            try {
+                $this->logger->debug(\sprintf('Executing tool "%s".', $toolCall->getName()), $toolCall->getArguments());
+
+                $sourceCollection = null;
+                if ($tool instanceof HasSourcesInterface) {
+                    $tool->setSourceCollection($sourceCollection = new SourceCollection());
+                }
+
+                $result = new ToolResult(
+                    $toolCall,
+                    $tool->execute($metadata, $toolCall),
+                    $sourceCollection,
+                );
+
+                $this->eventDispatcher?->dispatch(new ToolCallSucceeded($tool, $metadata, $toolCall->getArguments(), $result));
+            } catch (ToolExecutionExceptionInterface $e) {
+                $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $toolCall->getArguments(), $e));
+                throw $e;
+            } catch (\Throwable $e) {
+                $this->logger->warning(\sprintf('Failed to execute tool "%s".', $toolCall->getName()), ['exception' => $e]);
+                $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $toolCall->getArguments(), $e));
+                throw ToolExecutionException::executionFailed($toolCall, $e);
+            }
+
+            return $result;
+        }
+
         try {
             $this->logger->debug(\sprintf('Executing tool "%s".', $toolCall->getName()), $toolCall->getArguments());
 

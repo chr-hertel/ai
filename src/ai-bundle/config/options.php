@@ -270,9 +270,12 @@ return static function (DefinitionConfigurator $configurator): void {
                             ->beforeNormalization()
                                 ->ifArray()
                                 ->then(static function (array $v): array {
+                                    $reservedKeys = ['enabled', 'services', 'mcp_servers'];
+
                                     return [
                                         'enabled' => $v['enabled'] ?? true,
-                                        'services' => $v['services'] ?? $v,
+                                        'services' => $v['services'] ?? array_filter($v, static fn ($k) => !\in_array($k, $reservedKeys, true), \ARRAY_FILTER_USE_KEY),
+                                        'mcp_servers' => $v['mcp_servers'] ?? [],
                                     ];
                                 })
                             ->end()
@@ -301,6 +304,36 @@ return static function (DefinitionConfigurator $configurator): void {
                                                 return !($hasAgent xor $hasService);
                                             })
                                             ->thenInvalid('Either "agent" or "service" must be configured, and never both.')
+                                        ->end()
+                                    ->end()
+                                ->end()
+                                ->arrayNode('mcp_servers')
+                                    ->info('MCP servers whose tools should be exposed to this agent.')
+                                    ->arrayPrototype()
+                                        ->beforeNormalization()
+                                            ->ifString()
+                                            ->then(static function (string $v): array {
+                                                return ['client' => $v];
+                                            })
+                                        ->end()
+                                        ->children()
+                                            ->stringNode('client')
+                                                ->info('Either a short name resolved against "mcp.client.<name>" or a full service id of an Mcp\Client.')
+                                                ->isRequired()
+                                                ->cannotBeEmpty()
+                                            ->end()
+                                            ->stringNode('transport')
+                                                ->info('Service id of an Mcp\Client\Transport\TransportInterface. Defaults to "mcp.client.<client>.transport" when "client" is a short name.')
+                                                ->defaultNull()
+                                            ->end()
+                                            ->stringNode('name')
+                                                ->info('Short name used for tool-name prefixing. Defaults to the "client" short id.')
+                                                ->defaultNull()
+                                            ->end()
+                                            ->stringNode('prefix')
+                                                ->info('Tool-name prefix. Defaults to "<name>_".')
+                                                ->defaultNull()
+                                            ->end()
                                         ->end()
                                     ->end()
                                 ->end()

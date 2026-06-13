@@ -4,6 +4,8 @@ CHANGELOG
 0.9
 ---
 
+ * Add `ai.agent.<name>.tools.mcp_servers:` configuration to expose tools advertised
+   by MCP clients (registered by the MCP bundle) to an agent
  * Validate structured output using `symfony/validator` when available
  * Make `ai:platform:invoke` arguments optional and prompt for them interactively when missing
  * Visualize failed calls with `result_type: 'error'` in profiler

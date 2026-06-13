@@ -5,6 +5,8 @@ CHANGELOG
 ----
 
  * Add `SystemPromptInputProcessor::getSystemPrompt()` to read the configured system prompt without reflection
+ * Add `ExecutableToolInterface` for tools that bypass the reflection-based argument resolver
+   and dispatch raw tool calls themselves (used by the new MCP client bridge)
 
 0.8
 ---

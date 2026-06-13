@@ -19,6 +19,9 @@ use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Attribute\AsInputProcessor;
 use Symfony\AI\Agent\Attribute\AsOutputProcessor;
+use Symfony\AI\Agent\Bridge\Mcp\McpClient as McpBridgeClient;
+use Symfony\AI\Agent\Bridge\Mcp\McpClientAdapter;
+use Symfony\AI\Agent\Bridge\Mcp\McpToolFactory;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
 use Symfony\AI\Agent\InputProcessorInterface;
 use Symfony\AI\Agent\Memory\MemoryInputProcessor;
@@ -34,6 +37,7 @@ use Symfony\AI\Agent\Toolbox\Tool\Subagent;
 use Symfony\AI\Agent\Toolbox\ToolFactory\ChainFactory;
 use Symfony\AI\Agent\Toolbox\ToolFactory\MemoryToolFactory;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
+use Symfony\AI\AiBundle\DependencyInjection\McpToolboxCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
@@ -172,6 +176,9 @@ final class AiBundle extends AbstractBundle
 
         $container->addCompilerPass(new DebugCompilerPass());
         $container->addCompilerPass(new ProcessorCompilerPass());
+        // Runs in OPTIMIZE so child definitions (e.g. ai.toolbox.<name>) are resolved
+        // and we can read their first argument (the iterable<object> of tools).
+        $container->addCompilerPass(new McpToolboxCompilerPass(), \Symfony\Component\DependencyInjection\Compiler\PassConfig::TYPE_OPTIMIZE);
     }
 
     public function configure(DefinitionConfigurator $definition): void
@@ -1193,14 +1200,32 @@ final class AiBundle extends AbstractBundle
                 new Reference('ai.platform.json_schema_factory'),
             ]);
             $container->setDefinition('ai.toolbox.'.$name.'.memory_factory', $memoryFactoryDefinition);
-            $chainFactoryDefinition = new Definition(ChainFactory::class, [
-                [new Reference('ai.toolbox.'.$name.'.memory_factory'), new Reference('ai.tool_factory')],
-            ]);
+
+            $chainFactoryArgs = [new Reference('ai.toolbox.'.$name.'.memory_factory')];
+
+            $mcpAdapterReferences = [];
+            if ([] !== ($config['tools']['mcp_servers'] ?? [])) {
+                $mcpAdapterReferences = $this->registerMcpAdapters($name, $config['tools']['mcp_servers'], $container);
+
+                $mcpFactoryDefinition = new Definition(McpToolFactory::class);
+                $container->setDefinition('ai.toolbox.'.$name.'.mcp_factory', $mcpFactoryDefinition);
+                $chainFactoryArgs[] = new Reference('ai.toolbox.'.$name.'.mcp_factory');
+            }
+
+            $chainFactoryArgs[] = new Reference('ai.tool_factory');
+            $chainFactoryDefinition = new Definition(ChainFactory::class, [$chainFactoryArgs]);
             $container->setDefinition('ai.toolbox.'.$name.'.chain_factory', $chainFactoryDefinition);
 
             $toolboxDefinition = (new ChildDefinition('ai.toolbox.abstract'))
                 ->replaceArgument(1, new Reference('ai.toolbox.'.$name.'.chain_factory'))
                 ->addTag('ai.toolbox', ['name' => $name]);
+
+            if ([] !== $mcpAdapterReferences) {
+                $toolboxDefinition->addTag('ai.toolbox.mcp_pending', [
+                    'adapters' => array_map(static fn (Reference $r): string => (string) $r, $mcpAdapterReferences),
+                ]);
+            }
+
             $container->setDefinition('ai.toolbox.'.$name, $toolboxDefinition);
 
             if ($config['fault_tolerant_toolbox']) {
@@ -1341,6 +1366,53 @@ final class AiBundle extends AbstractBundle
                 ])
                 ->setDecoratedService($agentId, priority: -1024);
         }
+    }
+
+    /**
+     * Registers one McpClient + McpClientAdapter pair per configured MCP server
+     * for the given agent. Returns the adapter service references.
+     *
+     * @param list<array{client: string, transport: string|null, name: string|null, prefix: string|null}> $servers
+     *
+     * @return list<Reference>
+     */
+    private function registerMcpAdapters(string $agentName, array $servers, ContainerBuilder $container): array
+    {
+        $references = [];
+
+        foreach ($servers as $i => $server) {
+            $clientServiceId = $server['client'];
+            $shortName = $server['name'];
+
+            if (!str_contains($clientServiceId, '.') && !$container->has($clientServiceId)) {
+                $shortName ??= $clientServiceId;
+                $clientServiceId = 'mcp.client.'.$clientServiceId;
+            }
+
+            $shortName ??= str_starts_with($clientServiceId, 'mcp.client.')
+                ? substr($clientServiceId, \strlen('mcp.client.'))
+                : 'server'.$i;
+
+            $transportServiceId = $server['transport'] ?? 'mcp.client.'.$shortName.'.transport';
+            $prefix = $server['prefix'] ?? '';
+
+            $mcpClientId = 'ai.toolbox.'.$agentName.'.mcp_client.'.$shortName;
+            $container->setDefinition($mcpClientId, (new Definition(McpBridgeClient::class))
+                ->setArguments([
+                    $shortName,
+                    new Reference($clientServiceId),
+                    new Reference($transportServiceId),
+                    $prefix,
+                ]));
+
+            $adapterId = 'ai.toolbox.'.$agentName.'.mcp_adapter.'.$shortName;
+            $container->setDefinition($adapterId, (new Definition(McpClientAdapter::class))
+                ->setArguments([new Reference($mcpClientId)]));
+
+            $references[] = new Reference($adapterId);
+        }
+
+        return $references;
     }
 
     /**
