@@ -1,6 +1,14 @@
 CHANGELOG
 =========
 
+0.9
+---
+
+ * Add `clients:` configuration to register outbound MCP clients (`Mcp\Client`) over
+   stdio or HTTP transports as DI services tagged `mcp.client`
+ * Add `mcp:client:debug <name>` console command to inspect a configured client
+   (server info, instructions, advertised tools)
+
 0.8
 ---
 

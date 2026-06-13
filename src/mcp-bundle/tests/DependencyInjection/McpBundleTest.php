@@ -16,6 +16,9 @@ use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
+use Mcp\Client as McpClient;
+use Mcp\Client\Transport\HttpTransport;
+use Mcp\Client\Transport\StdioTransport;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\FileSessionStore;
@@ -538,6 +541,123 @@ class McpBundleTest extends TestCase
         $this->assertArrayHasKey(NotificationHandlerInterface::class, $autoconfigured);
         $definition = $autoconfigured[NotificationHandlerInterface::class];
         $this->assertTrue($definition->hasTag('mcp.notification_handler'));
+    }
+
+    public function testStdioClientIsRegistered()
+    {
+        $container = $this->buildContainer([
+            'mcp' => [
+                'clients' => [
+                    'filesystem' => [
+                        'transport' => 'stdio',
+                        'command' => ['npx', '-y', '@modelcontextprotocol/server-filesystem', '/tmp'],
+                        'env' => ['DEBUG' => '1'],
+                        'client_info' => ['name' => 'symfony-ai', 'version' => '0.9'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($container->hasDefinition('mcp.client.filesystem'));
+        $clientDef = $container->getDefinition('mcp.client.filesystem');
+        $this->assertSame(McpClient::class, $clientDef->getClass());
+        $this->assertSame([['name' => 'filesystem']], $clientDef->getTag('mcp.client'));
+
+        $transport = $container->getDefinition('mcp.client.filesystem.transport');
+        $this->assertSame(StdioTransport::class, $transport->getClass());
+        $this->assertSame('npx', $transport->getArgument(0));
+        $this->assertSame(['-y', '@modelcontextprotocol/server-filesystem', '/tmp'], $transport->getArgument(1));
+        $this->assertSame(['DEBUG' => '1'], $transport->getArgument(3));
+    }
+
+    public function testHttpClientIsRegistered()
+    {
+        $container = $this->buildContainer([
+            'mcp' => [
+                'clients' => [
+                    'web' => [
+                        'transport' => 'http',
+                        'url' => 'https://example.com/mcp',
+                        'headers' => ['Authorization' => 'Bearer secret'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($container->hasDefinition('mcp.client.web'));
+        $transport = $container->getDefinition('mcp.client.web.transport');
+        $this->assertSame(HttpTransport::class, $transport->getClass());
+        $this->assertSame('https://example.com/mcp', $transport->getArgument(0));
+        $this->assertSame(['Authorization' => 'Bearer secret'], $transport->getArgument(1));
+    }
+
+    public function testStdioClientRequiresCommand()
+    {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessageMatches('/command/i');
+
+        $this->buildContainer([
+            'mcp' => [
+                'clients' => [
+                    'broken' => [
+                        'transport' => 'stdio',
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testDebugCommandIsRegisteredWhenClientsArePresent()
+    {
+        $container = $this->buildContainer([
+            'mcp' => [
+                'clients' => [
+                    'filesystem' => [
+                        'transport' => 'stdio',
+                        'command' => ['echo'],
+                    ],
+                    'web' => [
+                        'transport' => 'http',
+                        'url' => 'https://example.com/mcp',
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($container->hasDefinition('mcp.client.debug_command'));
+        $this->assertTrue($container->getDefinition('mcp.client.debug_command')->hasTag('console.command'));
+
+        $this->assertTrue($container->hasDefinition('mcp.client.locator'));
+        $locator = $container->getDefinition('mcp.client.locator');
+        $services = $locator->getArgument(0);
+        $this->assertArrayHasKey('filesystem', $services);
+        $this->assertArrayHasKey('web', $services);
+        $this->assertSame('mcp.client.filesystem', (string) $services['filesystem']);
+        $this->assertSame('mcp.client.web', (string) $services['web']);
+    }
+
+    public function testDebugCommandIsNotRegisteredWithoutClients()
+    {
+        $container = $this->buildContainer([]);
+
+        $this->assertFalse($container->hasDefinition('mcp.client.debug_command'));
+        $this->assertFalse($container->hasDefinition('mcp.client.locator'));
+    }
+
+    public function testHttpClientRequiresUrl()
+    {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessageMatches('/url/i');
+
+        $this->buildContainer([
+            'mcp' => [
+                'clients' => [
+                    'broken' => [
+                        'transport' => 'http',
+                    ],
+                ],
+            ],
+        ]);
     }
 
     /**

@@ -17,11 +17,19 @@ use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
+use Mcp\Client as McpClient;
+use Mcp\Client\Configuration as McpClientConfiguration;
+use Mcp\Client\Protocol as McpClientProtocol;
+use Mcp\Client\Transport\HttpTransport as McpHttpTransport;
+use Mcp\Client\Transport\StdioTransport as McpStdioTransport;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Implementation;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;
+use Symfony\AI\McpBundle\Command\McpClientDebugCommand;
 use Symfony\AI\McpBundle\Command\McpCommand;
 use Symfony\AI\McpBundle\Controller\McpController;
 use Symfony\AI\McpBundle\DependencyInjection\McpPass;
@@ -38,6 +46,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 final class McpBundle extends AbstractBundle
@@ -90,6 +99,10 @@ final class McpBundle extends AbstractBundle
 
         if (isset($config['client_transports'])) {
             $this->configureClient($config['client_transports'], $config['http'], $builder);
+        }
+
+        if ([] !== ($config['clients'] ?? [])) {
+            $this->configureClients($config['clients'], $builder);
         }
     }
 
@@ -174,6 +187,103 @@ final class McpBundle extends AbstractBundle
                 $httpConfig['path'],
             ])
             ->addTag('routing.loader');
+    }
+
+    /**
+     * @param array<string, array{
+     *     transport: 'stdio'|'http',
+     *     command: list<string>,
+     *     cwd: string|null,
+     *     env: array<string, string>,
+     *     url: string|null,
+     *     headers: array<string, string>,
+     *     http_client: string|null,
+     *     client_info: array{name: string, version: string, description: string|null},
+     *     init_timeout: int,
+     *     request_timeout: int,
+     * }> $clients
+     */
+    private function configureClients(array $clients, ContainerBuilder $container): void
+    {
+        foreach ($clients as $name => $config) {
+            $transportId = 'mcp.client.'.$name.'.transport';
+
+            if ('stdio' === $config['transport']) {
+                $command = $config['command'];
+                $program = array_shift($command);
+
+                $transport = (new Definition(McpStdioTransport::class))
+                    ->setArguments([
+                        $program,
+                        $command,
+                        $config['cwd'],
+                        [] !== $config['env'] ? $config['env'] : null,
+                        new Reference('logger', ContainerBuilder::NULL_ON_INVALID_REFERENCE),
+                    ])
+                    ->addTag('monolog.logger', ['channel' => 'mcp']);
+            } else {
+                $transport = (new Definition(McpHttpTransport::class))
+                    ->setArguments([
+                        $config['url'],
+                        $config['headers'],
+                        null !== $config['http_client'] ? new Reference($config['http_client']) : null,
+                        null,
+                        null,
+                        new Reference('logger', ContainerBuilder::NULL_ON_INVALID_REFERENCE),
+                    ])
+                    ->addTag('monolog.logger', ['channel' => 'mcp']);
+            }
+
+            $container->setDefinition($transportId, $transport);
+
+            $clientInfo = (new Definition(Implementation::class))
+                ->setArguments([
+                    $config['client_info']['name'],
+                    $config['client_info']['version'],
+                    $config['client_info']['description'],
+                ]);
+            $container->setDefinition('mcp.client.'.$name.'.client_info', $clientInfo);
+
+            $configuration = (new Definition(McpClientConfiguration::class))
+                ->setArguments([
+                    new Reference('mcp.client.'.$name.'.client_info'),
+                    new Definition(ClientCapabilities::class),
+                    null,
+                    $config['init_timeout'],
+                    $config['request_timeout'],
+                ]);
+            $container->setDefinition('mcp.client.'.$name.'.configuration', $configuration);
+
+            $protocol = (new Definition(McpClientProtocol::class))
+                ->setArguments([
+                    [],
+                    [],
+                    null,
+                    new Reference('logger', ContainerBuilder::NULL_ON_INVALID_REFERENCE),
+                ]);
+            $container->setDefinition('mcp.client.'.$name.'.protocol', $protocol);
+
+            $client = (new Definition(McpClient::class))
+                ->setArguments([
+                    new Reference('mcp.client.'.$name.'.protocol'),
+                    new Reference('mcp.client.'.$name.'.configuration'),
+                    new Reference('logger', ContainerBuilder::NULL_ON_INVALID_REFERENCE),
+                ])
+                ->addTag('mcp.client', ['name' => $name])
+                ->addTag('monolog.logger', ['channel' => 'mcp']);
+            $container->setDefinition('mcp.client.'.$name, $client);
+        }
+
+        $container->register('mcp.client.locator', ServiceLocator::class)
+            ->setArguments([array_combine(
+                array_keys($clients),
+                array_map(static fn (string $name): Reference => new Reference('mcp.client.'.$name), array_keys($clients)),
+            )])
+            ->addTag('container.service_locator');
+
+        $container->register('mcp.client.debug_command', McpClientDebugCommand::class)
+            ->setArguments([new Reference('mcp.client.locator')])
+            ->addTag('console.command');
     }
 
     /**
