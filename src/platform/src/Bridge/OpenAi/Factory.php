@@ -47,23 +47,19 @@ final class Factory
 
         return new Provider(
             $name,
-            [
-                new Gpt\ModelClient($httpClient, $apiKey, $region),
-                new Embeddings\ModelClient($httpClient, $apiKey, $region),
-                new DallE\ModelClient($httpClient, $apiKey, $region),
-                new TextToSpeech\ModelClient($httpClient, $apiKey, $region),
-                new Whisper\ModelClient($httpClient, $apiKey, $region),
-            ],
-            [
-                new Gpt\ResultConverter(),
-                new Embeddings\ResultConverter(),
-                new DallE\ResultConverter(),
-                new TextToSpeech\ResultConverter(),
-                new Whisper\ResultConverter(),
-            ],
+            [],
+            [],
             $modelCatalog,
             $contract ?? OpenAiContract::create(),
             $eventDispatcher,
+            [
+                new Gpt\EndpointHandler($httpClient, $apiKey, $region),
+                new Embeddings\EndpointHandler($httpClient, $apiKey, $region),
+                new DallE\EndpointHandler($httpClient, $apiKey, $region),
+                new TextToSpeech\EndpointHandler($httpClient, $apiKey, $region),
+                new Whisper\TranscriptionEndpointHandler($httpClient, $apiKey, $region),
+                new Whisper\TranslationEndpointHandler($httpClient, $apiKey, $region),
+            ],
         );
     }
 

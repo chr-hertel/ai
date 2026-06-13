@@ -36,10 +36,35 @@ final class DeferredResult
      * @param array<string, mixed> $options
      */
     public function __construct(
-        private readonly ResultConverterInterface $resultConverter,
-        private readonly RawResultInterface $rawResult,
+        private readonly ?ResultConverterInterface $resultConverter = null,
+        private readonly ?RawResultInterface $rawResult = null,
         private readonly array $options = [],
     ) {
+    }
+
+    /**
+     * Wraps an already-converted result, e.g. produced by an EndpointHandlerInterface.
+     *
+     * The conversion has already happened, so getResult() short-circuits and returns the
+     * given result. Stream listeners are still wired and the result metadata is promoted,
+     * mirroring the eager conversion path in getResult().
+     *
+     * @param array<string, mixed> $options
+     */
+    public static function fromResult(ResultInterface $result, array $options = []): self
+    {
+        $deferred = new self(null, $result->getRawResult(), $options);
+        $deferred->convertedResult = $result;
+
+        if ($result instanceof StreamResult) {
+            $result->addListener(new MetaDataStreamListener());
+            $result->addListener(new TokenUsageStreamListener());
+        }
+
+        $deferred->getMetadata()->set($result->getMetadata()->all());
+        $deferred->isConverted = true;
+
+        return $deferred;
     }
 
     /**
@@ -54,6 +79,8 @@ final class DeferredResult
         if ($this->isConverted) {
             return $this->convertedResult;
         }
+
+        \assert(null !== $this->resultConverter && null !== $this->rawResult);
 
         try {
             $this->convertedResult = $this->resultConverter->convert($this->rawResult, $this->options);
@@ -94,7 +121,7 @@ final class DeferredResult
         return $this->resultConverter;
     }
 
-    public function getRawResult(): RawResultInterface
+    public function getRawResult(): ?RawResultInterface
     {
         return $this->rawResult;
     }
