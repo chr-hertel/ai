@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add `UserMessageNormalizer` to send image content in Ollama's native message format
+ * Add a `$modelCatalog` argument to `Factory::createProvider()` and `Factory::createPlatform()`, e.g. to wrap the API-based catalog in a `CachedModelCatalog`
 
 0.14
 ----
