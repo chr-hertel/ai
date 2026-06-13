@@ -33,11 +33,46 @@ Agent
  * An optional `MessageStoreInterface` can be passed via the `store:` argument to make
    the agent stateful: it loads, appends and persists the conversation across calls.
 
- * `InputProcessorInterface`, `OutputProcessorInterface`, `Input`, `Output`,
-   `AgentAwareInterface`, `AgentAwareTrait`, `Toolbox\AgentProcessor` and
-   `MultiAgent\MultiAgent` are deprecated. Implement `Context\ContextProcessorInterface`
-   instead; deprecated processors still work when passed via the `contextProcessors`
-   argument, bridged by `Context\LegacyProcessorAdapter`.
+ * The input/output processor system was removed in favor of the context processor
+   one. Classes removed: `InputProcessorInterface`, `OutputProcessorInterface`,
+   `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `Attribute\AsInputProcessor`,
+   `Attribute\AsOutputProcessor`, `InputProcessor\SystemPromptInputProcessor`,
+   `InputProcessor\ModelOverrideInputProcessor`, `Memory\MemoryInputProcessor`,
+   `Toolbox\AgentProcessor`, `Toolbox\StreamListener` and the entire `MultiAgent`
+   namespace. Implement `Context\ContextProcessorInterface` instead and pass instances
+   via the `contextProcessors` argument:
+
+   ```diff
+   -class MyProcessor implements InputProcessorInterface
+   -{
+   -    public function processInput(Input $input): void { /* ... */ }
+   -}
+   +class MyProcessor implements ContextProcessorInterface
+   +{
+   +    public static function supportedTypes(): array { return []; }
+   +    public function process(AgentRequest $request, AgentContext $context): void { /* ... */ }
+   +}
+   ```
+
+ * `MultiAgent\MultiAgent` was removed. Configure handoffs directly on the `Agent`:
+
+   ```diff
+   -$multi = new MultiAgent(
+   -    orchestrator: $orchestrator,
+   -    handoffs: [new MultiAgent\Handoff(to: $technical, when: ['bug', 'error'])],
+   -    fallback: $fallback,
+   -);
+   +$orchestrator = new Agent($platform,
+   +    name: 'orchestrator',
+   +    instruction: '...',
+   +    handoffs: [new Handoff\Handoff(to: $technical, description: 'bugs, errors')],
+   +    model: 'gpt-4o',
+   +);
+   ```
+
+ * `MemoryProviderInterface::load()` now takes a `Context\AgentRequest` instead of the
+   removed `Input`. Update custom providers and replace `MemoryInputProcessor` with
+   `Context\Processor\MemoryProcessor`.
 
 UPGRADE FROM 0.9 to 0.10
 ========================

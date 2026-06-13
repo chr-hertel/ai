@@ -14,7 +14,6 @@ namespace Symfony\AI\Agent;
 use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
-use Symfony\AI\Agent\Context\LegacyProcessorAdapter;
 use Symfony\AI\Agent\Context\Processor\AttachmentProcessor;
 use Symfony\AI\Agent\Context\Processor\InstructionProcessor;
 use Symfony\AI\Agent\Context\Processor\ToolProcessor;
@@ -52,11 +51,11 @@ final class Agent implements AgentInterface
     private ?Runner $runner = null;
 
     /**
-     * @param non-empty-string                                                                     $name
-     * @param iterable<object|AgentInterface|ToolboxInterface>                                     $tools             local tools, subagents, or a pre-built toolbox
-     * @param Handoff\Handoff[]                                                                    $handoffs
-     * @param non-empty-string|null                                                                $model             default model, overridable per call via the "model" option
-     * @param iterable<ContextProcessorInterface|InputProcessorInterface|OutputProcessorInterface> $contextProcessors
+     * @param non-empty-string                                 $name
+     * @param iterable<object|AgentInterface|ToolboxInterface> $tools             local tools, subagents, or a pre-built toolbox
+     * @param Handoff\Handoff[]                                $handoffs
+     * @param non-empty-string|null                            $model             default model, overridable per call via the "model" option
+     * @param iterable<ContextProcessorInterface>              $contextProcessors
      */
     public function __construct(
         private readonly PlatformInterface $platform,
@@ -163,13 +162,11 @@ final class Agent implements AgentInterface
         }
 
         foreach ($this->contextProcessors as $processor) {
-            if ($processor instanceof ContextProcessorInterface) {
-                $processors[] = $processor;
-            } elseif ($processor instanceof InputProcessorInterface || $processor instanceof OutputProcessorInterface) {
-                $processors[] = new LegacyProcessorAdapter($processor);
-            } else {
+            if (!$processor instanceof ContextProcessorInterface) {
                 throw new InvalidArgumentException(\sprintf('Context processor "%s" must implement "%s".', get_debug_type($processor), ContextProcessorInterface::class));
             }
+
+            $processors[] = $processor;
         }
 
         $toolExecutor = $this->toolExecutor;
