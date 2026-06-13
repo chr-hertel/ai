@@ -13,6 +13,9 @@ namespace Symfony\AI\Platform\Bridge\Gemini;
 
 use Symfony\AI\Platform\Bridge\Gemini\Embeddings\TaskType;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Valtteri R <valtzu@gmail.com>
@@ -22,8 +25,8 @@ class Embeddings extends Model
     /**
      * @param array{dimensions?: int, task_type?: TaskType|string} $options
      */
-    public function __construct(string $name, array $capabilities = [], array $options = [])
+    public function __construct(string $name, array $tasks = [], array $inputModalities = [], array $outputModalities = [], array $features = [], array $options = [])
     {
-        parent::__construct($name, $capabilities, $options);
+        parent::__construct($name, $tasks, $inputModalities, $outputModalities, $features, $options);
     }
 }

@@ -16,7 +16,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\CollectionNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\ImageUrlNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\ImageUrl;
 use Symfony\AI\Platform\Model;
@@ -53,8 +55,8 @@ final class ImageUrlNormalizerTest extends TestCase
     {
         $url = new ImageUrl('https://example.org/foo.jpg');
 
-        yield 'supported' => [$url, new Voyage('voyage-multimodal-3', [Capability::INPUT_MULTIMODAL]), true];
-        yield 'not an image' => [[], new Voyage('voyage-multimodal-3', [Capability::INPUT_MULTIMODAL]), false];
+        yield 'supported' => [$url, new Voyage('voyage-multimodal-3', [], [Modality::TEXT, Modality::IMAGE], [], []), true];
+        yield 'not an image' => [[], new Voyage('voyage-multimodal-3', [], [Modality::TEXT, Modality::IMAGE], [], []), false];
         yield 'non-multimodal model' => [$url, new Voyage('voyage-3.5'), false];
         yield 'unsupported model' => [$url, new Model('gpt-40'), false];
     }

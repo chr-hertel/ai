@@ -1,3 +1,89 @@
+UPGRADE FROM 0.10 to 0.11
+=========================
+
+Platform
+--------
+
+ * The flat `Capability` enum has been removed and split into three orthogonal enums plus a value
+   object:
+
+   * `Symfony\AI\Platform\Task` — what a model does (`TEXT_GENERATION`, `IMAGE_GENERATION`,
+     `VIDEO_GENERATION`, `SPEECH_SYNTHESIS`, `TRANSCRIPTION`, `EMBEDDING`, `RERANKING`).
+   * `Symfony\AI\Platform\Modality` — the data types it consumes/produces (`TEXT`, `IMAGE`, `AUDIO`,
+     `VIDEO`, `PDF`).
+   * `Symfony\AI\Platform\Feature` — orthogonal capabilities (`TOOL_CALLING`, `STREAMING`,
+     `STRUCTURED_OUTPUT`, `THINKING`, `FILL_IN_THE_MIDDLE`, `MULTIPLE_INPUTS`).
+
+   `Model` carries these directly as constructor arguments.
+
+   Mapping from the old cases:
+
+   | Old `Capability`                | New representation                                            |
+   |---------------------------------|--------------------------------------------------------------|
+   | `INPUT_TEXT` / `INPUT_IMAGE` / `INPUT_AUDIO` / `INPUT_VIDEO` / `INPUT_PDF` | input `Modality::TEXT` / `IMAGE` / `AUDIO` / `VIDEO` / `PDF` |
+   | `OUTPUT_TEXT` / `OUTPUT_IMAGE` / `OUTPUT_AUDIO` | output `Modality::TEXT` / `IMAGE` / `AUDIO`             |
+   | `INPUT_MESSAGES`                | `Task::TEXT_GENERATION` + input `Modality::TEXT`             |
+   | `INPUT_MULTIMODAL`              | more than one input `Modality` (`Model::isMultimodalInput()`) |
+   | `INPUT_MULTIPLE`                | `Feature::MULTIPLE_INPUTS`                                   |
+   | `OUTPUT_STREAMING`             | `Feature::STREAMING`                                         |
+   | `OUTPUT_STRUCTURED`            | `Feature::STRUCTURED_OUTPUT`                                 |
+   | `TOOL_CALLING` / `THINKING` / `FILL_IN_THE_MIDDLE` | `Feature::TOOL_CALLING` / `THINKING` / `FILL_IN_THE_MIDDLE` |
+   | `EMBEDDINGS` / `RERANKING`     | `Task::EMBEDDING` / `Task::RERANKING`                        |
+   | `TEXT_TO_SPEECH`              | `Task::SPEECH_SYNTHESIS` + input `TEXT` + output `AUDIO`     |
+   | `SPEECH_TO_TEXT`             | `Task::TRANSCRIPTION` + input `AUDIO` + output `TEXT`        |
+   | `TEXT_TO_IMAGE` / `IMAGE_TO_IMAGE` | `Task::IMAGE_GENERATION` (input `TEXT`/`IMAGE`, output `IMAGE`) |
+   | `TEXT_TO_VIDEO` / `IMAGE_TO_VIDEO` / `VIDEO_TO_VIDEO` | `Task::VIDEO_GENERATION` (input `TEXT`/`IMAGE`/`VIDEO`, output `VIDEO`) |
+
+ * `Model::getCapabilities()` and `Model::supports(Capability)` were removed. The `Model` constructor
+   now takes the tasks, input modalities, output modalities and features directly instead of a
+   `Capability[]` list:
+
+   ```diff
+   -use Symfony\AI\Platform\Capability;
+   -$model = new Model('my-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT, Capability::TOOL_CALLING]);
+   -$model->supports(Capability::TOOL_CALLING);
+   +use Symfony\AI\Platform\Feature;
+   +use Symfony\AI\Platform\Modality;
+   +use Symfony\AI\Platform\Task;
+   +$model = new Model('my-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], [Feature::TOOL_CALLING]);
+   +$model->has(Feature::TOOL_CALLING);
+   ```
+
+   Use `getTasks()`, `getInputModalities()`, `getOutputModalities()`, `getFeatures()`,
+   `handles(Task)`, `accepts(Modality)`, `produces(Modality)`, `has(Feature)` and
+   `isMultimodalInput()` instead.
+
+ * Model catalog entries use the new keys instead of `capabilities`:
+
+   ```diff
+    'gpt-4o' => [
+        'class' => Gpt::class,
+   -    'capabilities' => [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT, Capability::TOOL_CALLING],
+   +    'tasks' => [Task::TEXT_GENERATION],
+   +    'input' => [Modality::TEXT],
+   +    'output' => [Modality::TEXT],
+   +    'features' => [Feature::TOOL_CALLING],
+    ],
+   ```
+
+AI Bundle
+---------
+
+ * The `model` configuration key no longer accepts a `capabilities` list; use `tasks`, `input`,
+   `output` and `features` instead:
+
+   ```diff
+    ai:
+        model:
+            openai:
+                my-custom-model:
+                    class: 'Symfony\AI\Platform\Bridge\OpenAi\Gpt'
+   -                capabilities: ['input-text', 'output-text']
+   +                tasks: ['text-generation']
+   +                input: ['text']
+   +                output: ['text']
+   ```
+
 UPGRADE FROM 0.9 to 0.10
 ========================
 

@@ -15,7 +15,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Voyage\ModelClient;
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -49,8 +51,8 @@ final class ModelClientTest extends TestCase
 
     public static function requestProvider(): \Generator
     {
-        $textEmbeddingModel = new Voyage('some-text-embedding-model', []);
-        $multimodalEmbeddingModel = new Voyage('some-multimodal-embedding-model', [Capability::INPUT_MULTIMODAL]);
+        $textEmbeddingModel = new Voyage('some-text-embedding-model', [], [], [], []);
+        $multimodalEmbeddingModel = new Voyage('some-multimodal-embedding-model', [], [Modality::TEXT, Modality::IMAGE], [], []);
         $input = 'Hello, world!';
 
         yield 'for text embedding' => [

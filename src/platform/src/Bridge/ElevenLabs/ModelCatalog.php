@@ -11,9 +11,10 @@
 
 namespace Symfony\AI\Platform\Bridge\ElevenLabs;
 
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\Task;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -35,11 +36,12 @@ final class ModelCatalog implements ModelCatalogInterface
             throw new InvalidArgumentException(\sprintf('The model "%s" cannot be retrieved from the API.', $modelName));
         }
 
-        if ([] === $models[$modelName]['capabilities']) {
+        $model = self::buildModel($modelName, $models[$modelName]);
+        if ([] === $model->getTasks()) {
             throw new InvalidArgumentException(\sprintf('The model "%s" is not supported, please check the ElevenLabs API.', $modelName));
         }
 
-        return new ElevenLabs($modelName, $models[$modelName]['capabilities']);
+        return $model;
     }
 
     public function getModels(): array
@@ -48,16 +50,16 @@ final class ModelCatalog implements ModelCatalogInterface
 
         $models = $response->toArray();
 
-        $capabilities = static fn (array $model): array => match (true) {
+        $profile = static fn (array $model): array => match (true) {
             $model['can_do_text_to_speech'] => [
-                Capability::TEXT_TO_SPEECH,
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
+                'tasks' => [Task::SPEECH_SYNTHESIS],
+                'input' => [Modality::TEXT],
+                'output' => [Modality::AUDIO],
             ],
             $model['can_do_voice_conversion'] => [
-                Capability::SPEECH_TO_TEXT,
-                Capability::INPUT_AUDIO,
-                Capability::OUTPUT_TEXT,
+                'tasks' => [Task::TRANSCRIPTION],
+                'input' => [Modality::AUDIO],
+                'output' => [Modality::TEXT],
             ],
             default => [],
         };
@@ -66,25 +68,33 @@ final class ModelCatalog implements ModelCatalogInterface
             array_map(static fn (array $model): string => $model['model_id'], $models),
             array_map(static fn (array $model): array => [
                 'class' => ElevenLabs::class,
-                'capabilities' => $capabilities($model),
-            ], $models),
+            ] + $profile($model), $models),
         ) + [
             'scribe_v1' => [
                 'class' => ElevenLabs::class,
-                'capabilities' => [
-                    Capability::INPUT_AUDIO,
-                    Capability::OUTPUT_TEXT,
-                    Capability::SPEECH_TO_TEXT,
-                ],
+                'tasks' => [Task::TRANSCRIPTION],
+                'input' => [Modality::AUDIO],
+                'output' => [Modality::TEXT],
             ],
             'scribe_v2' => [
                 'class' => ElevenLabs::class,
-                'capabilities' => [
-                    Capability::INPUT_AUDIO,
-                    Capability::OUTPUT_TEXT,
-                    Capability::SPEECH_TO_TEXT,
-                ],
+                'tasks' => [Task::TRANSCRIPTION],
+                'input' => [Modality::AUDIO],
+                'output' => [Modality::TEXT],
             ],
         ];
+    }
+
+    /**
+     * @param array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>} $modelConfig
+     */
+    private static function buildModel(string $name, array $modelConfig): ElevenLabs
+    {
+        return new ElevenLabs(
+            $name,
+            $modelConfig['tasks'] ?? [],
+            $modelConfig['input'] ?? [],
+            $modelConfig['output'] ?? [],
+        );
     }
 }

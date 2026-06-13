@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Anthropic;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -20,7 +22,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -29,291 +31,466 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'claude-3-5-haiku-20241022' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'claude-3-5-haiku-latest' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'claude-3-5-sonnet-20240620' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'claude-3-5-sonnet-20241022' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'claude-3-7-sonnet-20250219' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'claude-3-haiku-20240307' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'claude-3-opus-20240229' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'claude-3-sonnet-20240229' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'claude-fable-5' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-haiku-4-5' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-haiku-4-5-20251001' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-0' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-1' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-1-20250805' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-20250514' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-5' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-5-20251101' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-6' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-7' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-opus-4-8' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-sonnet-4-0' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'claude-sonnet-4-20250514' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'claude-sonnet-4-5' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'claude-sonnet-4-5-20250929' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'claude-sonnet-4-6' => [
                 'class' => Claude::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
         ];

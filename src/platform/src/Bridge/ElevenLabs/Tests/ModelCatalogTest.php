@@ -14,7 +14,9 @@ namespace Symfony\AI\Platform\Bridge\ElevenLabs\Tests;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\ElevenLabs\ElevenLabs;
 use Symfony\AI\Platform\Bridge\ElevenLabs\ModelCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
@@ -112,11 +114,10 @@ final class ModelCatalogTest extends TestCase
         $model = $modelCatalog->getModel('foo');
 
         $this->assertSame('foo', $model->getName());
-        $this->assertSame([
-            Capability::TEXT_TO_SPEECH,
-            Capability::INPUT_TEXT,
-            Capability::OUTPUT_AUDIO,
-        ], $model->getCapabilities());
+        $this->assertEqualsCanonicalizing([Task::SPEECH_SYNTHESIS], $model->getTasks());
+        $this->assertEqualsCanonicalizing([Modality::TEXT], $model->getInputModalities());
+        $this->assertEqualsCanonicalizing([Modality::AUDIO], $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing([], $model->getFeatures());
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -142,11 +143,10 @@ final class ModelCatalogTest extends TestCase
         $model = $modelCatalog->getModel('foo');
 
         $this->assertSame('foo', $model->getName());
-        $this->assertSame([
-            Capability::SPEECH_TO_TEXT,
-            Capability::INPUT_AUDIO,
-            Capability::OUTPUT_TEXT,
-        ], $model->getCapabilities());
+        $this->assertEqualsCanonicalizing([Task::TRANSCRIPTION], $model->getTasks());
+        $this->assertEqualsCanonicalizing([Modality::AUDIO], $model->getInputModalities());
+        $this->assertEqualsCanonicalizing([Modality::TEXT], $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing([], $model->getFeatures());
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -184,17 +184,9 @@ final class ModelCatalogTest extends TestCase
         $this->assertArrayHasKey('scribe_v2', $models);
         $this->assertSame(ElevenLabs::class, $models['foo']['class']);
         $this->assertCount(3, $models['foo']['capabilities']);
-        $this->assertSame([
-            Capability::SPEECH_TO_TEXT,
-            Capability::INPUT_AUDIO,
-            Capability::OUTPUT_TEXT,
-        ], $models['foo']['capabilities']);
+        $this->assertEquals([Task::TRANSCRIPTION], [Modality::AUDIO], [Modality::TEXT], [], $models['foo']['capabilities']);
         $this->assertSame(ElevenLabs::class, $models['bar']['class']);
         $this->assertCount(3, $models['bar']['capabilities']);
-        $this->assertSame([
-            Capability::TEXT_TO_SPEECH,
-            Capability::INPUT_TEXT,
-            Capability::OUTPUT_AUDIO,
-        ], $models['bar']['capabilities']);
+        $this->assertEquals([Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], [], $models['bar']['capabilities']);
     }
 }

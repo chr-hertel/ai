@@ -187,13 +187,17 @@ Based on the generic bridge, you can configure any service, that complies with t
             $models:
                 mistral-small-latest:
                     class: 'Symfony\AI\Platform\Bridge\Generic\CompletionsModel'
-                    capabilities:
-                        - !php/const 'Symfony\AI\Platform\Capability::INPUT_MESSAGES'
-                        - !php/const 'Symfony\AI\Platform\Capability::OUTPUT_TEXT'
-                        - !php/const 'Symfony\AI\Platform\Capability::OUTPUT_STREAMING'
-                        - !php/const 'Symfony\AI\Platform\Capability::OUTPUT_STRUCTURED'
-                        - !php/const 'Symfony\AI\Platform\Capability::INPUT_IMAGE'
-                        - !php/const 'Symfony\AI\Platform\Capability::TOOL_CALLING'
+                    tasks:
+                        - !php/const 'Symfony\AI\Platform\Task::TEXT_GENERATION'
+                    input:
+                        - !php/const 'Symfony\AI\Platform\Modality::TEXT'
+                        - !php/const 'Symfony\AI\Platform\Modality::IMAGE'
+                    output:
+                        - !php/const 'Symfony\AI\Platform\Modality::TEXT'
+                    features:
+                        - !php/const 'Symfony\AI\Platform\Feature::STREAMING'
+                        - !php/const 'Symfony\AI\Platform\Feature::STRUCTURED_OUTPUT'
+                        - !php/const 'Symfony\AI\Platform\Feature::TOOL_CALLING'
 
 OpenResponses Platform
 ----------------------
@@ -353,13 +357,17 @@ class and the list of capabilities it supports:
             lmstudio:
                 qwen3-coder-next:
                     class: 'Symfony\AI\Platform\Bridge\Generic\CompletionsModel'
-                    capabilities:
-                        - !php/const Symfony\AI\Platform\Capability::INPUT_MESSAGES
-                        - !php/const Symfony\AI\Platform\Capability::INPUT_IMAGE
-                        - !php/const Symfony\AI\Platform\Capability::OUTPUT_TEXT
-                        - !php/const Symfony\AI\Platform\Capability::OUTPUT_STREAMING
-                        - !php/const Symfony\AI\Platform\Capability::TOOL_CALLING
-                        - !php/const Symfony\AI\Platform\Capability::OUTPUT_STRUCTURED
+                    tasks:
+                        - !php/const Symfony\AI\Platform\Task::TEXT_GENERATION
+                    input:
+                        - !php/const Symfony\AI\Platform\Modality::TEXT
+                        - !php/const Symfony\AI\Platform\Modality::IMAGE
+                    output:
+                        - !php/const Symfony\AI\Platform\Modality::TEXT
+                    features:
+                        - !php/const Symfony\AI\Platform\Feature::STREAMING
+                        - !php/const Symfony\AI\Platform\Feature::TOOL_CALLING
+                        - !php/const Symfony\AI\Platform\Feature::STRUCTURED_OUTPUT
 
         agent:
             coder:
@@ -374,8 +382,11 @@ an existing model.
   :class:`Symfony\\AI\\Platform\\Model`. For platforms based on the generic bridge, use
   :class:`Symfony\\AI\\Platform\\Bridge\\Generic\\CompletionsModel` for chat/completion models or
   :class:`Symfony\\AI\\Platform\\Bridge\\Generic\\EmbeddingsModel` for embedding models.
-* ``capabilities`` (list): The :class:`Symfony\\AI\\Platform\\Capability` cases the model supports.
-  At least one capability must be specified for each model.
+* ``tasks`` (list): The :class:`Symfony\\AI\\Platform\\Task` cases the model performs. At least one
+  task must be specified for each model.
+* ``input`` (list): The :class:`Symfony\\AI\\Platform\\Modality` cases the model accepts as input.
+* ``output`` (list): The :class:`Symfony\\AI\\Platform\\Modality` cases the model produces as output.
+* ``features`` (list): The :class:`Symfony\\AI\\Platform\\Feature` cases the model supports.
 
 .. _`LM Studio`: https://lmstudio.ai/
 .. _`Ollama`: https://ollama.com/

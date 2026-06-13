@@ -13,9 +13,11 @@ namespace Symfony\AI\Platform\Bridge\AmazeeAi;
 
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
+use Symfony\AI\Platform\Task;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -46,7 +48,7 @@ final class ModelApiCatalog extends AbstractModelCatalog
     }
 
     /**
-     * @return array<string, array{class: class-string, capabilities: list<Capability>}>
+     * @return array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>
      */
     public function getModels(): array
     {
@@ -66,7 +68,7 @@ final class ModelApiCatalog extends AbstractModelCatalog
     }
 
     /**
-     * @return iterable<string, array{class: class-string<Model>, capabilities: list<Capability>}>
+     * @return iterable<string, array{class: class-string<Model>, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}>
      */
     private function fetchRemoteModels(): iterable
     {
@@ -86,15 +88,9 @@ final class ModelApiCatalog extends AbstractModelCatalog
             $mode = $info['mode'] ?? null;
 
             if ('embedding' === $mode) {
-                yield $name => [
-                    'class' => EmbeddingsModel::class,
-                    'capabilities' => $this->buildEmbeddingCapabilities($info),
-                ];
+                yield $name => ['class' => EmbeddingsModel::class] + $this->buildEmbeddingProfile($info);
             } else {
-                yield $name => [
-                    'class' => CompletionsModel::class,
-                    'capabilities' => $this->buildCompletionsCapabilities($info),
-                ];
+                yield $name => ['class' => CompletionsModel::class] + $this->buildCompletionsProfile($info);
             }
         }
     }
@@ -102,41 +98,46 @@ final class ModelApiCatalog extends AbstractModelCatalog
     /**
      * @param array<string, mixed> $info
      *
-     * @return list<Capability>
+     * @return array{tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}
      */
-    private function buildEmbeddingCapabilities(array $info): array
+    private function buildEmbeddingProfile(array $info): array
     {
-        $capabilities = [Capability::EMBEDDINGS, Capability::INPUT_TEXT];
-
-        if ($info['supports_multiple_inputs'] ?? true) {
-            $capabilities[] = Capability::INPUT_MULTIPLE;
-        }
-
-        return $capabilities;
+        return [
+            'tasks' => [Task::EMBEDDING],
+            'input' => [Modality::TEXT],
+            'output' => [],
+            'features' => [],
+        ];
     }
 
     /**
      * @param array<string, mixed> $info
      *
-     * @return list<Capability>
+     * @return array{tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}
      */
-    private function buildCompletionsCapabilities(array $info): array
+    private function buildCompletionsProfile(array $info): array
     {
-        $capabilities = [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING];
+        $input = [Modality::TEXT];
+        $features = [Feature::STREAMING];
 
         if ($info['supports_image_input'] ?? false) {
-            $capabilities[] = Capability::INPUT_IMAGE;
+            $input[] = Modality::IMAGE;
         }
         if ($info['supports_audio_input'] ?? false) {
-            $capabilities[] = Capability::INPUT_AUDIO;
+            $input[] = Modality::AUDIO;
         }
         if ($info['supports_tool_calling'] ?? $info['supports_function_calling'] ?? false) {
-            $capabilities[] = Capability::TOOL_CALLING;
+            $features[] = Feature::TOOL_CALLING;
         }
         if ($info['supports_response_schema'] ?? false) {
-            $capabilities[] = Capability::OUTPUT_STRUCTURED;
+            $features[] = Feature::STRUCTURED_OUTPUT;
         }
 
-        return $capabilities;
+        return [
+            'tasks' => [Task::TEXT_GENERATION],
+            'input' => $input,
+            'output' => [Modality::TEXT],
+            'features' => $features,
+        ];
     }
 }

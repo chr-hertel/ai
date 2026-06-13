@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\Voyage\Tests;
 
 use Symfony\AI\Platform\Bridge\Voyage\ModelCatalog;
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -21,17 +23,17 @@ final class ModelCatalogTest extends ModelCatalogTestCase
 {
     public static function modelsProvider(): iterable
     {
-        yield 'voyage-3.5' => ['voyage-3.5', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-3.5-lite' => ['voyage-3.5-lite', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-3' => ['voyage-3', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-3-lite' => ['voyage-3-lite', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-3-large' => ['voyage-3-large', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-finance-2' => ['voyage-finance-2', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-multilingual-2' => ['voyage-multilingual-2', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-law-2' => ['voyage-law-2', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-code-3' => ['voyage-code-3', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-code-2' => ['voyage-code-2', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS]];
-        yield 'voyage-multimodal-3' => ['voyage-multimodal-3', Voyage::class, [Capability::INPUT_MULTIPLE, Capability::INPUT_MULTIMODAL, Capability::EMBEDDINGS]];
+        yield 'voyage-3.5' => ['voyage-3.5', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-3.5-lite' => ['voyage-3.5-lite', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-3' => ['voyage-3', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-3-lite' => ['voyage-3-lite', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-3-large' => ['voyage-3-large', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-finance-2' => ['voyage-finance-2', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-multilingual-2' => ['voyage-multilingual-2', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-law-2' => ['voyage-law-2', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-code-3' => ['voyage-code-3', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-code-2' => ['voyage-code-2', Voyage::class, [Task::EMBEDDING], [], [], [Feature::MULTIPLE_INPUTS]];
+        yield 'voyage-multimodal-3' => ['voyage-multimodal-3', Voyage::class, [Task::EMBEDDING], [Modality::TEXT, Modality::IMAGE], [], [Feature::MULTIPLE_INPUTS]];
     }
 
     protected function createModelCatalog(): ModelCatalogInterface

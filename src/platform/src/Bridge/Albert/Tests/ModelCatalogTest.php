@@ -14,7 +14,9 @@ namespace Symfony\AI\Platform\Bridge\Albert\Tests;
 use Symfony\AI\Platform\Bridge\Albert\ModelCatalog;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -25,10 +27,10 @@ final class ModelCatalogTest extends ModelCatalogTestCase
 {
     public static function modelsProvider(): iterable
     {
-        yield 'openweight-small' => ['openweight-small', CompletionsModel::class, [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING]];
-        yield 'openweight-medium' => ['openweight-medium', CompletionsModel::class, [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING]];
-        yield 'openweight-large' => ['openweight-large', CompletionsModel::class, [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING]];
-        yield 'openweight-embeddings' => ['openweight-embeddings', EmbeddingsModel::class, [Capability::INPUT_TEXT, Capability::EMBEDDINGS]];
+        yield 'openweight-small' => ['openweight-small', CompletionsModel::class, [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], [Feature::STREAMING]];
+        yield 'openweight-medium' => ['openweight-medium', CompletionsModel::class, [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], [Feature::STREAMING]];
+        yield 'openweight-large' => ['openweight-large', CompletionsModel::class, [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], [Feature::STREAMING]];
+        yield 'openweight-embeddings' => ['openweight-embeddings', EmbeddingsModel::class, [Task::EMBEDDING], [Modality::TEXT], [], []];
     }
 
     protected function createModelCatalog(): ModelCatalogInterface

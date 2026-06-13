@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Cartesia;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -27,14 +29,26 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'sonic-3' => [
                 'class' => Cartesia::class,
-                'capabilities' => [
-                    Capability::TEXT_TO_SPEECH,
+                'tasks' => [
+                    Task::SPEECH_SYNTHESIS,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::AUDIO,
                 ],
             ],
             'ink-whisper' => [
                 'class' => Cartesia::class,
-                'capabilities' => [
-                    Capability::SPEECH_TO_TEXT,
+                'tasks' => [
+                    Task::TRANSCRIPTION,
+                ],
+                'input' => [
+                    Modality::AUDIO,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
         ];

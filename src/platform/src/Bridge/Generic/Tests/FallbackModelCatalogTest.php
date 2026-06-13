@@ -16,7 +16,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\Generic\FallbackModelCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Fabien Potencier <fabien@symfony.com>
@@ -54,9 +56,10 @@ final class FallbackModelCatalogTest extends TestCase
         $catalog = new FallbackModelCatalog();
         $model = $catalog->getModel('test-model');
 
-        foreach (Capability::cases() as $capability) {
-            $this->assertTrue($model->supports($capability), \sprintf('Model should have capability %s', $capability->value));
-        }
+        $this->assertEqualsCanonicalizing(Task::cases(), $model->getTasks());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getInputModalities());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing(Feature::cases(), $model->getFeatures());
     }
 
     public function testCompletionsModelWithOptions()

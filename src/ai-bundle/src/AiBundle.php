@@ -86,7 +86,9 @@ use Symfony\AI\Platform\Bridge\Scaleway\Factory as ScalewayFactory;
 use Symfony\AI\Platform\Bridge\TransformersPhp\Factory as TransformersPhpFactory;
 use Symfony\AI\Platform\Bridge\VertexAi\Factory as VertexAiFactory;
 use Symfony\AI\Platform\Bridge\Voyage\Factory as VoyageFactory;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Message\Content\File;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
@@ -2618,7 +2620,7 @@ final class AiBundle extends AbstractBundle
     /**
      * Process model configuration and pass it to ModelCatalog services.
      *
-     * @param array<string, array{class: class-string, capabilities: list<Capability|string>}> $models
+     * @param array<string, array{class: class-string, tasks: list<Task|string>, input?: list<Modality|string>, output?: list<Modality|string>, features?: list<Feature|string>}> $models
      */
     private function processModelConfig(string $platformName, array $models, ContainerBuilder $builder): void
     {
@@ -2637,7 +2639,10 @@ final class AiBundle extends AbstractBundle
         foreach ($models as $modelName => $modelConfig) {
             $additionalModels[$modelName] = [
                 'class' => $modelConfig['class'],
-                'capabilities' => $modelConfig['capabilities'],
+                'tasks' => $modelConfig['tasks'],
+                'input' => $modelConfig['input'] ?? [],
+                'output' => $modelConfig['output'] ?? [],
+                'features' => $modelConfig['features'] ?? [],
             ];
         }
 

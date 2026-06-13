@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\OpenRouter\Tests\Rerank;
 
 use Symfony\AI\Platform\Bridge\OpenRouter\Rerank\RerankModelCatalog;
 use Symfony\AI\Platform\Bridge\OpenRouter\RerankModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -27,28 +29,19 @@ final class RerankModelCatalogTest extends ModelCatalogTestCase
         yield 'cohere/rerank-4-pro' => [
             'cohere/rerank-4-pro',
             RerankModel::class,
-            [
-                Capability::INPUT_MULTIPLE,
-                Capability::RERANKING,
-            ],
+            [Task::RERANKING], [], [], [Feature::MULTIPLE_INPUTS],
         ];
 
         yield 'cohere/rerank-4-fast' => [
             'cohere/rerank-4-fast',
             RerankModel::class,
-            [
-                Capability::INPUT_MULTIPLE,
-                Capability::RERANKING,
-            ],
+            [Task::RERANKING], [], [], [Feature::MULTIPLE_INPUTS],
         ];
 
         yield 'cohere/rerank-v3.5' => [
             'cohere/rerank-v3.5',
             RerankModel::class,
-            [
-                Capability::INPUT_MULTIPLE,
-                Capability::RERANKING,
-            ],
+            [Task::RERANKING], [], [], [Feature::MULTIPLE_INPUTS],
         ];
     }
 

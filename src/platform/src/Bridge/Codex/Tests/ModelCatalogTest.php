@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\Codex\Tests;
 
 use Symfony\AI\Platform\Bridge\Codex\Codex;
 use Symfony\AI\Platform\Bridge\Codex\ModelCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -24,13 +26,13 @@ final class ModelCatalogTest extends ModelCatalogTestCase
 {
     public static function modelsProvider(): iterable
     {
-        $capabilities = [Capability::INPUT_MESSAGES, Capability::INPUT_TEXT, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING];
+        $capabilities = [[Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], [Feature::STREAMING]];
 
-        yield 'gpt-5.4' => ['gpt-5.4', Codex::class, $capabilities];
-        yield 'gpt-5.4-mini' => ['gpt-5.4-mini', Codex::class, $capabilities];
-        yield 'gpt-5.3-codex' => ['gpt-5.3-codex', Codex::class, $capabilities];
-        yield 'gpt-5.3-codex-spark' => ['gpt-5.3-codex-spark', Codex::class, $capabilities];
-        yield 'gpt-5.2' => ['gpt-5.2', Codex::class, $capabilities];
+        yield 'gpt-5.4' => ['gpt-5.4', Codex::class, ...$capabilities];
+        yield 'gpt-5.4-mini' => ['gpt-5.4-mini', Codex::class, ...$capabilities];
+        yield 'gpt-5.3-codex' => ['gpt-5.3-codex', Codex::class, ...$capabilities];
+        yield 'gpt-5.3-codex-spark' => ['gpt-5.3-codex-spark', Codex::class, ...$capabilities];
+        yield 'gpt-5.2' => ['gpt-5.2', Codex::class, ...$capabilities];
     }
 
     protected function createModelCatalog(): ModelCatalogInterface

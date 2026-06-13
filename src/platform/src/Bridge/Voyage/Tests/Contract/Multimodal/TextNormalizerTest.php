@@ -16,7 +16,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\CollectionNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\TextNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Model;
@@ -52,8 +54,8 @@ final class TextNormalizerTest extends TestCase
     {
         $text = new Text('Symfony rules');
 
-        yield 'supported' => [$text, new Voyage('voyage-multimodal-3', [Capability::INPUT_MULTIMODAL]), true];
-        yield 'not text' => [[], new Voyage('voyage-multimodal-3', [Capability::INPUT_MULTIMODAL]), false];
+        yield 'supported' => [$text, new Voyage('voyage-multimodal-3', [], [Modality::TEXT, Modality::IMAGE], [], []), true];
+        yield 'not text' => [[], new Voyage('voyage-multimodal-3', [], [Modality::TEXT, Modality::IMAGE], [], []), false];
         yield 'non-multimodal model' => [$text, new Voyage('voyage-3.5'), false];
         yield 'unsupported model' => [$text, new Model('gpt-40'), false];
     }

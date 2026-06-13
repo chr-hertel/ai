@@ -17,7 +17,9 @@ use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\CollectionNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\MultimodalNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\TextNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\Collection;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -53,7 +55,7 @@ class MultimodalNormalizerTest extends TestCase
             $serializer->normalize([
                 $text,
                 new Collection($text, $text),
-            ], context: [Contract::CONTEXT_MODEL => new Voyage('some-model', [Capability::INPUT_MULTIMODAL])])
+            ], context: [Contract::CONTEXT_MODEL => new Voyage('some-model', [], [Modality::TEXT, Modality::IMAGE], [], [])])
         );
     }
 
@@ -70,7 +72,7 @@ class MultimodalNormalizerTest extends TestCase
     public static function supportsNormalizationProvider(): \Generator
     {
         $text = new Text('Foo');
-        $model = new Voyage('some-model', [Capability::INPUT_MULTIMODAL]);
+        $model = new Voyage('some-model', [], [Modality::TEXT, Modality::IMAGE], [], []);
 
         yield 'array of supported objects' => [
             [
@@ -98,13 +100,13 @@ class MultimodalNormalizerTest extends TestCase
 
         yield 'unsupported model' => [
             [$text],
-            new Model('some-model', [Capability::INPUT_MULTIMODAL]),
+            new Model('some-model', [], [Modality::TEXT, Modality::IMAGE], [], []),
             false,
         ];
 
         yield 'non-multimodal model' => [
             [$text],
-            new Voyage('some-model', []),
+            new Voyage('some-model', [], [], [], []),
             false,
         ];
     }

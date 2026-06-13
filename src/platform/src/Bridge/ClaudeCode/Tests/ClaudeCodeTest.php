@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\ClaudeCode\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\ClaudeCode\ClaudeCode;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -30,17 +32,17 @@ final class ClaudeCodeTest extends TestCase
 
     public function testItCreatesClaudeCodeWithCapabilities()
     {
-        $capabilities = [Capability::INPUT_TEXT, Capability::OUTPUT_TEXT];
-        $model = new ClaudeCode('opus', $capabilities);
+        $model = new ClaudeCode('opus', [], [Modality::TEXT], [Modality::TEXT], []);
 
         $this->assertSame('opus', $model->getName());
-        $this->assertSame($capabilities, $model->getCapabilities());
+        $this->assertSame([Modality::TEXT], $model->getInputModalities());
+        $this->assertSame([Modality::TEXT], $model->getOutputModalities());
     }
 
     public function testItCreatesClaudeCodeWithOptions()
     {
         $options = ['max_turns' => 5, 'permission_mode' => 'plan'];
-        $model = new ClaudeCode('haiku', [], $options);
+        $model = new ClaudeCode('haiku', [], [], [], [], $options);
 
         $this->assertSame('haiku', $model->getName());
         $this->assertSame($options, $model->getOptions());

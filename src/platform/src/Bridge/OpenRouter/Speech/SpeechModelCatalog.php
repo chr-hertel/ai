@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Bridge\OpenRouter\Speech;
 
 use Symfony\AI\Platform\Bridge\OpenRouter\SpeechModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -21,71 +23,103 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class SpeechModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @var array<string, array{class: class-string, capabilities: list<Capability>}>
+     * @var array<string, array{class: class-string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}>
      */
     protected array $models = [
         'canopylabs/orpheus-3b-0.1-ft' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
         'google/gemini-3.1-flash-tts-preview' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
         'hexgrad/kokoro-82m' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
         'mistralai/voxtral-mini-tts-2603' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
         'openai/gpt-4o-mini-tts-2025-12-15' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
         'sesame/csm-1b' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
         'zyphra/zonos-v0.1-hybrid' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
         'zyphra/zonos-v0.1-transformer' => [
             'class' => SpeechModel::class,
-            'capabilities' => [
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_AUDIO,
-                Capability::TEXT_TO_SPEECH,
+            'tasks' => [
+                Task::SPEECH_SYNTHESIS,
+            ],
+            'input' => [
+                Modality::TEXT,
+            ],
+            'output' => [
+                Modality::AUDIO,
             ],
         ],
     ];

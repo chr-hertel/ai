@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\DeepSeek;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -20,7 +22,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -29,42 +31,70 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'deepseek-chat' => [
                 'class' => DeepSeek::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'deepseek-reasoner' => [
                 'class' => DeepSeek::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'deepseek-v4-flash' => [
                 'class' => DeepSeek::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'deepseek-v4-pro' => [
                 'class' => DeepSeek::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
         ];

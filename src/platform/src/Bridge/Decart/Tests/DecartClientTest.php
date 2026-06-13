@@ -16,7 +16,9 @@ use Symfony\AI\Platform\Bridge\Decart\Contract\ImageNormalizer;
 use Symfony\AI\Platform\Bridge\Decart\Contract\VideoNormalizer;
 use Symfony\AI\Platform\Bridge\Decart\Decart;
 use Symfony\AI\Platform\Bridge\Decart\DecartClient;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Content\Video;
@@ -63,7 +65,7 @@ final class DecartClientTest extends TestCase
             'my-api-key',
         );
 
-        $client->request(new Decart('lucy-pro-t2i', [Capability::TEXT_TO_IMAGE]), [
+        $client->request(new Decart('lucy-pro-t2i', [Task::IMAGE_GENERATION], [Modality::TEXT], [Modality::IMAGE], []), [
             'text' => 'foo',
         ]);
 
@@ -83,7 +85,7 @@ final class DecartClientTest extends TestCase
             'my-api-key',
         );
 
-        $client->request(new Decart('lucy-pro-t2v', [Capability::TEXT_TO_VIDEO]), [
+        $client->request(new Decart('lucy-pro-t2v', [Task::VIDEO_GENERATION], [Modality::TEXT], [Modality::VIDEO], []), [
             'text' => 'foo',
         ]);
 
@@ -106,7 +108,7 @@ final class DecartClientTest extends TestCase
             'my-api-key',
         );
 
-        $client->request(new Decart('lucy-dev-i2v', [Capability::IMAGE_TO_IMAGE]), $payload, [
+        $client->request(new Decart('lucy-dev-i2v', [Task::IMAGE_GENERATION], [Modality::IMAGE], [Modality::IMAGE], []), $payload, [
             'prompt' => 'foo',
         ]);
 
@@ -129,7 +131,7 @@ final class DecartClientTest extends TestCase
             'my-api-key',
         );
 
-        $client->request(new Decart('lucy-dev-i2i', [Capability::IMAGE_TO_VIDEO]), $payload, [
+        $client->request(new Decart('lucy-dev-i2i', [Task::VIDEO_GENERATION], [Modality::IMAGE], [Modality::VIDEO], []), $payload, [
             'prompt' => 'foo',
         ]);
 
@@ -152,7 +154,7 @@ final class DecartClientTest extends TestCase
             'my-api-key',
         );
 
-        $client->request(new Decart('lucy-pro-v2v', [Capability::VIDEO_TO_VIDEO]), $payload, [
+        $client->request(new Decart('lucy-pro-v2v', [Task::VIDEO_GENERATION], [Modality::VIDEO], [Modality::VIDEO], []), $payload, [
             'prompt' => 'foo',
         ]);
 

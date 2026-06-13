@@ -12,7 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\OpenResponses\Contract\Message\Content;
 
 use Symfony\AI\Platform\Bridge\OpenResponses\ResponsesModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Model;
@@ -42,6 +42,6 @@ final class ImageNormalizer extends ModelContractNormalizer
 
     protected function supportsModel(Model $model): bool
     {
-        return $model instanceof ResponsesModel && $model->supports(Capability::INPUT_IMAGE);
+        return $model instanceof ResponsesModel && $model->accepts(Modality::IMAGE);
     }
 }

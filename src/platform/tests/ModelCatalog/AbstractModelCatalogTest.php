@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Tests\ModelCatalog;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
@@ -179,7 +181,9 @@ final class AbstractModelCatalogTest extends TestCase
                 $this->models = [
                     'test-model' => [
                         'class' => Model::class,
-                        'capabilities' => [Capability::INPUT_TEXT],
+                        'input' => [
+                            Modality::TEXT,
+                        ],
                     ],
                 ];
             }

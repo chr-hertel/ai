@@ -16,7 +16,9 @@ use Symfony\AI\Platform\Bridge\Ollama\Factory;
 use Symfony\AI\Platform\Bridge\Ollama\Ollama;
 use Symfony\AI\Platform\Bridge\Ollama\OllamaClient;
 use Symfony\AI\Platform\Bridge\Ollama\OllamaResultConverter;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\Result\Stream\NdjsonStream;
@@ -50,10 +52,7 @@ final class OllamaClientTest extends TestCase
         ], 'http://127.0.0.1:1234');
 
         $client = new OllamaClient($httpClient);
-        $response = $client->request(new Ollama('llama3.2', [
-            Capability::INPUT_MESSAGES,
-            Capability::TOOL_CALLING,
-        ]), [
+        $response = $client->request(new Ollama('llama3.2', [Task::TEXT_GENERATION], [Modality::TEXT], [], [Feature::TOOL_CALLING]), [
             'messages' => [
                 [
                     'role' => 'user',
@@ -199,7 +198,7 @@ final class OllamaClientTest extends TestCase
         $client = new OllamaClient($httpClient);
 
         $client->request(
-            new Ollama('llama3.2', [Capability::INPUT_MESSAGES]),
+            new Ollama('llama3.2', [Task::TEXT_GENERATION], [Modality::TEXT], [], []),
             [
                 'model' => 'llama3.2',
                 'messages' => [
@@ -237,7 +236,7 @@ final class OllamaClientTest extends TestCase
         $client = new OllamaClient($httpClient);
 
         $client->request(
-            new Ollama('llama3.2', [Capability::INPUT_MESSAGES]),
+            new Ollama('llama3.2', [Task::TEXT_GENERATION], [Modality::TEXT], [], []),
             [
                 'model' => 'llama3.2',
                 'messages' => [
@@ -274,7 +273,7 @@ final class OllamaClientTest extends TestCase
         $client = new OllamaClient($httpClient);
 
         $client->request(
-            new Ollama('llama3.2', [Capability::INPUT_MESSAGES]),
+            new Ollama('llama3.2', [Task::TEXT_GENERATION], [Modality::TEXT], [], []),
             [
                 'model' => 'llama3.2',
                 'messages' => [
@@ -324,7 +323,7 @@ final class OllamaClientTest extends TestCase
         $client = new OllamaClient($httpClient);
 
         $client->request(
-            new Ollama('embeddinggemma', [Capability::EMBEDDINGS]),
+            new Ollama('embeddinggemma', [Task::EMBEDDING], [], [], []),
             'hello',
             [
                 'truncate' => false,
@@ -351,7 +350,7 @@ final class OllamaClientTest extends TestCase
         }, 'http://127.0.0.1:1234');
 
         $client = new OllamaClient($httpClient);
-        $client->request(new Ollama('llama3.2', [Capability::INPUT_MESSAGES]), ['model' => 'llama3.2', 'messages' => [['role' => 'user', 'content' => "tool output \xB1 here"]]]);
+        $client->request(new Ollama('llama3.2', [Task::TEXT_GENERATION], [Modality::TEXT], [], []), ['model' => 'llama3.2', 'messages' => [['role' => 'user', 'content' => "tool output \xB1 here"]]]);
     }
 
     /**

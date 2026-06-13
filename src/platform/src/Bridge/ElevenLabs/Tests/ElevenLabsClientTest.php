@@ -15,7 +15,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\ElevenLabs\Contract\AudioNormalizer;
 use Symfony\AI\Platform\Bridge\ElevenLabs\ElevenLabs;
 use Symfony\AI\Platform\Bridge\ElevenLabs\ElevenLabsClient;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\Content\Audio;
 use Symfony\AI\Platform\Model;
@@ -64,7 +66,7 @@ final class ElevenLabsClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Payload must be an array for speech-to-text request, got "string".');
         $this->expectExceptionCode(0);
-        $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::SPEECH_TO_TEXT]), 'foo');
+        $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::TRANSCRIPTION], [Modality::AUDIO], [Modality::TEXT], []), 'foo');
     }
 
     public function testClientCanPerformSpeechToTextRequest()
@@ -82,11 +84,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $payload = (new AudioNormalizer())->normalize(Audio::fromFile(\dirname(__DIR__, 6).'/fixtures/audio.mp3'));
 
-        $client->request(new ElevenLabs('scribe_v1', [
-            Capability::INPUT_AUDIO,
-            Capability::OUTPUT_TEXT,
-            Capability::SPEECH_TO_TEXT,
-        ]), $payload);
+        $client->request(new ElevenLabs('scribe_v1', [Task::TRANSCRIPTION], [Modality::AUDIO], [Modality::TEXT], []), $payload);
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -106,11 +104,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $payload = (new AudioNormalizer())->normalize(Audio::fromFile(\dirname(__DIR__, 6).'/fixtures/audio.mp3'));
 
-        $client->request(new ElevenLabs('scribe_v1_experimental', [
-            Capability::INPUT_AUDIO,
-            Capability::OUTPUT_TEXT,
-            Capability::SPEECH_TO_TEXT,
-        ]), $payload);
+        $client->request(new ElevenLabs('scribe_v1_experimental', [Task::TRANSCRIPTION], [Modality::AUDIO], [Modality::TEXT], []), $payload);
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -126,7 +120,7 @@ final class ElevenLabsClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The payload must contain a "text" key');
         $this->expectExceptionCode(0);
-        $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::TEXT_TO_SPEECH], [
+        $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], [], [
             'voice' => 'Dslrhjl3ZpzrctukrQSN',
         ]), []);
     }
@@ -144,7 +138,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $client = new ElevenLabsClient($httpClient);
 
-        $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::TEXT_TO_SPEECH], [
+        $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], [], [
             'voice' => 'Dslrhjl3ZpzrctukrQSN',
         ]), [
             'text' => 'foo',
@@ -168,7 +162,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $client = new ElevenLabsClient($httpClient);
 
-        $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::TEXT_TO_SPEECH], [
+        $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], [], [
             'voice' => 'Dslrhjl3ZpzrctukrQSN',
         ]), 'foo');
 
@@ -188,7 +182,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $client = new ElevenLabsClient($httpClient);
 
-        $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::TEXT_TO_SPEECH]), [
+        $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], []), [
             'text' => 'foo',
         ], [
             'voice' => 'Dslrhjl3ZpzrctukrQSN',
@@ -210,7 +204,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $client = new ElevenLabsClient($httpClient);
 
-        $result = $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::TEXT_TO_SPEECH], [
+        $result = $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], [], [
             'voice' => 'Dslrhjl3ZpzrctukrQSN',
             'stream' => true,
         ]), [
@@ -234,7 +228,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $client = new ElevenLabsClient($httpClient);
 
-        $result = $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::TEXT_TO_SPEECH]), [
+        $result = $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], []), [
             'text' => 'foo',
         ], [
             'voice' => 'Dslrhjl3ZpzrctukrQSN',
@@ -269,7 +263,7 @@ final class ElevenLabsClientTest extends TestCase
 
         $client = new ElevenLabsClient($httpClient);
 
-        $client->request(new ElevenLabs('eleven_multilingual_v2', [Capability::TEXT_TO_SPEECH]), [
+        $client->request(new ElevenLabs('eleven_multilingual_v2', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], []), [
             'text' => 'foo',
         ], [
             'voice' => 'Dslrhjl3ZpzrctukrQSN',

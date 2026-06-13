@@ -11,7 +11,6 @@
 
 namespace Symfony\AI\Platform\Bridge\Voyage;
 
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Result\RawHttpResult;
@@ -35,7 +34,7 @@ final class ModelClient implements ModelClientInterface
 
     public function request(Model $model, object|string|array $payload, array $options = []): RawHttpResult
     {
-        [$inputKey, $endpoint] = $model->supports(Capability::INPUT_MULTIMODAL)
+        [$inputKey, $endpoint] = $model->isMultimodalInput()
             ? ['inputs', 'multimodalembeddings']
             : ['input', 'embeddings'];
 
@@ -49,7 +48,7 @@ final class ModelClient implements ModelClientInterface
             ],
         ];
 
-        if ($model->supports(Capability::INPUT_MULTIMODAL)) {
+        if ($model->isMultimodalInput()) {
             $body['json']['output_encoding'] = $options['encoding'] ?? null;
         } else {
             $body['json']['output_dimension'] = $options['dimensions'] ?? null;

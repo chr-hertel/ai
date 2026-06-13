@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Bridge\TransformersPhp\Tests;
 
 use Symfony\AI\Platform\Bridge\TransformersPhp\ModelCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
@@ -26,9 +28,9 @@ final class ModelCatalogTest extends ModelCatalogTestCase
     {
         // TransformersPhp can use various models from HuggingFace, so we test with example model names
         // Since it extends FallbackModelCatalog, all capabilities are provided
-        yield 'microsoft/DialoGPT-medium' => ['microsoft/DialoGPT-medium', Model::class, Capability::cases()];
-        yield 'sentence-transformers/all-MiniLM-L6-v2' => ['sentence-transformers/all-MiniLM-L6-v2', Model::class, Capability::cases()];
-        yield 'xenova/text-generation-webui' => ['xenova/text-generation-webui', Model::class, Capability::cases()];
+        yield 'microsoft/DialoGPT-medium' => ['microsoft/DialoGPT-medium', Model::class, Task::cases(), Modality::cases(), Modality::cases(), Feature::cases()];
+        yield 'sentence-transformers/all-MiniLM-L6-v2' => ['sentence-transformers/all-MiniLM-L6-v2', Model::class, Task::cases(), Modality::cases(), Modality::cases(), Feature::cases()];
+        yield 'xenova/text-generation-webui' => ['xenova/text-generation-webui', Model::class, Task::cases(), Modality::cases(), Modality::cases(), Feature::cases()];
     }
 
     protected function createModelCatalog(): ModelCatalogInterface

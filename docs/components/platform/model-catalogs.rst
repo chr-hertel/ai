@@ -2,8 +2,8 @@ Working with Model Catalogs
 ===========================
 
 Every Symfony AI platform resolves a model name like ``gpt-5-mini`` into a
-:class:`Symfony\\AI\\Platform\\Model` object — a model name, its
-:class:`Symfony\\AI\\Platform\\Capability` set, and default options. The component that
+:class:`Symfony\\AI\\Platform\\Model` object — a model name, its capabilities
+(tasks, modalities and features), and default options. The component that
 performs this lookup is the **model catalog**. Each bridge ships its own catalog, hand-curated
 for the models that provider was known to offer when the bridge was released.
 
@@ -42,15 +42,20 @@ The most direct escape hatch is to hand a fully defined model instance to
 model never has to exist in any catalog::
 
     use Symfony\AI\Platform\Bridge\OpenAi\Gpt;
-    use Symfony\AI\Platform\Capability;
+    use Symfony\AI\Platform\Feature;
     use Symfony\AI\Platform\Message\Message;
     use Symfony\AI\Platform\Message\MessageBag;
+    use Symfony\AI\Platform\Modality;
+    use Symfony\AI\Platform\Task;
 
-    $model = new Gpt('gpt-newest', [
-        Capability::INPUT_MESSAGES,
-        Capability::OUTPUT_TEXT,
-        Capability::TOOL_CALLING,
-    ], ['temperature' => 0.5]);
+    $model = new Gpt(
+        'gpt-newest',
+        [Task::TEXT_GENERATION],
+        [Modality::TEXT],
+        [Modality::TEXT],
+        [Feature::TOOL_CALLING],
+        ['temperature' => 0.5],
+    );
 
     $result = $platform->invoke($model, new MessageBag(
         Message::ofUser('What is the Symfony framework?'),
@@ -87,11 +92,15 @@ not been added to the bridge yet:
             lmstudio:
                 qwen3-coder-next:
                     class: 'Symfony\AI\Platform\Bridge\Generic\CompletionsModel'
-                    capabilities:
-                        - !php/const Symfony\AI\Platform\Capability::INPUT_MESSAGES
-                        - !php/const Symfony\AI\Platform\Capability::OUTPUT_TEXT
-                        - !php/const Symfony\AI\Platform\Capability::OUTPUT_STREAMING
-                        - !php/const Symfony\AI\Platform\Capability::TOOL_CALLING
+                    tasks:
+                        - !php/const Symfony\AI\Platform\Task::TEXT_GENERATION
+                    input:
+                        - !php/const Symfony\AI\Platform\Modality::TEXT
+                    output:
+                        - !php/const Symfony\AI\Platform\Modality::TEXT
+                    features:
+                        - !php/const Symfony\AI\Platform\Feature::STREAMING
+                        - !php/const Symfony\AI\Platform\Feature::TOOL_CALLING
 
         agent:
             coder:

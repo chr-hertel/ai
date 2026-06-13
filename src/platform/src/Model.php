@@ -19,18 +19,49 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 class Model
 {
     /**
+     * @var list<Task>
+     */
+    private readonly array $tasks;
+
+    /**
+     * @var list<Modality>
+     */
+    private readonly array $inputModalities;
+
+    /**
+     * @var list<Modality>
+     */
+    private readonly array $outputModalities;
+
+    /**
+     * @var list<Feature>
+     */
+    private readonly array $features;
+
+    /**
      * @param non-empty-string     $name
-     * @param Capability[]         $capabilities
-     * @param array<string, mixed> $options      The default options for the model usage
+     * @param Task[]               $tasks
+     * @param Modality[]           $inputModalities
+     * @param Modality[]           $outputModalities
+     * @param Feature[]            $features
+     * @param array<string, mixed> $options          The default options for the model usage
      */
     public function __construct(
         private readonly string $name,
-        private readonly array $capabilities = [],
+        array $tasks = [],
+        array $inputModalities = [],
+        array $outputModalities = [],
+        array $features = [],
         private readonly array $options = [],
     ) {
         if ('' === trim($name)) {
             throw new InvalidArgumentException('Model name cannot be empty.');
         }
+
+        $this->tasks = array_values($tasks);
+        $this->inputModalities = array_values($inputModalities);
+        $this->outputModalities = array_values($outputModalities);
+        $this->features = array_values($features);
     }
 
     /**
@@ -41,17 +72,61 @@ class Model
         return $this->name;
     }
 
-    /**
-     * @return Capability[]
-     */
-    public function getCapabilities(): array
+    public function handles(Task $task): bool
     {
-        return $this->capabilities;
+        return $task->equalsOneOf($this->tasks);
     }
 
-    public function supports(Capability $capability): bool
+    public function accepts(Modality $modality): bool
     {
-        return $capability->equalsOneOf($this->capabilities);
+        return $modality->equalsOneOf($this->inputModalities);
+    }
+
+    public function produces(Modality $modality): bool
+    {
+        return $modality->equalsOneOf($this->outputModalities);
+    }
+
+    public function has(Feature $feature): bool
+    {
+        return $feature->equalsOneOf($this->features);
+    }
+
+    public function isMultimodalInput(): bool
+    {
+        return \count($this->inputModalities) > 1;
+    }
+
+    /**
+     * @return list<Task>
+     */
+    public function getTasks(): array
+    {
+        return $this->tasks;
+    }
+
+    /**
+     * @return list<Modality>
+     */
+    public function getInputModalities(): array
+    {
+        return $this->inputModalities;
+    }
+
+    /**
+     * @return list<Modality>
+     */
+    public function getOutputModalities(): array
+    {
+        return $this->outputModalities;
+    }
+
+    /**
+     * @return list<Feature>
+     */
+    public function getFeatures(): array
+    {
+        return $this->features;
     }
 
     /**

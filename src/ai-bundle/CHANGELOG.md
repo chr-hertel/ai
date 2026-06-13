@@ -1,6 +1,13 @@
 CHANGELOG
 =========
 
+0.11
+----
+
+ * [BC BREAK] The `model` configuration key no longer accepts a `capabilities` list. Declare model
+   capabilities with the `tasks`, `input`, `output` and `features` keys instead, matching the new
+   `Task`/`Modality`/`Feature` enums of the Platform component. See `UPGRADE.md`.
+
 0.10
 ----
 

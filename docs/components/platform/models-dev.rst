@@ -156,7 +156,7 @@ Models that support tool calling are automatically flagged with the
     $model = $catalog->getModel('deepseek-chat');
 
     // Check if the model supports tool calling
-    if ($model->supports(\Symfony\AI\Platform\Capability::TOOL_CALLING)) {
+    if ($model->has(\Symfony\AI\Platform\Feature::TOOL_CALLING)) {
         // Use with an Agent that has tools configured
     }
 
@@ -168,17 +168,17 @@ pass additional models when creating the ``ModelCatalog``::
 
     use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
     use Symfony\AI\Platform\Bridge\ModelsDev\ModelCatalog;
-    use Symfony\AI\Platform\Capability;
+    use Symfony\AI\Platform\Feature;
+    use Symfony\AI\Platform\Modality;
+    use Symfony\AI\Platform\Task;
 
     $catalog = new ModelCatalog('deepseek', additionalModels: [
         'deepseek-custom-finetune' => [
             'class' => CompletionsModel::class,
-            'capabilities' => [
-                Capability::INPUT_MESSAGES,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STREAMING,
-                Capability::TOOL_CALLING,
-            ],
+            'tasks' => [Task::TEXT_GENERATION],
+            'input' => [Modality::TEXT],
+            'output' => [Modality::TEXT],
+            'features' => [Feature::STREAMING, Feature::TOOL_CALLING],
         ],
     ]);
 

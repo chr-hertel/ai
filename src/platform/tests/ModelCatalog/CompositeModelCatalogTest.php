@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Tests\ModelCatalog;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\CompositeModelCatalog;
@@ -22,7 +24,7 @@ final class CompositeModelCatalogTest extends TestCase
 {
     public function testGetModelReturnsFirstMatch()
     {
-        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
+        $model = new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [], []);
 
         $catalog1 = $this->createStub(ModelCatalogInterface::class);
         $catalog1->method('getModel')->willThrowException(new ModelNotFoundException('Not found'));
@@ -37,8 +39,8 @@ final class CompositeModelCatalogTest extends TestCase
 
     public function testGetModelPrefersFirstCatalog()
     {
-        $model1 = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
-        $model2 = new Model('gpt-4o', [Capability::INPUT_MESSAGES, Capability::OUTPUT_STREAMING]);
+        $model1 = new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [], []);
+        $model2 = new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [], [Feature::STREAMING]);
 
         $catalog1 = $this->createStub(ModelCatalogInterface::class);
         $catalog1->method('getModel')->willReturn($model1);
@@ -71,12 +73,22 @@ final class CompositeModelCatalogTest extends TestCase
     {
         $catalog1 = $this->createStub(ModelCatalogInterface::class);
         $catalog1->method('getModels')->willReturn([
-            'gpt-4o' => ['class' => Model::class, 'capabilities' => [Capability::INPUT_MESSAGES]],
+            'gpt-4o' => ['class' => Model::class, 'tasks' => [
+     Task::TEXT_GENERATION,
+ ],
+ 'input' => [
+     Modality::TEXT,
+ ]],
         ]);
 
         $catalog2 = $this->createStub(ModelCatalogInterface::class);
         $catalog2->method('getModels')->willReturn([
-            'claude-3-5-sonnet' => ['class' => Model::class, 'capabilities' => [Capability::INPUT_MESSAGES]],
+            'claude-3-5-sonnet' => ['class' => Model::class, 'tasks' => [
+     Task::TEXT_GENERATION,
+ ],
+ 'input' => [
+     Modality::TEXT,
+ ]],
         ]);
 
         $composite = new CompositeModelCatalog([$catalog1, $catalog2]);
@@ -92,12 +104,25 @@ final class CompositeModelCatalogTest extends TestCase
     {
         $catalog1 = $this->createStub(ModelCatalogInterface::class);
         $catalog1->method('getModels')->willReturn([
-            'gpt-4o' => ['class' => Model::class, 'capabilities' => [Capability::INPUT_MESSAGES]],
+            'gpt-4o' => ['class' => Model::class, 'tasks' => [
+     Task::TEXT_GENERATION,
+ ],
+ 'input' => [
+     Modality::TEXT,
+ ]],
         ]);
 
         $catalog2 = $this->createStub(ModelCatalogInterface::class);
         $catalog2->method('getModels')->willReturn([
-            'gpt-4o' => ['class' => Model::class, 'capabilities' => [Capability::INPUT_MESSAGES, Capability::OUTPUT_STREAMING]],
+            'gpt-4o' => ['class' => Model::class, 'tasks' => [
+     Task::TEXT_GENERATION,
+ ],
+ 'input' => [
+     Modality::TEXT,
+ ],
+ 'features' => [
+     Feature::STREAMING,
+ ]],
         ]);
 
         $composite = new CompositeModelCatalog([$catalog1, $catalog2]);
@@ -105,7 +130,7 @@ final class CompositeModelCatalogTest extends TestCase
         $models = $composite->getModels();
 
         $this->assertCount(1, $models);
-        $this->assertNotContains(Capability::OUTPUT_STREAMING, $models['gpt-4o']['capabilities']);
+        $this->assertArrayNotHasKey('features', $models['gpt-4o']);
     }
 
     public function testEmptyCatalogs()

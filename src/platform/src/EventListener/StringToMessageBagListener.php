@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Platform\EventListener;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -31,7 +31,7 @@ final class StringToMessageBagListener
         }
 
         // Only process models that support INPUT_MESSAGES capability
-        if (!$event->getModel()->supports(Capability::INPUT_MESSAGES)) {
+        if (!$event->getModel()->handles(Task::TEXT_GENERATION)) {
             return;
         }
 

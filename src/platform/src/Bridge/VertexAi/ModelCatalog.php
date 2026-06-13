@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\VertexAi;
 
 use Symfony\AI\Platform\Bridge\VertexAi\Embeddings\Model as EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\VertexAi\Gemini\Model as GeminiModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -33,142 +35,215 @@ final class ModelCatalog extends AbstractModelCatalog
             // Gemini models
             'gemini-3-pro-preview' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-2.5-pro' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-3-flash-preview' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_VIDEO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-2.5-flash' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-2.5-flash-image' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STRUCTURED,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'features' => [
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-2.0-flash' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             'gemini-3.1-flash-lite-preview' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_VIDEO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-2.5-flash-lite' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-2.0-flash-lite' => [
                 'class' => GeminiModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
                 ],
             ],
             // Embeddings models
             'gemini-embedding-001' => [
                 'class' => EmbeddingsModel::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::INPUT_MULTIPLE,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
                 ],
             ],
             'text-embedding-005' => [
                 'class' => EmbeddingsModel::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::INPUT_MULTIPLE,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
                 ],
             ],
             'text-multilingual-embedding-002' => [
                 'class' => EmbeddingsModel::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::INPUT_MULTIPLE,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
                 ],
             ],
         ];

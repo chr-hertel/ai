@@ -15,7 +15,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Cartesia\Cartesia;
 use Symfony\AI\Platform\Bridge\Cartesia\CartesiaClient;
 use Symfony\AI\Platform\Bridge\Cartesia\Contract\AudioNormalizer;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Message\Content\Audio;
 use Symfony\AI\Platform\Model;
@@ -49,7 +51,7 @@ final class CartesiaClientTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('The model "foo" is not supported.');
         $this->expectExceptionCode(0);
-        $client->request(new Cartesia('foo', []), [
+        $client->request(new Cartesia('foo', [], [], [], []), [
             'text' => 'bar',
         ]);
     }
@@ -73,7 +75,7 @@ final class CartesiaClientTest extends TestCase
         $this->expectException(ClientException::class);
         $this->expectExceptionMessage('HTTP 400 returned for "https://api.cartesia.ai/tts/bytes".');
         $this->expectExceptionCode(400);
-        $client->request(new Cartesia('sonic-3', [Capability::TEXT_TO_SPEECH]), [
+        $client->request(new Cartesia('sonic-3', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], []), [
             'text' => 'bar',
         ], [
             'voice' => '6ccbfb76-1fc6-48f7-b71d-91ac6298247b', // Tessa (https://play.cartesia.ai/voices/6ccbfb76-1fc6-48f7-b71d-91ac6298247b)
@@ -99,7 +101,7 @@ final class CartesiaClientTest extends TestCase
             'foo',
         );
 
-        $client->request(new Cartesia('sonic-3', [Capability::TEXT_TO_SPEECH]), [
+        $client->request(new Cartesia('sonic-3', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], []), [
             'text' => 'bar',
         ], [
             'voice' => '6ccbfb76-1fc6-48f7-b71d-91ac6298247b', // Tessa (https://play.cartesia.ai/voices/6ccbfb76-1fc6-48f7-b71d-91ac6298247b)
@@ -131,7 +133,7 @@ final class CartesiaClientTest extends TestCase
             'foo',
         );
 
-        $client->request(new Cartesia('sonic-3', [Capability::TEXT_TO_SPEECH]), 'bar', [
+        $client->request(new Cartesia('sonic-3', [Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], []), 'bar', [
             'voice' => '6ccbfb76-1fc6-48f7-b71d-91ac6298247b',
             'output_format' => [
                 'container' => 'mp3',
@@ -166,7 +168,7 @@ final class CartesiaClientTest extends TestCase
         $this->expectException(ClientException::class);
         $this->expectExceptionMessage('HTTP 400 returned for "https://api.cartesia.ai/stt".');
         $this->expectExceptionCode(400);
-        $client->request(new Cartesia('ink-whisper', [Capability::SPEECH_TO_TEXT]), $normalizer->normalize($payload));
+        $client->request(new Cartesia('ink-whisper', [Task::TRANSCRIPTION], [Modality::AUDIO], [Modality::TEXT], []), $normalizer->normalize($payload));
     }
 
     public function testClientCanPerformSpeechToText()
@@ -187,7 +189,7 @@ final class CartesiaClientTest extends TestCase
             'foo',
         );
 
-        $client->request(new Cartesia('ink-whisper', [Capability::SPEECH_TO_TEXT]), $normalizer->normalize($payload));
+        $client->request(new Cartesia('ink-whisper', [Task::TRANSCRIPTION], [Modality::AUDIO], [Modality::TEXT], []), $normalizer->normalize($payload));
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }

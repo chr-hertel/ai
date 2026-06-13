@@ -11,15 +11,18 @@
 
 namespace Symfony\AI\Platform\ModelCatalog;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Task;
 
 /**
  * A fallback model catalog that accepts any model name and creates models with all capabilities.
  *
  * This class is useful for platforms that support a wide range of models dynamically
  * without needing to predefine them in a static catalog. Since we don't know what specific
- * capabilities each dynamic model supports, we provide all capabilities by default.
+ * capabilities each dynamic model supports, we declare all tasks, modalities and features
+ * by default.
  *
  * @author Oskar Stark <oskarstark@googlemail.com>
  */
@@ -34,6 +37,6 @@ class FallbackModelCatalog extends AbstractModelCatalog
     {
         $parsed = self::parseModelName($modelName);
 
-        return new Model($parsed['name'], Capability::cases(), $parsed['options']);
+        return new Model($parsed['name'], Task::cases(), Modality::cases(), Modality::cases(), Feature::cases(), $parsed['options']);
     }
 }

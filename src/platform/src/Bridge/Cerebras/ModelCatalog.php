@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Cerebras;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -22,7 +24,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -31,95 +33,165 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'gpt-oss-120b' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'llama-3.3-70b' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'llama-4-maverick-17b-128e-instruct' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'llama-4-scout-17b-16e-instruct' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'llama3.1-8b' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'qwen-3-235b-a22b-instruct-2507' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'qwen-3-235b-a22b-thinking-2507' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'qwen-3-32b' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'qwen-3-coder-480b' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'zai-glm-4.7' => [
                 'class' => Model::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
         ];

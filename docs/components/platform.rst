@@ -49,12 +49,16 @@ see `Providers and Multi-Provider Platforms`_.
 Models
 ------
 
-The component provides a model base class :class:`Symfony\\AI\\Platform\\Model` which is a combination of a model name, a set of
+The component provides a model base class :class:`Symfony\\AI\\Platform\\Model` which is a combination of a model name, its
 capabilities, and additional options. Usually, bridges to specific providers extend this base class to provide a quick
 start for vendor-specific models and their capabilities.
 
-Capabilities are a list of strings defined by :class:`Symfony\\AI\\Platform\\Capability`, which can be used to check if a model
-supports a specific feature, like ``Capability::INPUT_AUDIO``, ``Capability::OUTPUT_IMAGE``, or ``Capability::THINKING``.
+A model's capabilities are three orthogonal concepts: the :class:`Symfony\\AI\\Platform\\Task` cases a model performs
+(e.g. ``Task::TEXT_GENERATION``, ``Task::EMBEDDING``), the :class:`Symfony\\AI\\Platform\\Modality` cases it accepts as
+input and produces as output (e.g. ``Modality::TEXT``, ``Modality::IMAGE``), and the orthogonal
+:class:`Symfony\\AI\\Platform\\Feature` cases it supports (e.g. ``Feature::TOOL_CALLING``, ``Feature::THINKING``). Use
+``$model->handles(Task)``, ``$model->accepts(Modality)``, ``$model->produces(Modality)`` and ``$model->has(Feature)`` to
+check support.
 
 Options are additional parameters that can be passed to the model, like ``temperature`` or ``max_output_tokens``, and are
 usually defined by the specific models and their documentation.
@@ -102,15 +106,20 @@ skips the catalog lookup entirely and is useful when a provider ships a model th
 shipped catalog, without registering it or replacing the catalog::
 
     use Symfony\AI\Platform\Bridge\OpenAi\Gpt;
-    use Symfony\AI\Platform\Capability;
+    use Symfony\AI\Platform\Feature;
     use Symfony\AI\Platform\Message\Message;
     use Symfony\AI\Platform\Message\MessageBag;
+    use Symfony\AI\Platform\Modality;
+    use Symfony\AI\Platform\Task;
 
-    $model = new Gpt('gpt-newest', [
-        Capability::INPUT_MESSAGES,
-        Capability::OUTPUT_TEXT,
-        Capability::TOOL_CALLING,
-    ], ['temperature' => 0.5]);
+    $model = new Gpt(
+        'gpt-newest',
+        [Task::TEXT_GENERATION],
+        [Modality::TEXT],
+        [Modality::TEXT],
+        [Feature::TOOL_CALLING],
+        ['temperature' => 0.5],
+    );
 
     $result = $platform->invoke($model, new MessageBag(Message::ofUser(...)));
 
@@ -502,7 +511,7 @@ Thinking / Extended Reasoning
 
 Some models support "extended thinking" or "reasoning" where the model
 explicitly works through a problem step by step before producing its final
-answer. This is exposed through the ``Capability::THINKING`` capability and
+answer. This is exposed through the ``Feature::THINKING`` feature and
 the streaming delta types :class:`Symfony\\AI\\Platform\\Result\\Stream\\Delta\\ThinkingDelta`
 and :class:`Symfony\\AI\\Platform\\Result\\Stream\\Delta\\ThinkingComplete`.
 
@@ -623,11 +632,11 @@ Checking for Thinking Support
 
 You can check if a model supports thinking before enabling it::
 
-    use Symfony\AI\Platform\Capability;
+    use Symfony\AI\Platform\Feature;
 
     $model = $catalog->getModel('claude-sonnet-4-5');
 
-    if ($model->supports(Capability::THINKING)) {
+    if ($model->has(Feature::THINKING)) {
         $options['thinking'] = ['type' => 'enabled', 'budget_tokens' => 10000];
     }
 

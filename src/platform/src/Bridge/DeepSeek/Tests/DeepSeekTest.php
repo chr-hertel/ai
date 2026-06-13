@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\DeepSeek\Tests;
 
+
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\DeepSeek\DeepSeek;
 
@@ -29,7 +30,7 @@ final class DeepSeekTest extends TestCase
 
     public function testItCreatesDeepSeekWithCustomSettings()
     {
-        $deepSeek = new DeepSeek('deepseek-chat', [], ['temperature' => 0.5]);
+        $deepSeek = new DeepSeek('deepseek-chat', [], [], [], [], ['temperature' => 0.5]);
 
         $this->assertSame('deepseek-chat', $deepSeek->getName());
         $this->assertSame(['temperature' => 0.5], $deepSeek->getOptions());

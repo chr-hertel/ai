@@ -11,11 +11,13 @@
 
 namespace Symfony\AI\Platform\Bridge\Ollama;
 
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Exception\RuntimeException;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\Task;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -61,25 +63,46 @@ final class ModelCatalog implements ModelCatalogInterface
             throw new InvalidArgumentException('The model information could not be retrieved from the Ollama API. Your Ollama server might be too old. Try upgrade it.');
         }
 
-        $capabilities = array_map(
-            static fn (string $capability): Capability => match ($capability) {
-                'embedding' => Capability::EMBEDDINGS,
-                'completion' => Capability::INPUT_MESSAGES,
-                'tools' => Capability::TOOL_CALLING,
-                'thinking' => Capability::THINKING,
-                'vision' => Capability::INPUT_IMAGE,
-                'audio' => Capability::INPUT_AUDIO,
-                'insert' => Capability::FILL_IN_THE_MIDDLE,
-                default => throw new InvalidArgumentException(\sprintf('The "%s" capability is not supported', $capability)),
-            },
-            $payload['capabilities'],
-        );
+        $tasks = [];
+        $input = [];
+        $output = [];
+        $features = [];
 
-        if (!\in_array(Capability::EMBEDDINGS, $capabilities, true)) {
-            $capabilities[] = Capability::OUTPUT_STRUCTURED;
+        foreach ($payload['capabilities'] as $capability) {
+            switch ($capability) {
+                case 'embedding':
+                    $tasks[] = Task::EMBEDDING;
+                    break;
+                case 'completion':
+                    $tasks[] = Task::TEXT_GENERATION;
+                    $input[] = Modality::TEXT;
+                    $output[] = Modality::TEXT;
+                    break;
+                case 'tools':
+                    $features[] = Feature::TOOL_CALLING;
+                    break;
+                case 'thinking':
+                    $features[] = Feature::THINKING;
+                    break;
+                case 'vision':
+                    $input[] = Modality::IMAGE;
+                    break;
+                case 'audio':
+                    $input[] = Modality::AUDIO;
+                    break;
+                case 'insert':
+                    $features[] = Feature::FILL_IN_THE_MIDDLE;
+                    break;
+                default:
+                    throw new InvalidArgumentException(\sprintf('The "%s" capability is not supported', $capability));
+            }
         }
 
-        return new Ollama($modelName, $capabilities);
+        if (!\in_array(Task::EMBEDDING, $tasks, true)) {
+            $features[] = Feature::STRUCTURED_OUTPUT;
+        }
+
+        return new Ollama($modelName, $tasks, $input, $output, $features);
     }
 
     public function getModels(): array
@@ -111,7 +134,10 @@ final class ModelCatalog implements ModelCatalogInterface
                 return [
                     $retrievedModel->getName() => [
                         'class' => Ollama::class,
-                        'capabilities' => $retrievedModel->getCapabilities(),
+                        'tasks' => $retrievedModel->getTasks(),
+                        'input' => $retrievedModel->getInputModalities(),
+                        'output' => $retrievedModel->getOutputModalities(),
+                        'features' => $retrievedModel->getFeatures(),
                     ],
                 ];
             },

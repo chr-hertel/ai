@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\OpenRouter;
 
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Model;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -59,46 +61,51 @@ final class ModelApiCatalog extends AbstractOpenRouterModelCatalog
     }
 
     /**
-     * @return iterable<string, array{class: class-string<Model>, capabilities: list<Capability::*>}>
+     * @return iterable<string, array{class: class-string<Model>, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}>
      */
     protected function fetchRemoteModels(): iterable
     {
         $responseModels = $this->httpClient->request('GET', 'https://openrouter.ai/api/v1/models');
         foreach ($responseModels->toArray()['data'] as $model) {
-            $capabilities = [];
+            $input = [];
+            $output = [];
+            $features = [];
 
             foreach ($model['architecture']['input_modalities'] as $inputModality) {
                 switch ($inputModality) {
                     case 'text':
-                        $capabilities[] = Capability::INPUT_TEXT;
+                        $input[] = Modality::TEXT;
                         break;
                     case 'image':
-                        $capabilities[] = Capability::INPUT_IMAGE;
+                        $input[] = Modality::IMAGE;
                         break;
                     case 'audio':
-                        $capabilities[] = Capability::INPUT_AUDIO;
+                        $input[] = Modality::AUDIO;
                         break;
                     case 'file':
-                        $capabilities[] = Capability::INPUT_PDF;
+                        $input[] = Modality::PDF;
                         break;
                     case 'video':
-                        $capabilities[] = Capability::INPUT_VIDEO;
+                        $input[] = Modality::VIDEO;
                         break;
                     default:
                         throw new InvalidArgumentException('Unknown model '.$inputModality.' input modality.', 1763717587);
                 }
             }
 
+            $tasks = [Task::TEXT_GENERATION];
             foreach ($model['architecture']['output_modalities'] as $outputModality) {
                 switch ($outputModality) {
                     case 'text':
-                        $capabilities[] = Capability::OUTPUT_TEXT;
+                        $output[] = Modality::TEXT;
                         break;
                     case 'image':
-                        $capabilities[] = Capability::OUTPUT_IMAGE;
+                        $output[] = Modality::IMAGE;
+                        $tasks[] = Task::IMAGE_GENERATION;
                         break;
                     case 'audio':
-                        $capabilities[] = Capability::OUTPUT_AUDIO;
+                        $output[] = Modality::AUDIO;
+                        $tasks[] = Task::SPEECH_SYNTHESIS;
                         break;
                     default:
                         throw new InvalidArgumentException('Unknown model '.$outputModality.' output modality.', 1763717588);
@@ -106,25 +113,28 @@ final class ModelApiCatalog extends AbstractOpenRouterModelCatalog
             }
 
             // Streaming is allowed for any model: https://openrouter.ai/docs/api/reference/streaming
-            $capabilities[] = Capability::OUTPUT_STREAMING;
+            $features[] = Feature::STREAMING;
 
             if (\in_array('structured_outputs', $model['supported_parameters'] ?? [])) {
-                $capabilities[] = Capability::OUTPUT_STRUCTURED;
+                $features[] = Feature::STRUCTURED_OUTPUT;
             }
 
             if (\in_array('tool_choice', $model['supported_parameters'] ?? [])) {
-                $capabilities[] = Capability::TOOL_CALLING;
+                $features[] = Feature::TOOL_CALLING;
             }
 
             yield $model['id'] => [
                 'class' => CompletionsModel::class,
-                'capabilities' => $capabilities,
+                'tasks' => $tasks,
+                'input' => $input,
+                'output' => $output,
+                'features' => $features,
             ];
         }
     }
 
     /**
-     * @return iterable<string, array{class: class-string<EmbeddingsModel>, capabilities: list<Capability::*>}>
+     * @return iterable<string, array{class: class-string<EmbeddingsModel>, tasks: list<Task>, input: list<Modality>}>
      */
     protected function fetchRemoteEmbeddings(): iterable
     {
@@ -132,7 +142,12 @@ final class ModelApiCatalog extends AbstractOpenRouterModelCatalog
         foreach ($responseEmbeddings->toArray()['data'] as $embedding) {
             yield $embedding['id'] => [
                 'class' => EmbeddingsModel::class,
-                'capabilities' => [Capability::INPUT_TEXT, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
             ];
         }
     }

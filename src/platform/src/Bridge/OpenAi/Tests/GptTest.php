@@ -29,7 +29,7 @@ final class GptTest extends TestCase
 
     public function testItCreatesGptWithCustomSettings()
     {
-        $gpt = new Gpt('gpt-4-turbo', [], ['temperature' => 0.5, 'max_tokens' => 1000]);
+        $gpt = new Gpt('gpt-4-turbo', [], [], [], [], ['temperature' => 0.5, 'max_tokens' => 1000]);
 
         $this->assertSame('gpt-4-turbo', $gpt->getName());
         $this->assertSame(['temperature' => 0.5, 'max_tokens' => 1000], $gpt->getOptions());

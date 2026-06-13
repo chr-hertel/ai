@@ -14,7 +14,9 @@ namespace Symfony\AI\Platform\Bridge\LmStudio\Tests;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\LmStudio\ModelCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -28,22 +30,13 @@ final class ModelCatalogTest extends ModelCatalogTestCase
         yield 'gemma-3-4b-it-qat' => [
             'gemma-3-4b-it-qat',
             CompletionsModel::class,
-            [
-                Capability::INPUT_MESSAGES,
-                Capability::INPUT_IMAGE,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STREAMING,
-                Capability::TOOL_CALLING,
-            ],
+            [Task::TEXT_GENERATION], [Modality::TEXT, Modality::IMAGE], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING],
         ];
 
         yield 'text-embedding-nomic-embed-text-v2-moe' => [
             'text-embedding-nomic-embed-text-v2-moe',
             EmbeddingsModel::class,
-            [
-                Capability::INPUT_TEXT,
-                Capability::EMBEDDINGS,
-            ],
+            [Task::EMBEDDING], [Modality::TEXT], [], [],
         ];
     }
 

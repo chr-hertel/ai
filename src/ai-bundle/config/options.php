@@ -12,7 +12,9 @@
 namespace Symfony\Component\Config\Definition\Configurator;
 
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Store\Document\VectorizerInterface;
@@ -87,16 +89,37 @@ return static function (DefinitionConfigurator $configurator): void {
                                     ->thenInvalid('The model class "%s" must extend '.Model::class.'.')
                                 ->end()
                             ->end()
-                            ->arrayNode('capabilities')
-                                ->info('Array of capabilities that this model supports')
-                                ->enumPrototype(Capability::class)
-                                    ->enumFqcn(Capability::class)
+                            ->arrayNode('tasks')
+                                ->info('Tasks this model performs (e.g. text-generation, embedding)')
+                                ->enumPrototype(Task::class)
+                                    ->enumFqcn(Task::class)
                                 ->end()
                                 ->defaultValue([])
                                 ->validate()
                                     ->ifEmpty()
-                                    ->thenInvalid('At least one capability must be specified for each model.')
+                                    ->thenInvalid('At least one task must be specified for each model.')
                                 ->end()
+                            ->end()
+                            ->arrayNode('input')
+                                ->info('Input modalities this model accepts (e.g. text, image)')
+                                ->enumPrototype(Modality::class)
+                                    ->enumFqcn(Modality::class)
+                                ->end()
+                                ->defaultValue([])
+                            ->end()
+                            ->arrayNode('output')
+                                ->info('Output modalities this model produces (e.g. text, image)')
+                                ->enumPrototype(Modality::class)
+                                    ->enumFqcn(Modality::class)
+                                ->end()
+                                ->defaultValue([])
+                            ->end()
+                            ->arrayNode('features')
+                                ->info('Orthogonal features this model supports (e.g. tool-calling, streaming)')
+                                ->enumPrototype(Feature::class)
+                                    ->enumFqcn(Feature::class)
+                                ->end()
+                                ->defaultValue([])
                             ->end()
                         ->end()
                     ->end()

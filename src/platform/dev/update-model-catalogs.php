@@ -31,7 +31,9 @@
 
 use Symfony\AI\Platform\Bridge\ModelsDev\CapabilityMapper;
 use Symfony\AI\Platform\Bridge\OpenRouter\ModelApiCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -157,8 +159,7 @@ $modelsDevBridges = [
 
                 $fresh[(string) $id] = [
                     'class' => pickClass($model, $config),
-                    'capabilities' => CapabilityMapper::map($model),
-                ];
+                ] + CapabilityMapper::map($model);
             }
 
             $failed = !writeCatalog($io, $bridge, $fresh, true, $dryRun) || $failed;
@@ -192,7 +193,7 @@ function fetchModelsDev(HttpClientInterface $http): array
 /**
  * Reuses the OpenRouter API → capability mapping by exposing the protected fetch methods.
  *
- * @return array<string, array{class: class-string, capabilities: list<Capability>}>
+ * @return array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>
  */
 function fetchOpenRouter(HttpClientInterface $http): array
 {
@@ -255,7 +256,7 @@ function pickClass(array $model, array $config): string
  * Merges fresh entries with the curated baseline (when $merge), renders the PHP array literal and
  * rewrites it between the STATIC LIST markers.
  *
- * @param array<string, array{class: class-string, capabilities: list<Capability>}> $fresh
+ * @param array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}> $fresh
  * @param list<string>                                                              $excludeKeys
  */
 function writeCatalog(SymfonyStyle $io, string $bridge, array $fresh, bool $merge, bool $dryRun, array $excludeKeys = []): bool
@@ -330,7 +331,7 @@ function writeCatalog(SymfonyStyle $io, string $bridge, array $fresh, bool $merg
 /**
  * Ensures every model class has a matching use statement (or is in the file namespace).
  *
- * @param array<string, array{class: class-string, capabilities: list<Capability>}> $models
+ * @param array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}> $models
  */
 function ensureUseStatements(string $source, string $namespace, array $models): string
 {
@@ -360,7 +361,7 @@ function ensureUseStatements(string $source, string $namespace, array $models): 
 }
 
 /**
- * @param array<string, array{class: class-string, capabilities: list<Capability>}> $models
+ * @param array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}> $models
  */
 function renderBlock(array $models): string
 {
@@ -368,16 +369,24 @@ function renderBlock(array $models): string
     $out .= "        // This list is generated from external metadata. Run dev/update-model-catalogs.php to refresh it.\n";
     $out .= "        \$defaultModels = [\n";
 
+    $buckets = ['tasks' => 'Task', 'input' => 'Modality', 'output' => 'Modality', 'features' => 'Feature'];
+
     foreach ($models as $id => $config) {
         $class = substr($config['class'], strrpos($config['class'], '\\') + 1);
         $out .= '            '.exportString((string) $id)." => [\n";
         $out .= '                '."'class' => ".$class."::class,\n";
-        $out .= "                'capabilities' => [\n";
-        foreach ($config['capabilities'] as $capability) {
-            $name = $capability instanceof Capability ? $capability->name : (string) $capability;
-            $out .= '                    Capability::'.$name.",\n";
+        foreach ($buckets as $bucket => $enum) {
+            $values = $config[$bucket] ?? [];
+            if ([] === $values) {
+                continue;
+            }
+            $out .= "                '".$bucket."' => [\n";
+            foreach ($values as $value) {
+                $name = \is_object($value) ? $value->name : (string) $value;
+                $out .= '                    '.$enum.'::'.$name.",\n";
+            }
+            $out .= "                ],\n";
         }
-        $out .= "                ],\n";
         $out .= "            ],\n";
     }
 

@@ -15,7 +15,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\AmazeeAi\CompletionsResultConverter;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\Result\TextResult;
@@ -29,14 +31,14 @@ final class CompletionsResultConverterTest extends TestCase
     {
         $converter = new CompletionsResultConverter();
 
-        $this->assertTrue($converter->supports(new CompletionsModel('test', [Capability::INPUT_MESSAGES])));
+        $this->assertTrue($converter->supports(new CompletionsModel('test', [Task::TEXT_GENERATION], [Modality::TEXT], [], [])));
     }
 
     public function testDoesNotSupportEmbeddingsModel()
     {
         $converter = new CompletionsResultConverter();
 
-        $this->assertFalse($converter->supports(new EmbeddingsModel('test', [Capability::EMBEDDINGS])));
+        $this->assertFalse($converter->supports(new EmbeddingsModel('test', [Task::EMBEDDING], [], [], [])));
     }
 
     public function testConvertStopFinishReason()

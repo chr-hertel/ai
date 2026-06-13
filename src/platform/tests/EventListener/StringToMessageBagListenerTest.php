@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Tests\EventListener;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\EventListener\StringToMessageBagListener;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -25,7 +27,7 @@ final class StringToMessageBagListenerTest extends TestCase
 {
     public function testConvertsStringInputToMessageBagForMessagesCapableModel()
     {
-        $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]) extends Model {
+        $model = new class('test-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []) extends Model {
         };
 
         $event = new InvocationEvent($model, 'Hello, world!');
@@ -45,7 +47,7 @@ final class StringToMessageBagListenerTest extends TestCase
 
     public function testDoesNotConvertStringInputForNonMessagesCapableModel()
     {
-        $model = new class('test-model', [Capability::INPUT_TEXT, Capability::OUTPUT_TEXT]) extends Model {
+        $model = new class('test-model', [], [Modality::TEXT], [Modality::TEXT], []) extends Model {
         };
 
         $originalInput = 'Hello, world!';
@@ -59,7 +61,7 @@ final class StringToMessageBagListenerTest extends TestCase
 
     public function testDoesNotConvertNonStringInput()
     {
-        $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]) extends Model {
+        $model = new class('test-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []) extends Model {
         };
 
         $originalInput = new MessageBag(Message::ofUser('Hello'));
@@ -73,7 +75,7 @@ final class StringToMessageBagListenerTest extends TestCase
 
     public function testDoesNotConvertArrayInput()
     {
-        $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]) extends Model {
+        $model = new class('test-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []) extends Model {
         };
 
         $originalInput = ['key' => 'value'];

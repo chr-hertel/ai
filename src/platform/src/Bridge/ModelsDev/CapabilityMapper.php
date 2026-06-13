@@ -11,10 +11,14 @@
 
 namespace Symfony\AI\Platform\Bridge\ModelsDev;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 
 /**
- * Maps models.dev model metadata to Symfony AI Capability enums.
+ * Maps models.dev model metadata to a Symfony AI model profile (tasks, modalities, features).
+ *
+ * @phpstan-type CapabilitiesArray array{tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
@@ -40,15 +44,15 @@ final class CapabilityMapper
      *     open_weights?: bool,
      * } $modelData
      *
-     * @return list<Capability>
+     * @return CapabilitiesArray
      */
     public static function map(array $modelData): array
     {
         if (self::isEmbeddingModel($modelData)) {
-            return self::mapEmbeddingCapabilities($modelData);
+            return self::mapEmbeddingProfile($modelData);
         }
 
-        return self::mapCompletionCapabilities($modelData);
+        return self::mapCompletionProfile($modelData);
     }
 
     /**
@@ -83,60 +87,68 @@ final class CapabilityMapper
      *     modalities: array{input: list<string>, output: list<string>},
      * } $modelData
      *
-     * @return list<Capability>
+     * @return CapabilitiesArray
      */
-    private static function mapCompletionCapabilities(array $modelData): array
+    private static function mapCompletionProfile(array $modelData): array
     {
-        $capabilities = [
-            Capability::INPUT_MESSAGES,
-            Capability::OUTPUT_TEXT,
-            Capability::OUTPUT_STREAMING,
-        ];
+        $tasks = [Task::TEXT_GENERATION];
+        $input = [Modality::TEXT];
+        $output = [Modality::TEXT];
+        $features = [Feature::STREAMING];
 
         if ($modelData['tool_call']) {
-            $capabilities[] = Capability::TOOL_CALLING;
+            $features[] = Feature::TOOL_CALLING;
         }
 
         if ($modelData['structured_output'] ?? false) {
-            $capabilities[] = Capability::OUTPUT_STRUCTURED;
+            $features[] = Feature::STRUCTURED_OUTPUT;
         }
 
         if ($modelData['reasoning']) {
-            $capabilities[] = Capability::THINKING;
+            $features[] = Feature::THINKING;
         }
 
         $inputModalities = $modelData['modalities']['input'] ?? [];
         if (\in_array('image', $inputModalities, true)) {
-            $capabilities[] = Capability::INPUT_IMAGE;
+            $input[] = Modality::IMAGE;
         }
         if (\in_array('pdf', $inputModalities, true)) {
-            $capabilities[] = Capability::INPUT_PDF;
+            $input[] = Modality::PDF;
         }
         if (\in_array('audio', $inputModalities, true)) {
-            $capabilities[] = Capability::INPUT_AUDIO;
+            $input[] = Modality::AUDIO;
         }
 
         $outputModalities = $modelData['modalities']['output'] ?? [];
         if (\in_array('image', $outputModalities, true)) {
-            $capabilities[] = Capability::OUTPUT_IMAGE;
+            $tasks[] = Task::IMAGE_GENERATION;
+            $output[] = Modality::IMAGE;
         }
         if (\in_array('audio', $outputModalities, true)) {
-            $capabilities[] = Capability::OUTPUT_AUDIO;
+            $tasks[] = Task::SPEECH_SYNTHESIS;
+            $output[] = Modality::AUDIO;
         }
 
-        return $capabilities;
+        return [
+            'tasks' => $tasks,
+            'input' => $input,
+            'output' => $output,
+            'features' => $features,
+        ];
     }
 
     /**
      * @param array<string, mixed> $modelData
      *
-     * @return list<Capability>
+     * @return CapabilitiesArray
      */
-    private static function mapEmbeddingCapabilities(array $modelData): array
+    private static function mapEmbeddingProfile(array $modelData): array
     {
         return [
-            Capability::INPUT_TEXT,
-            Capability::EMBEDDINGS,
+            'tasks' => [Task::EMBEDDING],
+            'input' => [Modality::TEXT],
+            'output' => [],
+            'features' => [],
         ];
     }
 }
