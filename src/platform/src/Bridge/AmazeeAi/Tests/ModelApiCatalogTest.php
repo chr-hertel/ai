@@ -15,7 +15,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\AmazeeAi\ModelApiCatalog;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
@@ -71,14 +73,14 @@ final class ModelApiCatalogTest extends TestCase
         $catalog = new ModelApiCatalog($httpClient, 'https://litellm.example.com', 'test-key');
 
         $models = $catalog->getModels();
-        $capabilities = $models['claude-3-5-sonnet']['capabilities'];
+        $model = $models['claude-3-5-sonnet'];
 
-        $this->assertContains(Capability::INPUT_MESSAGES, $capabilities);
-        $this->assertContains(Capability::OUTPUT_TEXT, $capabilities);
-        $this->assertContains(Capability::OUTPUT_STREAMING, $capabilities);
-        $this->assertContains(Capability::INPUT_IMAGE, $capabilities);
-        $this->assertContains(Capability::TOOL_CALLING, $capabilities);
-        $this->assertContains(Capability::OUTPUT_STRUCTURED, $capabilities);
+        $this->assertContains(Task::TEXT_GENERATION, $model['tasks']);
+        $this->assertContains(Modality::TEXT, $model['output']);
+        $this->assertContains(Feature::STREAMING, $model['features']);
+        $this->assertContains(Modality::IMAGE, $model['input']);
+        $this->assertContains(Feature::TOOL_CALLING, $model['features']);
+        $this->assertContains(Feature::STRUCTURED_OUTPUT, $model['features']);
     }
 
     public function testEmbeddingCapabilities()
@@ -90,11 +92,11 @@ final class ModelApiCatalogTest extends TestCase
         $catalog = new ModelApiCatalog($httpClient, 'https://litellm.example.com', 'test-key');
 
         $models = $catalog->getModels();
-        $capabilities = $models['titan-embed-text-v2:0']['capabilities'];
+        $model = $models['titan-embed-text-v2:0'];
 
-        $this->assertContains(Capability::EMBEDDINGS, $capabilities);
-        $this->assertContains(Capability::INPUT_TEXT, $capabilities);
-        $this->assertContains(Capability::INPUT_MULTIPLE, $capabilities);
+        $this->assertContains(Task::EMBEDDING, $model['tasks']);
+        $this->assertContains(Modality::TEXT, $model['input']);
+        $this->assertContains(Feature::MULTIPLE_INPUTS, $model['features']);
     }
 
     public function testModelNotFound()

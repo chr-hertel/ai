@@ -28,7 +28,7 @@ final class EmbeddingsTest extends TestCase
 
     public function testItAcceptsInputTypeOption()
     {
-        $model = new Embeddings('embed-english-v3.0', [], ['input_type' => InputType::SearchQuery]);
+        $model = new Embeddings('embed-english-v3.0', [], [], [], [], ['input_type' => InputType::SearchQuery]);
 
         $this->assertSame(['input_type' => InputType::SearchQuery], $model->getOptions());
     }

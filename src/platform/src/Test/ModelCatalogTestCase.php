@@ -13,11 +13,13 @@ namespace Symfony\AI\Platform\Test;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\Task;
 
 /**
  * Base test case for testing ModelCatalog implementations.
@@ -27,16 +29,19 @@ use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 abstract class ModelCatalogTestCase extends TestCase
 {
     /**
-     * @return iterable<string, array{string, class-string<Model>, list<Capability>}>
+     * @return iterable<string, array{string, class-string<Model>, list<Task>, list<Modality>, list<Modality>, list<Feature>}>
      */
     abstract public static function modelsProvider(): iterable;
 
     /**
      * @param class-string<Model> $expectedClass
-     * @param list<Capability>    $expectedCapabilities
+     * @param list<Task>          $expectedTasks
+     * @param list<Modality>      $expectedInputModalities
+     * @param list<Modality>      $expectedOutputModalities
+     * @param list<Feature>       $expectedFeatures
      */
     #[DataProvider('modelsProvider')]
-    public function testGetModel(string $modelName, string $expectedClass, array $expectedCapabilities)
+    public function testGetModel(string $modelName, string $expectedClass, array $expectedTasks, array $expectedInputModalities, array $expectedOutputModalities, array $expectedFeatures)
     {
         $catalog = $this->createModelCatalog();
         $model = $catalog->getModel($modelName);
@@ -45,16 +50,10 @@ abstract class ModelCatalogTestCase extends TestCase
         $this->assertInstanceOf($expectedClass, $model);
         $this->assertSame($modelName, $model->getName());
 
-        // Check capabilities
-        $actualCapabilities = $model->getCapabilities();
-        sort($expectedCapabilities);
-        sort($actualCapabilities);
-
-        $this->assertSame(
-            $expectedCapabilities,
-            $actualCapabilities,
-            \sprintf('Model "%s" capabilities do not match expected', $modelName)
-        );
+        $this->assertEqualsCanonicalizing($expectedTasks, $model->getTasks(), \sprintf('Model "%s" tasks do not match expected', $modelName));
+        $this->assertEqualsCanonicalizing($expectedInputModalities, $model->getInputModalities(), \sprintf('Model "%s" input modalities do not match expected', $modelName));
+        $this->assertEqualsCanonicalizing($expectedOutputModalities, $model->getOutputModalities(), \sprintf('Model "%s" output modalities do not match expected', $modelName));
+        $this->assertEqualsCanonicalizing($expectedFeatures, $model->getFeatures(), \sprintf('Model "%s" features do not match expected', $modelName));
     }
 
     public function testGetModelThrowsExceptionForUnknownModel()
@@ -85,13 +84,6 @@ abstract class ModelCatalogTestCase extends TestCase
         foreach ($models as $modelName => $modelDefinition) {
             $this->assertIsString($modelName);
             $this->assertArrayHasKey('class', $modelDefinition);
-            $this->assertArrayHasKey('capabilities', $modelDefinition);
-            $this->assertIsArray($modelDefinition['capabilities']);
-
-            // Verify each capability is valid
-            foreach ($modelDefinition['capabilities'] as $capability) {
-                $this->assertInstanceOf(Capability::class, $capability);
-            }
         }
     }
 

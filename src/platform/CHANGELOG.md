@@ -1,6 +1,18 @@
 CHANGELOG
 =========
 
+0.11
+----
+
+ * [BC BREAK] Replace the flat `Capability` enum with three orthogonal concepts: the `Task` enum
+   (what a model does), the `Modality` enum (the data types it consumes/produces), and the `Feature`
+   enum (orthogonal capabilities). `Model` now carries these directly as `tasks`/`inputModalities`/
+   `outputModalities`/`features` constructor arguments. `Model::getCapabilities()`/
+   `Model::supports(Capability)` are removed in favor of `getTasks()`/`getInputModalities()`/
+   `getOutputModalities()`/`getFeatures()`, `handles(Task)`, `accepts(Modality)`, `produces(Modality)`,
+   `has(Feature)`, and `isMultimodalInput()`. Model catalog entries now use
+   `tasks`/`input`/`output`/`features` keys instead of `capabilities`. See `UPGRADE.md`.
+
 0.10
 ----
 

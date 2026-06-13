@@ -146,7 +146,7 @@ final class PlatformTest extends TestCase
 
     public function testInvokeWithModelObjectRoutesViaSupports()
     {
-        $model = new Model('custom-model', []);
+        $model = new Model('custom-model');
         $deferredResult = new DeferredResult(new PlainConverter(new TextResult('Hello')), $this->createStub(RawResultInterface::class));
 
         $provider = $this->createMock(ProviderInterface::class);
@@ -171,7 +171,7 @@ final class PlatformTest extends TestCase
 
     public function testInvokeWithModelObjectPicksFirstSupportingProvider()
     {
-        $model = new Model('custom-model', []);
+        $model = new Model('custom-model');
         $deferredResult = new DeferredResult(new PlainConverter(new TextResult('Hello')), $this->createStub(RawResultInterface::class));
 
         $firstProvider = $this->createMock(ProviderInterface::class);
@@ -194,7 +194,7 @@ final class PlatformTest extends TestCase
 
     public function testInvokeWithModelObjectThrowsWhenNoProviderSupports()
     {
-        $model = new Model('custom-model', []);
+        $model = new Model('custom-model');
 
         $provider = $this->createMock(ProviderInterface::class);
         $provider->method('supports')->with($model)->willReturn(false);
@@ -210,7 +210,7 @@ final class PlatformTest extends TestCase
 
     public function testInvokeWithModelObjectDoesNotDispatchModelRoutingEvent()
     {
-        $model = new Model('custom-model', []);
+        $model = new Model('custom-model');
         $deferredResult = new DeferredResult(new PlainConverter(new TextResult('Hello')), $this->createStub(RawResultInterface::class));
 
         $provider = $this->createStub(ProviderInterface::class);

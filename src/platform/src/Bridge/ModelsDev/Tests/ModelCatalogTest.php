@@ -17,7 +17,9 @@ use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\ModelsDev\ModelCatalog;
 use Symfony\AI\Platform\Bridge\VertexAi\Gemini\Model as VertexAiGemini;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 
@@ -44,8 +46,8 @@ final class ModelCatalogTest extends TestCase
 
         $this->assertInstanceOf(CompletionsModel::class, $model);
         $this->assertSame('gpt-4o', $model->getName());
-        $this->assertTrue($model->supports(Capability::INPUT_MESSAGES));
-        $this->assertTrue($model->supports(Capability::OUTPUT_TEXT));
+        $this->assertTrue($model->handles(Task::TEXT_GENERATION));
+        $this->assertTrue($model->produces(Modality::TEXT));
     }
 
     public function testGetEmbeddingsModel()
@@ -56,8 +58,8 @@ final class ModelCatalogTest extends TestCase
 
         $this->assertInstanceOf(EmbeddingsModel::class, $model);
         $this->assertSame('text-embedding-3-small', $model->getName());
-        $this->assertTrue($model->supports(Capability::EMBEDDINGS));
-        $this->assertTrue($model->supports(Capability::INPUT_TEXT));
+        $this->assertTrue($model->handles(Task::EMBEDDING));
+        $this->assertTrue($model->accepts(Modality::TEXT));
     }
 
     public function testModelNotFound()
@@ -126,7 +128,15 @@ final class ModelCatalogTest extends TestCase
         $catalog = new ModelCatalog('deepseek', additionalModels: [
             'custom-model' => [
                 'class' => CompletionsModel::class,
-                'capabilities' => [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT],
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
             ],
         ]);
 
@@ -223,7 +233,7 @@ final class ModelCatalogTest extends TestCase
             $model = $catalog->getModel('custom-model');
 
             $this->assertInstanceOf(CompletionsModel::class, $model);
-            $this->assertTrue($model->supports(Capability::TOOL_CALLING));
+            $this->assertTrue($model->has(Feature::TOOL_CALLING));
         } finally {
             unlink($fixtureFile);
         }

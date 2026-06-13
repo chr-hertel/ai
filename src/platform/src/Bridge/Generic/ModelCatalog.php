@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Generic;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -23,7 +25,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: class-string, capabilities: list<Capability>}> $models
+     * @param array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}> $models
      */
     public function __construct(
         protected array $models = [],

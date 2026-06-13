@@ -15,7 +15,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\OpenRouter\ModelCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
@@ -31,114 +33,55 @@ final class ModelCatalogTest extends ModelCatalogTestCase
         yield 'openrouter/auto' => [
             'openrouter/auto',
             CompletionsModel::class,
-            Capability::cases(),
+            Task::cases(), Modality::cases(), Modality::cases(), Feature::cases(),
         ];
 
         yield 'anthropic/claude-sonnet-4.5' => [
             'anthropic/claude-sonnet-4.5',
             CompletionsModel::class,
-            [
-                Capability::OUTPUT_STREAMING,
-                Capability::INPUT_TEXT,
-                Capability::INPUT_IMAGE,
-                Capability::INPUT_PDF,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STRUCTURED,
-                Capability::TOOL_CALLING,
-            ],
+            [], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING, Feature::STRUCTURED_OUTPUT],
         ];
 
         yield 'google/gemini-2.5-flash structured' => [
             'google/gemini-2.5-flash',
             CompletionsModel::class,
-            [
-                Capability::OUTPUT_STREAMING,
-                Capability::INPUT_TEXT,
-                Capability::INPUT_IMAGE,
-                Capability::INPUT_PDF,
-                Capability::INPUT_AUDIO,
-                Capability::INPUT_VIDEO,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STRUCTURED,
-                Capability::TOOL_CALLING,
-            ],
+            [], [Modality::TEXT, Modality::IMAGE, Modality::AUDIO, Modality::VIDEO, Modality::PDF], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING, Feature::STRUCTURED_OUTPUT],
         ];
 
         yield 'openai/gpt-4.1 structured' => [
             'openai/gpt-4.1',
             CompletionsModel::class,
-            [
-                Capability::OUTPUT_STREAMING,
-                Capability::INPUT_TEXT,
-                Capability::INPUT_IMAGE,
-                Capability::INPUT_PDF,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STRUCTURED,
-                Capability::TOOL_CALLING,
-            ],
+            [], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING, Feature::STRUCTURED_OUTPUT],
         ];
 
         yield 'mistralai/mistral-large-2411 structured' => [
             'mistralai/mistral-large-2411',
             CompletionsModel::class,
-            [
-                Capability::INPUT_PDF,
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_STREAMING,
-                Capability::OUTPUT_STRUCTURED,
-                Capability::OUTPUT_TEXT,
-                Capability::TOOL_CALLING,
-            ],
+            [], [Modality::TEXT, Modality::PDF], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING, Feature::STRUCTURED_OUTPUT],
         ];
 
         yield 'openai/gpt-5' => [
             'openai/gpt-5',
             CompletionsModel::class,
-            [
-                Capability::OUTPUT_STREAMING,
-                Capability::INPUT_TEXT,
-                Capability::INPUT_IMAGE,
-                Capability::INPUT_PDF,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STRUCTURED,
-                Capability::TOOL_CALLING,
-            ],
+            [], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING, Feature::STRUCTURED_OUTPUT],
         ];
 
         yield 'openai/gpt-5-mini' => [
             'openai/gpt-5-mini',
             CompletionsModel::class,
-            [
-                Capability::OUTPUT_STREAMING,
-                Capability::INPUT_TEXT,
-                Capability::INPUT_IMAGE,
-                Capability::INPUT_PDF,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STRUCTURED,
-                Capability::TOOL_CALLING,
-            ],
+            [], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::TOOL_CALLING, Feature::STREAMING, Feature::STRUCTURED_OUTPUT],
         ];
 
         yield 'google/gemini-2.5-flash-image' => [
             'google/gemini-2.5-flash-image',
             CompletionsModel::class,
-            [
-                Capability::OUTPUT_STREAMING,
-                Capability::INPUT_IMAGE,
-                Capability::INPUT_TEXT,
-                Capability::OUTPUT_IMAGE,
-                Capability::OUTPUT_TEXT,
-                Capability::OUTPUT_STRUCTURED,
-            ],
+            [], [Modality::TEXT, Modality::IMAGE], [Modality::TEXT, Modality::IMAGE], [Feature::STREAMING, Feature::STRUCTURED_OUTPUT],
         ];
 
         yield 'openai/text-embedding-3-large' => [
             'openai/text-embedding-3-large',
             EmbeddingsModel::class,
-            [
-                Capability::INPUT_TEXT,
-                Capability::EMBEDDINGS,
-            ],
+            [Task::EMBEDDING], [Modality::TEXT], [], [],
         ];
     }
 
@@ -162,7 +105,10 @@ final class ModelCatalogTest extends ModelCatalogTestCase
         $this->assertInstanceOf(Model::class, $model);
         $this->assertInstanceOf(CompletionsModel::class, $model);
         $this->assertSame('unknown/model', $model->getName());
-        $this->assertSame([Capability::OUTPUT_STREAMING], $model->getCapabilities());
+        $this->assertEqualsCanonicalizing([], $model->getTasks());
+        $this->assertEqualsCanonicalizing([], $model->getInputModalities());
+        $this->assertEqualsCanonicalizing([], $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing([Feature::STREAMING], $model->getFeatures());
     }
 
     public function testGetModelWithPreset()
@@ -174,7 +120,10 @@ final class ModelCatalogTest extends ModelCatalogTestCase
         $this->assertInstanceOf(Model::class, $model);
         $this->assertInstanceOf(CompletionsModel::class, $model);
         $this->assertSame('@preset/my-custom-preset', $model->getName());
-        $this->assertSame(Capability::cases(), $model->getCapabilities());
+        $this->assertEqualsCanonicalizing(Task::cases(), $model->getTasks());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getInputModalities());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing(Feature::cases(), $model->getFeatures());
     }
 
     public function testGetModelWithModifier()
@@ -186,11 +135,14 @@ final class ModelCatalogTest extends ModelCatalogTestCase
         $this->assertInstanceOf(Model::class, $model);
         $this->assertInstanceOf(CompletionsModel::class, $model);
         $this->assertSame('deepseek/deepseek-v3.1-terminus:exacto', $model->getName());
-        $this->assertSame([Capability::INPUT_TEXT, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::TOOL_CALLING], $model->getCapabilities());
+        $this->assertEqualsCanonicalizing([], $model->getTasks());
+        $this->assertEqualsCanonicalizing([Modality::TEXT], $model->getInputModalities());
+        $this->assertEqualsCanonicalizing([Modality::TEXT], $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing([Feature::TOOL_CALLING, Feature::STREAMING, Feature::STRUCTURED_OUTPUT], $model->getFeatures());
     }
 
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}> $additionalModels
      */
     #[DataProvider('additionalModelsProvider')]
     public function testConstructorWithAdditionalModels(array $additionalModels, string $modelName, string $expectedClass)
@@ -203,7 +155,7 @@ final class ModelCatalogTest extends ModelCatalogTestCase
     }
 
     /**
-     * @return iterable<string, array{array<string, array{class: string, capabilities: list<Capability>}>, string, string}>
+     * @return iterable<string, array{array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}>, string, string}>
      */
     public static function additionalModelsProvider(): iterable
     {
@@ -211,7 +163,12 @@ final class ModelCatalogTest extends ModelCatalogTestCase
             [
                 'custom/my-model' => [
                     'class' => CompletionsModel::class,
-                    'capabilities' => [Capability::INPUT_TEXT, Capability::OUTPUT_TEXT],
+                    'input' => [
+                        Modality::TEXT,
+                    ],
+                    'output' => [
+                        Modality::TEXT,
+                    ],
                 ],
             ],
             'custom/my-model',
@@ -222,7 +179,12 @@ final class ModelCatalogTest extends ModelCatalogTestCase
             [
                 'custom/my-embedding' => [
                     'class' => EmbeddingsModel::class,
-                    'capabilities' => [Capability::INPUT_TEXT, Capability::EMBEDDINGS],
+                    'tasks' => [
+                        Task::EMBEDDING,
+                    ],
+                    'input' => [
+                        Modality::TEXT,
+                    ],
                 ],
             ],
             'custom/my-embedding',

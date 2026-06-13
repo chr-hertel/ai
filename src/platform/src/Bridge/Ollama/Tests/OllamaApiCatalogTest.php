@@ -15,9 +15,11 @@ use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Ollama\ModelCatalog;
 use Symfony\AI\Platform\Bridge\Ollama\Ollama;
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Exception\RuntimeException;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -37,10 +39,10 @@ final class OllamaApiCatalogTest extends TestCase
         $model = $modelCatalog->getModel('foo');
 
         $this->assertSame('foo', $model->getName());
-        $this->assertSame([
-            Capability::INPUT_MESSAGES,
-            Capability::OUTPUT_STRUCTURED,
-        ], $model->getCapabilities());
+        $this->assertEqualsCanonicalizing([Task::TEXT_GENERATION], $model->getTasks());
+        $this->assertEqualsCanonicalizing([Modality::TEXT], $model->getInputModalities());
+        $this->assertEqualsCanonicalizing([Modality::TEXT], $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing([Feature::STRUCTURED_OUTPUT], $model->getFeatures());
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
 
@@ -69,10 +71,8 @@ final class OllamaApiCatalogTest extends TestCase
 
         $model = $models['bge-m3'];
         $this->assertSame(Ollama::class, $model['class']);
-        $this->assertCount(1, $model['capabilities']);
-        $this->assertSame([
-            Capability::EMBEDDINGS,
-        ], $model['capabilities']);
+        $this->assertSame([Task::EMBEDDING], $model['tasks']);
+        $this->assertSame([], $model['features']);
         $this->assertSame(2, $httpClient->getRequestsCount());
     }
 
@@ -101,11 +101,9 @@ final class OllamaApiCatalogTest extends TestCase
 
         $model = $models['gemma3'];
         $this->assertSame(Ollama::class, $model['class']);
-        $this->assertCount(2, $model['capabilities']);
-        $this->assertSame([
-            Capability::INPUT_MESSAGES,
-            Capability::OUTPUT_STRUCTURED,
-        ], $model['capabilities']);
+        $this->assertSame([Task::TEXT_GENERATION], $model['tasks']);
+        $this->assertSame([Modality::TEXT], $model['input']);
+        $this->assertSame([Feature::STRUCTURED_OUTPUT], $model['features']);
         $this->assertSame(2, $httpClient->getRequestsCount());
     }
 
@@ -122,11 +120,10 @@ final class OllamaApiCatalogTest extends TestCase
         $model = $modelCatalog->getModel('gemma4');
 
         $this->assertSame('gemma4', $model->getName());
-        $this->assertSame([
-            Capability::INPUT_MESSAGES,
-            Capability::INPUT_AUDIO,
-            Capability::OUTPUT_STRUCTURED,
-        ], $model->getCapabilities());
+        $this->assertEqualsCanonicalizing([Task::TEXT_GENERATION], $model->getTasks());
+        $this->assertEqualsCanonicalizing([Modality::TEXT, Modality::AUDIO], $model->getInputModalities());
+        $this->assertEqualsCanonicalizing([Modality::TEXT], $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing([Feature::STRUCTURED_OUTPUT], $model->getFeatures());
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
 
@@ -155,11 +152,8 @@ final class OllamaApiCatalogTest extends TestCase
 
         $model = $models['qwen2.5-coder'];
         $this->assertSame(Ollama::class, $model['class']);
-        $this->assertCount(2, $model['capabilities']);
-        $this->assertSame([
-            Capability::FILL_IN_THE_MIDDLE,
-            Capability::OUTPUT_STRUCTURED,
-        ], $model['capabilities']);
+        $this->assertSame([], $model['tasks']);
+        $this->assertSame([Feature::FILL_IN_THE_MIDDLE, Feature::STRUCTURED_OUTPUT], $model['features']);
         $this->assertSame(2, $httpClient->getRequestsCount());
     }
 

@@ -15,7 +15,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\OpenAi\Gpt;
 use Symfony\AI\Platform\Bridge\OpenResponses\Contract\Message\Content\ImageNormalizer;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -46,11 +48,11 @@ class ImageNormalizerTest extends TestCase
     public static function supportsNormalizationProvider(): \Generator
     {
         $image = Image::fromFile(\dirname(__DIR__, 9).'/fixtures/image.jpg');
-        $gpt = new Gpt('o3', [Capability::INPUT_IMAGE]);
+        $gpt = new Gpt('o3', [], [Modality::IMAGE], [], []);
 
         yield 'supported' => [$image, $gpt, true];
 
-        yield 'unsupported model' => [$image, new Model('foo', [Capability::INPUT_IMAGE]), false];
+        yield 'unsupported model' => [$image, new Model('foo', [], [Modality::IMAGE], [], []), false];
 
         yield 'model lacks image input capability' => [$image, new Gpt('o3'), false];
 

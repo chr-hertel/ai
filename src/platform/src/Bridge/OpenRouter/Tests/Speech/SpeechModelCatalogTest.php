@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\OpenRouter\Tests\Speech;
 
 use Symfony\AI\Platform\Bridge\OpenRouter\Speech\SpeechModelCatalog;
 use Symfony\AI\Platform\Bridge\OpenRouter\SpeechModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -24,11 +26,7 @@ final class SpeechModelCatalogTest extends ModelCatalogTestCase
 {
     public static function modelsProvider(): iterable
     {
-        $capabilities = [
-            Capability::INPUT_TEXT,
-            Capability::OUTPUT_AUDIO,
-            Capability::TEXT_TO_SPEECH,
-        ];
+        $capabilities = [[Task::SPEECH_SYNTHESIS], [Modality::TEXT], [Modality::AUDIO], []];
 
         yield 'canopylabs/orpheus-3b-0.1-ft' => [
             'canopylabs/orpheus-3b-0.1-ft',

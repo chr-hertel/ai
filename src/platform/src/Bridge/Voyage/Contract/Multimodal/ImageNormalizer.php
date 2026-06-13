@@ -12,7 +12,6 @@
 namespace Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal;
 
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Model;
@@ -45,6 +44,6 @@ final class ImageNormalizer extends ModelContractNormalizer
 
     protected function supportsModel(Model $model): bool
     {
-        return $model instanceof Voyage && $model->supports(Capability::INPUT_MULTIMODAL);
+        return $model instanceof Voyage && $model->isMultimodalInput();
     }
 }

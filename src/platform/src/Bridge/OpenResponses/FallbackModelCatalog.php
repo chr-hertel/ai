@@ -11,9 +11,11 @@
 
 namespace Symfony\AI\Platform\Bridge\OpenResponses;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
+use Symfony\AI\Platform\Task;
 
 /**
  * A fallback model catalog that accepts any model name and creates ResponsesModel instances with all capabilities.
@@ -31,6 +33,6 @@ class FallbackModelCatalog extends AbstractModelCatalog
     {
         $parsed = self::parseModelName($modelName);
 
-        return new ResponsesModel($parsed['name'], Capability::cases(), $parsed['options']);
+        return new ResponsesModel($parsed['name'], Task::cases(), Modality::cases(), Modality::cases(), Feature::cases(), $parsed['options']);
     }
 }

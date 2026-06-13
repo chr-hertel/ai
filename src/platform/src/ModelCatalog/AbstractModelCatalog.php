@@ -11,10 +11,12 @@
 
 namespace Symfony\AI\Platform\ModelCatalog;
 
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Oskar Stark <oskarstark@googlemail.com>
@@ -22,7 +24,7 @@ use Symfony\AI\Platform\Model;
 abstract class AbstractModelCatalog implements ModelCatalogInterface
 {
     /**
-     * @var array<string, array{class: class-string, capabilities: list<Capability>}>
+     * @var array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>
      */
     protected array $models;
 
@@ -48,7 +50,7 @@ abstract class AbstractModelCatalog implements ModelCatalogInterface
             throw new InvalidArgumentException(\sprintf('Model class "%s" does not exist.', $modelClass));
         }
 
-        $model = new $modelClass($actualModelName, $modelConfig['capabilities'], $options);
+        $model = self::buildModel($modelClass, $actualModelName, $modelConfig, $options);
         if (!$model instanceof Model) {
             throw new InvalidArgumentException(\sprintf('Model class "%s" must extend "%s".', $modelClass, Model::class));
         }
@@ -57,11 +59,28 @@ abstract class AbstractModelCatalog implements ModelCatalogInterface
     }
 
     /**
-     * @return array<string, array{class: class-string, capabilities: list<Capability>}>
+     * @return array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>
      */
     public function getModels(): array
     {
         return $this->models;
+    }
+
+    /**
+     * @param class-string                                                                                                              $modelClass
+     * @param array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>} $modelConfig
+     * @param array<string, mixed>                                                                                                      $options
+     */
+    private static function buildModel(string $modelClass, string $name, array $modelConfig, array $options = []): object
+    {
+        return new $modelClass(
+            $name,
+            $modelConfig['tasks'] ?? [],
+            $modelConfig['input'] ?? [],
+            $modelConfig['output'] ?? [],
+            $modelConfig['features'] ?? [],
+            $options,
+        );
     }
 
     /**

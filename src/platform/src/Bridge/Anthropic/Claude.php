@@ -11,7 +11,10 @@
 
 namespace Symfony\AI\Platform\Bridge\Anthropic;
 
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -31,14 +34,18 @@ class Claude extends Model
     public const OPUS_4_1 = 'claude-opus-4-1';
 
     /**
-     * @param array<string, mixed> $options The default options for the model usage
+     * @param Task[]               $tasks
+     * @param Modality[]           $inputModalities
+     * @param Modality[]           $outputModalities
+     * @param Feature[]            $features
+     * @param array<string, mixed> $options          The default options for the model usage
      */
-    public function __construct(string $name, array $capabilities = [], array $options = [])
+    public function __construct(string $name, array $tasks = [], array $inputModalities = [], array $outputModalities = [], array $features = [], array $options = [])
     {
         if (!isset($options['max_tokens'])) {
             $options['max_tokens'] = 1000;
         }
 
-        parent::__construct($name, $capabilities, $options);
+        parent::__construct($name, $tasks, $inputModalities, $outputModalities, $features, $options);
     }
 }

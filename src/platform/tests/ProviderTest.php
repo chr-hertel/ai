@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\Event\ResultEvent;
 use Symfony\AI\Platform\Exception\RuntimeException;
@@ -43,7 +45,7 @@ final class ProviderTest extends TestCase
     public function testSupportsReturnsTrueWhenCatalogHasModel()
     {
         $catalog = $this->createStub(ModelCatalogInterface::class);
-        $catalog->method('getModel')->willReturn(new Model('gpt-4o', [Capability::INPUT_MESSAGES]));
+        $catalog->method('getModel')->willReturn(new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [], []));
 
         $provider = new Provider('openai', [], [], $catalog);
 
@@ -64,7 +66,7 @@ final class ProviderTest extends TestCase
 
     public function testSupportsWithModelObjectReturnsTrueWhenAModelClientSupportsIt()
     {
-        $model = new Model('custom-model', [Capability::INPUT_MESSAGES]);
+        $model = new Model('custom-model', [Task::TEXT_GENERATION], [Modality::TEXT], [], []);
 
         $modelClient = $this->createStub(ModelClientInterface::class);
         $modelClient->method('supports')->willReturn(true);
@@ -76,7 +78,7 @@ final class ProviderTest extends TestCase
 
     public function testSupportsWithModelObjectReturnsFalseWhenNoModelClientSupportsIt()
     {
-        $model = new Model('custom-model', [Capability::INPUT_MESSAGES]);
+        $model = new Model('custom-model', [Task::TEXT_GENERATION], [Modality::TEXT], [], []);
 
         $modelClient = $this->createStub(ModelClientInterface::class);
         $modelClient->method('supports')->willReturn(false);
@@ -88,7 +90,7 @@ final class ProviderTest extends TestCase
 
     public function testInvokeWithModelObjectSkipsCatalogResolution()
     {
-        $model = new Model('custom-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]);
+        $model = new Model('custom-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []);
         $rawResult = $this->createStub(RawResultInterface::class);
 
         $catalog = $this->createMock(ModelCatalogInterface::class);
@@ -114,7 +116,7 @@ final class ProviderTest extends TestCase
 
     public function testInvokeResolvesModelAndDelegates()
     {
-        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]);
+        $model = new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []);
         $rawResult = $this->createStub(RawResultInterface::class);
         $textResult = new TextResult('Hello');
 
@@ -138,7 +140,7 @@ final class ProviderTest extends TestCase
 
     public function testInvokeThrowsWhenNoModelClientSupportsModel()
     {
-        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
+        $model = new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [], []);
 
         $catalog = $this->createStub(ModelCatalogInterface::class);
         $catalog->method('getModel')->willReturn($model);
@@ -156,7 +158,7 @@ final class ProviderTest extends TestCase
 
     public function testInvokeThrowsWhenNoResultConverterSupportsModel()
     {
-        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
+        $model = new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [], []);
         $rawResult = $this->createStub(RawResultInterface::class);
 
         $catalog = $this->createStub(ModelCatalogInterface::class);
@@ -179,7 +181,7 @@ final class ProviderTest extends TestCase
 
     public function testInvokeDispatchesEvents()
     {
-        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
+        $model = new Model('gpt-4o', [Task::TEXT_GENERATION], [Modality::TEXT], [], []);
         $rawResult = $this->createStub(RawResultInterface::class);
         $textResult = new TextResult('Hello');
 

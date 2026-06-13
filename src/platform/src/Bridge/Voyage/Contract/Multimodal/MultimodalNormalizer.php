@@ -12,7 +12,6 @@
 namespace Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal;
 
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\ContentInterface;
 use Symfony\Component\Serializer\Exception\ExceptionInterface;
@@ -44,7 +43,7 @@ final class MultimodalNormalizer implements NormalizerInterface, NormalizerAware
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
         $model = $context[Contract::CONTEXT_MODEL] ?? null;
-        if (!$model instanceof Voyage || !$model->supports(Capability::INPUT_MULTIMODAL)) {
+        if (!$model instanceof Voyage || !$model->isMultimodalInput()) {
             return false;
         }
 

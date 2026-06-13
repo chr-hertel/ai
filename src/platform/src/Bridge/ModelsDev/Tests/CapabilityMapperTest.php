@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\ModelsDev\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\ModelsDev\CapabilityMapper;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Fabien Potencier <fabien@symfony.com>
@@ -41,14 +43,14 @@ final class CapabilityMapperTest extends TestCase
 
         $capabilities = CapabilityMapper::map($modelData);
 
-        $this->assertContains(Capability::INPUT_MESSAGES, $capabilities);
-        $this->assertContains(Capability::OUTPUT_TEXT, $capabilities);
-        $this->assertContains(Capability::OUTPUT_STREAMING, $capabilities);
-        $this->assertContains(Capability::TOOL_CALLING, $capabilities);
-        $this->assertContains(Capability::OUTPUT_STRUCTURED, $capabilities);
-        $this->assertContains(Capability::INPUT_IMAGE, $capabilities);
-        $this->assertNotContains(Capability::THINKING, $capabilities);
-        $this->assertNotContains(Capability::EMBEDDINGS, $capabilities);
+        $this->assertContains(Task::TEXT_GENERATION, $capabilities['tasks']);
+        $this->assertContains(Modality::TEXT, $capabilities['output']);
+        $this->assertContains(Feature::STREAMING, $capabilities['features']);
+        $this->assertContains(Feature::TOOL_CALLING, $capabilities['features']);
+        $this->assertContains(Feature::STRUCTURED_OUTPUT, $capabilities['features']);
+        $this->assertContains(Modality::IMAGE, $capabilities['input']);
+        $this->assertNotContains(Feature::THINKING, $capabilities['features']);
+        $this->assertNotContains(Task::EMBEDDING, $capabilities['tasks']);
     }
 
     public function testMapReasoningModel()
@@ -71,9 +73,9 @@ final class CapabilityMapperTest extends TestCase
 
         $capabilities = CapabilityMapper::map($modelData);
 
-        $this->assertContains(Capability::THINKING, $capabilities);
-        $this->assertContains(Capability::TOOL_CALLING, $capabilities);
-        $this->assertContains(Capability::INPUT_IMAGE, $capabilities);
+        $this->assertContains(Feature::THINKING, $capabilities['features']);
+        $this->assertContains(Feature::TOOL_CALLING, $capabilities['features']);
+        $this->assertContains(Modality::IMAGE, $capabilities['input']);
     }
 
     public function testMapEmbeddingModelByFamily()
@@ -96,10 +98,10 @@ final class CapabilityMapperTest extends TestCase
 
         $capabilities = CapabilityMapper::map($modelData);
 
-        $this->assertContains(Capability::INPUT_TEXT, $capabilities);
-        $this->assertContains(Capability::EMBEDDINGS, $capabilities);
-        $this->assertNotContains(Capability::INPUT_MESSAGES, $capabilities);
-        $this->assertNotContains(Capability::OUTPUT_STREAMING, $capabilities);
+        $this->assertContains(Modality::TEXT, $capabilities['input']);
+        $this->assertContains(Task::EMBEDDING, $capabilities['tasks']);
+        $this->assertNotContains(Task::TEXT_GENERATION, $capabilities['tasks']);
+        $this->assertNotContains(Feature::STREAMING, $capabilities['features']);
     }
 
     public function testMapEmbeddingModelById()
@@ -160,8 +162,8 @@ final class CapabilityMapperTest extends TestCase
 
         $capabilities = CapabilityMapper::map($modelData);
 
-        $this->assertContains(Capability::INPUT_PDF, $capabilities);
-        $this->assertContains(Capability::INPUT_IMAGE, $capabilities);
+        $this->assertContains(Modality::PDF, $capabilities['input']);
+        $this->assertContains(Modality::IMAGE, $capabilities['input']);
     }
 
     public function testMapModelWithAudioModalities()
@@ -184,8 +186,8 @@ final class CapabilityMapperTest extends TestCase
 
         $capabilities = CapabilityMapper::map($modelData);
 
-        $this->assertContains(Capability::INPUT_AUDIO, $capabilities);
-        $this->assertContains(Capability::OUTPUT_AUDIO, $capabilities);
+        $this->assertContains(Modality::AUDIO, $capabilities['input']);
+        $this->assertContains(Modality::AUDIO, $capabilities['output']);
     }
 
     public function testMapModelWithoutFamily()
@@ -209,8 +211,8 @@ final class CapabilityMapperTest extends TestCase
 
         $capabilities = CapabilityMapper::map($modelData);
 
-        $this->assertContains(Capability::INPUT_MESSAGES, $capabilities);
-        $this->assertContains(Capability::TOOL_CALLING, $capabilities);
+        $this->assertContains(Task::TEXT_GENERATION, $capabilities['tasks']);
+        $this->assertContains(Feature::TOOL_CALLING, $capabilities['features']);
     }
 
     public function testMapModelWithImageOutput()
@@ -233,6 +235,6 @@ final class CapabilityMapperTest extends TestCase
 
         $capabilities = CapabilityMapper::map($modelData);
 
-        $this->assertContains(Capability::OUTPUT_IMAGE, $capabilities);
+        $this->assertContains(Modality::IMAGE, $capabilities['output']);
     }
 }

@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Tests\Event;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -22,7 +24,7 @@ final class InvocationEventTest extends TestCase
 {
     public function testGettersReturnCorrectValues()
     {
-        $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]) extends Model {
+        $model = new class('test-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []) extends Model {
         };
 
         $input = 'Hello, world!';
@@ -37,7 +39,7 @@ final class InvocationEventTest extends TestCase
 
     public function testSetInputChangesInput()
     {
-        $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]) extends Model {
+        $model = new class('test-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []) extends Model {
         };
 
         $originalInput = 'Hello, world!';
@@ -51,7 +53,7 @@ final class InvocationEventTest extends TestCase
 
     public function testWorksWithDifferentInputTypes()
     {
-        $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]) extends Model {
+        $model = new class('test-model', [Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], []) extends Model {
         };
 
         // Test with string

@@ -12,8 +12,10 @@
 namespace Symfony\AI\Platform\Bridge\OpenRouter;
 
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
+use Symfony\AI\Platform\Task;
 
 /**
  * Add OpenRouter specific features to the model catalogues.
@@ -41,23 +43,18 @@ abstract class AbstractOpenRouterModelCatalog extends AbstractModelCatalog
 {
     public function __construct()
     {
+        $profile = [
+            'tasks' => Task::cases(),
+            'input' => Modality::cases(),
+            'output' => Modality::cases(),
+            'features' => Feature::cases(),
+        ];
+
         $this->models = [
-            'openrouter/auto' => [
-                'class' => CompletionsModel::class,
-                'capabilities' => Capability::cases(),
-            ],
-            'openrouter/bodybuilder' => [
-                'class' => CompletionsModel::class,
-                'capabilities' => Capability::cases(),
-            ],
-            'openrouter/free' => [
-                'class' => CompletionsModel::class,
-                'capabilities' => Capability::cases(),
-            ],
-            '@preset' => [
-                'class' => CompletionsModel::class,
-                'capabilities' => Capability::cases(),
-            ],
+            'openrouter/auto' => ['class' => CompletionsModel::class] + $profile,
+            'openrouter/bodybuilder' => ['class' => CompletionsModel::class] + $profile,
+            'openrouter/free' => ['class' => CompletionsModel::class] + $profile,
+            '@preset' => ['class' => CompletionsModel::class] + $profile,
         ];
     }
 

@@ -18,9 +18,11 @@ use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\VertexAi\Embeddings\Model as VertexAiEmbeddings;
 use Symfony\AI\Platform\Bridge\VertexAi\Gemini\Model as VertexAiGemini;
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
+use Symfony\AI\Platform\Task;
 
 /**
  * Model catalog powered by models.dev data.
@@ -59,7 +61,7 @@ final class ModelCatalog extends AbstractModelCatalog
     /**
      * @param string                                                                    $providerId            The models.dev provider ID (e.g. "openai", "groq", "deepseek")
      * @param string|null                                                               $dataPath              Path to the models.dev JSON file (defaults to the bundled file)
-     * @param array<string, array{class: class-string, capabilities: list<Capability>}> $additionalModels      Additional models to merge into the catalog
+     * @param array<string, array{class: class-string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}> $additionalModels      Additional models to merge into the catalog
      * @param class-string|null                                                         $completionsModelClass Override the completions model class (defaults to the bridge-specific or generic class)
      * @param class-string|null                                                         $embeddingsModelClass  Override the embeddings model class (defaults to the bridge-specific or generic class)
      */
@@ -93,8 +95,7 @@ final class ModelCatalog extends AbstractModelCatalog
 
             $models[$modelData['id']] = [
                 'class' => CapabilityMapper::isEmbeddingModel($modelData) ? $embeddingsModelClass : $completionsModelClass,
-                'capabilities' => CapabilityMapper::map($modelData),
-            ];
+            ] + CapabilityMapper::map($modelData);
         }
 
         $this->models = array_merge($models, $additionalModels);

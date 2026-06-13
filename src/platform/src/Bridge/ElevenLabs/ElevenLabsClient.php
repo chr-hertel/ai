@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\ElevenLabs;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
@@ -37,8 +37,8 @@ final class ElevenLabsClient implements ModelClientInterface
     public function request(Model $model, array|string $payload, array $options = []): RawResultInterface
     {
         return match (true) {
-            $model->supports(Capability::SPEECH_TO_TEXT) => $this->doSpeechToTextRequest($model, $payload),
-            $model->supports(Capability::TEXT_TO_SPEECH) => $this->doTextToSpeechRequest($model, $payload, [
+            $model->handles(Task::TRANSCRIPTION) => $this->doSpeechToTextRequest($model, $payload),
+            $model->handles(Task::SPEECH_SYNTHESIS) => $this->doTextToSpeechRequest($model, $payload, [
                 ...$options,
                 ...$model->getOptions(),
             ]),

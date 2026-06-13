@@ -13,7 +13,7 @@ namespace Symfony\AI\Store\Document;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Vector\Vector;
@@ -134,7 +134,7 @@ final class Vectorizer implements VectorizerInterface
         // Convert all values to strings
         $stringValues = array_map(static fn (string|\Stringable $s) => (string) $s, $strings);
 
-        if ($this->platform->getModelCatalog()->getModel($this->model)->supports(Capability::INPUT_MULTIPLE)) {
+        if ($this->platform->getModelCatalog()->getModel($this->model)->has(Feature::MULTIPLE_INPUTS)) {
             $this->logger->debug('Using batch vectorization with model that supports multiple inputs');
             $result = $this->platform->invoke($this->model, $stringValues, $options);
 
@@ -171,7 +171,7 @@ final class Vectorizer implements VectorizerInterface
         $documentCount = \count($documents);
         $this->logger->info('Starting vectorization process', ['document_count' => $documentCount]);
 
-        if ($this->platform->getModelCatalog()->getModel($this->model)->supports(Capability::INPUT_MULTIPLE)) {
+        if ($this->platform->getModelCatalog()->getModel($this->model)->has(Feature::MULTIPLE_INPUTS)) {
             $this->logger->debug('Using batch vectorization with model that supports multiple inputs');
             $result = $this->platform->invoke($this->model, array_map(static fn (EmbeddableDocumentInterface $document) => $document->getContent(), $documents), $options);
 

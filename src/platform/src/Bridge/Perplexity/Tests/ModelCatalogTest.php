@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\Perplexity\Tests;
 
 use Symfony\AI\Platform\Bridge\Perplexity\ModelCatalog;
 use Symfony\AI\Platform\Bridge\Perplexity\Perplexity;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -24,11 +26,11 @@ final class ModelCatalogTest extends ModelCatalogTestCase
 {
     public static function modelsProvider(): iterable
     {
-        yield 'sonar' => ['sonar', Perplexity::class, [Capability::INPUT_MESSAGES, Capability::INPUT_PDF, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::INPUT_IMAGE]];
-        yield 'sonar-pro' => ['sonar-pro', Perplexity::class, [Capability::INPUT_MESSAGES, Capability::INPUT_PDF, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::INPUT_IMAGE]];
-        yield 'sonar-reasoning' => ['sonar-reasoning', Perplexity::class, [Capability::INPUT_MESSAGES, Capability::INPUT_PDF, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::INPUT_IMAGE]];
-        yield 'sonar-reasoning-pro' => ['sonar-reasoning-pro', Perplexity::class, [Capability::INPUT_MESSAGES, Capability::INPUT_PDF, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::INPUT_IMAGE]];
-        yield 'sonar-deep-research' => ['sonar-deep-research', Perplexity::class, [Capability::INPUT_MESSAGES, Capability::INPUT_PDF, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED]];
+        yield 'sonar' => ['sonar', Perplexity::class, [Task::TEXT_GENERATION], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::STREAMING, Feature::STRUCTURED_OUTPUT]];
+        yield 'sonar-pro' => ['sonar-pro', Perplexity::class, [Task::TEXT_GENERATION], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::STREAMING, Feature::STRUCTURED_OUTPUT]];
+        yield 'sonar-reasoning' => ['sonar-reasoning', Perplexity::class, [Task::TEXT_GENERATION], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::STREAMING, Feature::STRUCTURED_OUTPUT]];
+        yield 'sonar-reasoning-pro' => ['sonar-reasoning-pro', Perplexity::class, [Task::TEXT_GENERATION], [Modality::TEXT, Modality::IMAGE, Modality::PDF], [Modality::TEXT], [Feature::STREAMING, Feature::STRUCTURED_OUTPUT]];
+        yield 'sonar-deep-research' => ['sonar-deep-research', Perplexity::class, [Task::TEXT_GENERATION], [Modality::TEXT, Modality::PDF], [Modality::TEXT], [Feature::STREAMING, Feature::STRUCTURED_OUTPUT]];
     }
 
     protected function createModelCatalog(): ModelCatalogInterface

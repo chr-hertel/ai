@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Perplexity;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -20,7 +22,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -29,56 +31,91 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'sonar' => [
                 'class' => Perplexity::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::INPUT_IMAGE,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'sonar-deep-research' => [
                 'class' => Perplexity::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'sonar-pro' => [
                 'class' => Perplexity::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::INPUT_IMAGE,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'sonar-reasoning' => [
                 'class' => Perplexity::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::INPUT_IMAGE,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'sonar-reasoning-pro' => [
                 'class' => Perplexity::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::INPUT_IMAGE,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
         ];

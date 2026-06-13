@@ -14,7 +14,9 @@ namespace Symfony\AI\Platform\Tests\StructuredOutput;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\Event\ResultEvent;
 use Symfony\AI\Platform\Exception\MissingModelSupportException;
@@ -44,7 +46,7 @@ final class PlatformSubscriberTest extends TestCase
     public function testProcessInputWithOutputStructure()
     {
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
-        $event = new InvocationEvent(new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]), new MessageBag(), [
+        $event = new InvocationEvent(new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]), new MessageBag(), [
             'response_format' => SomeStructure::class,
         ]);
 
@@ -91,7 +93,7 @@ final class PlatformSubscriberTest extends TestCase
     {
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
 
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $invocationEvent = new InvocationEvent($model, new MessageBag(), ['response_format' => SomeStructure::class]);
         $processor->processInput($invocationEvent);
 
@@ -117,7 +119,7 @@ final class PlatformSubscriberTest extends TestCase
     {
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
 
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $options = ['response_format' => $class];
         $invocationEvent = new InvocationEvent($model, new MessageBag(), $options);
         $processor->processInput($invocationEvent);
@@ -178,7 +180,7 @@ final class PlatformSubscriberTest extends TestCase
     {
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
 
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $options = ['response_format' => UnionTypeDto::class];
         $invocationEvent = new InvocationEvent($model, new MessageBag(), $options);
         $processor->processInput($invocationEvent);
@@ -225,7 +227,7 @@ final class PlatformSubscriberTest extends TestCase
     {
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
 
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $options = ['response_format' => ListOfPolymorphicTypesDto::class];
         $invocationEvent = new InvocationEvent($model, new MessageBag(), $options);
         $processor->processInput($invocationEvent);
@@ -277,7 +279,7 @@ final class PlatformSubscriberTest extends TestCase
 
         $converter = new PlainConverter($result = new TextResult('{"some": "data"}'));
         $deferred = new DeferredResult($converter, new InMemoryRawResult());
-        $event = new ResultEvent(new Model('gpt4', [Capability::OUTPUT_STRUCTURED]), $deferred);
+        $event = new ResultEvent(new Model('gpt4', [], [], [], [Feature::STRUCTURED_OUTPUT]), $deferred);
 
         $processor->processResult($event);
 
@@ -288,7 +290,7 @@ final class PlatformSubscriberTest extends TestCase
     {
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
         $city = new City(name: 'Berlin');
-        $event = new InvocationEvent(new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]), new MessageBag(), [
+        $event = new InvocationEvent(new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]), new MessageBag(), [
             'response_format' => $city,
         ]);
 
@@ -302,7 +304,7 @@ final class PlatformSubscriberTest extends TestCase
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
 
         $city = new City(name: 'Berlin');
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $invocationEvent = new InvocationEvent($model, new MessageBag(), ['response_format' => $city]);
         $processor->processInput($invocationEvent);
 
@@ -328,7 +330,7 @@ final class PlatformSubscriberTest extends TestCase
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
 
         $city = new City(name: 'Berlin', country: 'Germany');
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $invocationEvent = new InvocationEvent($model, new MessageBag(), ['response_format' => $city]);
         $processor->processInput($invocationEvent);
 
@@ -354,7 +356,7 @@ final class PlatformSubscriberTest extends TestCase
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory());
 
         $city = new City(name: 'Berlin');
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $event = new InvocationEvent($model, new MessageBag(), [
             'response_format' => $city,
             'stream' => true,
@@ -367,7 +369,7 @@ final class PlatformSubscriberTest extends TestCase
     {
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory());
 
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $event = new InvocationEvent($model, new MessageBag(), [
             'response_format' => 'invalid-class-name',
         ]);
@@ -396,7 +398,7 @@ final class PlatformSubscriberTest extends TestCase
         $processor = new PlatformSubscriber(new ConfigurableResponseFormatFactory(['some' => 'format']));
 
         $city1 = new City(name: 'Berlin');
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
         $invocationEvent1 = new InvocationEvent($model, new MessageBag(), ['response_format' => $city1]);
         $processor->processInput($invocationEvent1);
 
@@ -427,7 +429,7 @@ final class PlatformSubscriberTest extends TestCase
         $city1 = new City(name: 'Berlin');
         $city2 = new City(name: 'Paris');
 
-        $model = new Model('gpt-4', [Capability::OUTPUT_STRUCTURED]);
+        $model = new Model('gpt-4', [], [], [], [Feature::STRUCTURED_OUTPUT]);
 
         // First invocation
         $invocationEvent1 = new InvocationEvent($model, new MessageBag(), ['response_format' => $city1]);

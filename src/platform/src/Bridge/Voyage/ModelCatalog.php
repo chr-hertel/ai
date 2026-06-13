@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Voyage;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 final class ModelCatalog extends AbstractModelCatalog
@@ -24,50 +26,105 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'voyage-3.5' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-3.5-lite' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-3' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-3-lite' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-3-large' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-finance-2' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-multilingual-2' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-law-2' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-code-3' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-code-2' => [
                 'class' => Voyage::class,
-                'capabilities' => [Capability::INPUT_MULTIPLE, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
+                ],
             ],
             'voyage-multimodal-3' => [
                 'class' => Voyage::class,
-                'capabilities' => [
-                    Capability::INPUT_MULTIPLE,
-                    Capability::INPUT_MULTIMODAL,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'features' => [
+                    Feature::MULTIPLE_INPUTS,
                 ],
             ],
         ];

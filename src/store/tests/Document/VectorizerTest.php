@@ -15,7 +15,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\OpenAi\Embeddings;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
@@ -55,9 +57,11 @@ final class VectorizerTest extends TestCase
             protected array $models = [
                 'test-embedding-with-batch' => [
                     'class' => Model::class,
-                    'capabilities' => [
-                        Capability::INPUT_TEXT,
-                        Capability::INPUT_MULTIPLE,  // Explicitly including batch support
+                    'input' => [
+                        Modality::TEXT,
+                    ],
+                    'features' => [
+                        Feature::MULTIPLE_INPUTS,
                     ],
                 ],
             ];
@@ -262,9 +266,8 @@ final class VectorizerTest extends TestCase
             protected array $models = [
                 'test-embedding-no-batch' => [
                     'class' => Model::class,
-                    'capabilities' => [
-                        Capability::INPUT_TEXT,
-                        // Explicitly excluding INPUT_MULTIPLE capability
+                    'input' => [
+                        Modality::TEXT,
                     ],
                 ],
             ];
@@ -610,9 +613,8 @@ final class VectorizerTest extends TestCase
             protected array $models = [
                 'test-embedding-no-batch-with-options' => [
                     'class' => Model::class,
-                    'capabilities' => [
-                        Capability::INPUT_TEXT,
-                        // No INPUT_MULTIPLE capability
+                    'input' => [
+                        Modality::TEXT,
                     ],
                 ],
             ];

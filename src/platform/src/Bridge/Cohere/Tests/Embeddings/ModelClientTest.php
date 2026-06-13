@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\Cohere\Tests\Embeddings;
 
+
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Cohere\Cohere;
 use Symfony\AI\Platform\Bridge\Cohere\Embeddings;
@@ -93,7 +94,7 @@ final class ModelClientTest extends TestCase
 
         $client = new ModelClient($httpClient, 'test-key');
 
-        $model = new Embeddings('embed-english-v3.0', [], ['input_type' => InputType::Classification]);
+        $model = new Embeddings('embed-english-v3.0', [], [], [], [], ['input_type' => InputType::Classification]);
         $client->request($model, 'Hello, world!');
     }
 }

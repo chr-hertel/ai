@@ -12,6 +12,9 @@
 namespace Symfony\AI\Platform\Bridge\Scaleway;
 
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Marcus Stöhr <marcus@fischteich.net>
@@ -23,9 +26,12 @@ final class Scaleway extends Model
      */
     public function __construct(
         string $name,
-        array $capabilities = [],
+        array $tasks = [],
+        array $inputModalities = [],
+        array $outputModalities = [],
+        array $features = [],
         array $options = [],
     ) {
-        parent::__construct($name, $capabilities, $options);
+        parent::__construct($name, $tasks, $inputModalities, $outputModalities, $features, $options);
     }
 }

@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\Albert;
 
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
@@ -23,38 +25,64 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: class-string<Model>, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: class-string<Model>, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
         $defaultModels = [
             'openweight-small' => [
                 'class' => CompletionsModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
                 ],
             ],
             'openweight-medium' => [
                 'class' => CompletionsModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
                 ],
             ],
             'openweight-large' => [
                 'class' => CompletionsModel::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
                 ],
             ],
             'openweight-embeddings' => [
                 'class' => EmbeddingsModel::class,
-                'capabilities' => [Capability::INPUT_TEXT, Capability::EMBEDDINGS],
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
             ],
         ];
 

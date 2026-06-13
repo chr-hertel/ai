@@ -11,8 +11,10 @@
 
 namespace Symfony\AI\Platform\ModelCatalog;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Task;
 
 /**
  * @author Oskar Stark <oskarstark@googlemail.com>
@@ -25,7 +27,7 @@ interface ModelCatalogInterface
     public function getModel(string $modelName): Model;
 
     /**
-     * @return array<string, array{class: string, capabilities: list<Capability>}>
+     * @return array<string, array{class: string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>
      */
     public function getModels(): array;
 }

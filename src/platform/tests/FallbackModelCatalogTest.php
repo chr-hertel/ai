@@ -13,7 +13,6 @@ namespace Symfony\AI\Platform\Tests;
 
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
 
@@ -30,10 +29,11 @@ final class FallbackModelCatalogTest extends TestCase
         $this->assertInstanceOf(Model::class, $model);
         $this->assertSame('test-model', $model->getName());
 
-        // Check that all capabilities are present
-        foreach (Capability::cases() as $capability) {
-            $this->assertTrue($model->supports($capability), \sprintf('Model should have capability %s', $capability->value));
-        }
+        // Check that the model exposes the all-encompassing profile
+        $this->assertEqualsCanonicalizing(Task::cases(), $model->getTasks());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getInputModalities());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing(Feature::cases(), $model->getFeatures());
     }
 
     public function testGetModelWithOptions()

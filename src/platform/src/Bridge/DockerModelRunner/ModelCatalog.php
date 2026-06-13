@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\DockerModelRunner;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -28,143 +30,231 @@ final class ModelCatalog extends AbstractModelCatalog
             // Completions models
             'ai/gemma3n' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/gemma3' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/qwen2.5' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/qwen3' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/qwen3-coder' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/llama3.1' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/llama3.2' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/llama3.3' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/mistral' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/mistral-nemo' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/phi4' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/deepseek-r1-distill-llama' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/seed-oss' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/gpt-oss' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/smollm2' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/smollm3' => [
                 'class' => Completions::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
                 ],
             ],
             // Embeddings models
             'ai/nomic-embed-text-v1.5' => [
                 'class' => Embeddings::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/mxbai-embed-large' => [
                 'class' => Embeddings::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/embeddinggemma' => [
                 'class' => Embeddings::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
                 ],
             ],
             'ai/granite-embedding-multilingual' => [
                 'class' => Embeddings::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
                 ],
             ],
         ];

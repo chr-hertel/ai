@@ -15,7 +15,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\OpenAi\Gpt;
 use Symfony\AI\Platform\Bridge\OpenResponses\Contract\Message\Content\DocumentNormalizer;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\Document;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -47,11 +49,11 @@ class DocumentNormalizerTest extends TestCase
     public static function supportsNormalizationProvider(): \Generator
     {
         $doc = Document::fromFile(\dirname(__DIR__, 9).'/fixtures/document.pdf');
-        $gpt = new Gpt('o3', [Capability::INPUT_PDF]);
+        $gpt = new Gpt('o3', [], [Modality::PDF], [], []);
 
         yield 'supported' => [$doc, $gpt, true];
 
-        yield 'unsupported model' => [$doc, new Model('foo', [Capability::INPUT_PDF]), false];
+        yield 'unsupported model' => [$doc, new Model('foo', [], [Modality::PDF], [], []), false];
 
         yield 'model lacks image input capability' => [$doc, new Gpt('o3'), false];
 

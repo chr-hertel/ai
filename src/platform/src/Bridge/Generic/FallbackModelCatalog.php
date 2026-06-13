@@ -11,9 +11,11 @@
 
 namespace Symfony\AI\Platform\Bridge\Generic;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
+use Symfony\AI\Platform\Task;
 
 /**
  * A fallback model catalog for the Generic bridge that creates the
@@ -38,9 +40,9 @@ class FallbackModelCatalog extends AbstractModelCatalog
         $parsed = self::parseModelName($modelName);
 
         if (str_contains(strtolower($parsed['name']), 'embed')) {
-            return new EmbeddingsModel($parsed['name'], Capability::cases(), $parsed['options']);
+            return new EmbeddingsModel($parsed['name'], Task::cases(), Modality::cases(), Modality::cases(), Feature::cases(), $parsed['options']);
         }
 
-        return new CompletionsModel($parsed['name'], Capability::cases(), $parsed['options']);
+        return new CompletionsModel($parsed['name'], Task::cases(), Modality::cases(), Modality::cases(), Feature::cases(), $parsed['options']);
     }
 }

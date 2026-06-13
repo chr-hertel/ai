@@ -15,7 +15,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\VoyageContract;
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Message\Content\Collection;
 use Symfony\AI\Platform\Message\Content\ContentInterface;
 use Symfony\AI\Platform\Message\Content\ImageUrl;
@@ -33,7 +35,7 @@ final class VoyageContractTest extends TestCase
         $contract = VoyageContract::create();
 
         $this->assertEquals($expected, $contract->createRequestPayload(
-            new Voyage('some-model', [Capability::INPUT_MULTIMODAL]),
+            new Voyage('some-model', [], [Modality::TEXT, Modality::IMAGE], [], []),
             $input
         ));
     }

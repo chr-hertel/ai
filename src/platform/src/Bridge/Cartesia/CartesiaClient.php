@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\Cartesia;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
@@ -39,8 +39,8 @@ final class CartesiaClient implements ModelClientInterface
     public function request(Model $model, array|string $payload, array $options = []): RawResultInterface
     {
         return match (true) {
-            $model->supports(Capability::TEXT_TO_SPEECH) => $this->doTextToSpeech($model, $payload, $options),
-            $model->supports(Capability::SPEECH_TO_TEXT) => $this->doSpeechToText($model, $payload, $options),
+            $model->handles(Task::SPEECH_SYNTHESIS) => $this->doTextToSpeech($model, $payload, $options),
+            $model->handles(Task::TRANSCRIPTION) => $this->doSpeechToText($model, $payload, $options),
             default => throw new RuntimeException(\sprintf('The model "%s" is not supported.', $model->getName())),
         };
     }

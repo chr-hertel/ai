@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Gemini;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -20,7 +22,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -29,305 +31,460 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'gemini-2.0-flash' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_VIDEO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-2.0-flash-lite' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_AUDIO,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-2.5-flash' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_VIDEO,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-2.5-flash-image' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STRUCTURED,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'features' => [
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-2.5-flash-lite' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_VIDEO,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-2.5-flash-lite-preview-09-2025' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_VIDEO,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-2.5-flash-native-audio-preview-12-2025' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_VIDEO,
-                    Capability::INPUT_AUDIO,
-                    Capability::OUTPUT_AUDIO,
-                    Capability::TEXT_TO_SPEECH,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                    Task::SPEECH_SYNTHESIS,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                ],
+                'output' => [
+                    Modality::AUDIO,
                 ],
             ],
             'gemini-2.5-flash-preview-tts' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_AUDIO,
-                    Capability::TEXT_TO_SPEECH,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                    Task::SPEECH_SYNTHESIS,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::AUDIO,
                 ],
             ],
             'gemini-2.5-pro' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_VIDEO,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-2.5-pro-preview-tts' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_AUDIO,
-                    Capability::TEXT_TO_SPEECH,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                    Task::SPEECH_SYNTHESIS,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::AUDIO,
                 ],
             ],
             'gemini-3-flash-preview' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
                 ],
             ],
             'gemini-3-pro-image-preview' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::OUTPUT_IMAGE,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'features' => [
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-3-pro-preview' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_VIDEO,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-3.1-flash-image-preview' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::OUTPUT_IMAGE,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'features' => [
+                    Feature::STREAMING,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-3.1-flash-lite' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_AUDIO,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-3.1-flash-lite-preview' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_AUDIO,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-3.1-pro-preview' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_AUDIO,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_VIDEO,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::OUTPUT_TEXT,
-                    Capability::TOOL_CALLING,
-                    Capability::THINKING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::VIDEO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-3.1-pro-preview-customtools' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_AUDIO,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-3.5-flash' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_AUDIO,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-embedding-001' => [
                 'class' => Embeddings::class,
-                'capabilities' => [
-                    Capability::INPUT_TEXT,
-                    Capability::EMBEDDINGS,
+                'tasks' => [
+                    Task::EMBEDDING,
+                ],
+                'input' => [
+                    Modality::TEXT,
                 ],
             ],
             'gemini-flash-latest' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_AUDIO,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemini-flash-lite-latest' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
-                    Capability::INPUT_PDF,
-                    Capability::INPUT_AUDIO,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                    Modality::AUDIO,
+                    Modality::PDF,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemma-4-26b-a4b-it' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
             'gemma-4-31b-it' => [
                 'class' => Gemini::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
-                    Capability::TOOL_CALLING,
-                    Capability::OUTPUT_STRUCTURED,
-                    Capability::THINKING,
-                    Capability::INPUT_IMAGE,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::TOOL_CALLING,
+                    Feature::STREAMING,
+                    Feature::STRUCTURED_OUTPUT,
+                    Feature::THINKING,
                 ],
             ],
         ];

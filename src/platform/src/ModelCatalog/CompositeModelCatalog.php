@@ -11,9 +11,11 @@
 
 namespace Symfony\AI\Platform\ModelCatalog;
 
-use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\Task;
 
 /**
  * Merges multiple model catalogs into a single catalog.
@@ -27,7 +29,7 @@ use Symfony\AI\Platform\Model;
 final class CompositeModelCatalog implements ModelCatalogInterface
 {
     /**
-     * @var array<string, array{class: string, capabilities: list<Capability>}>|null
+     * @var array<string, array{class: string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>|null
      */
     private ?array $mergedModels = null;
 
@@ -53,7 +55,7 @@ final class CompositeModelCatalog implements ModelCatalogInterface
     }
 
     /**
-     * @return array<string, array{class: string, capabilities: list<Capability>}>
+     * @return array<string, array{class: string, tasks?: list<Task>, input?: list<Modality>, output?: list<Modality>, features?: list<Feature>}>
      */
     public function getModels(): array
     {

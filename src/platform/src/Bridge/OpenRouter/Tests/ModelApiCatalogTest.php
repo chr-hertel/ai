@@ -15,7 +15,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\OpenRouter\ModelApiCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
 
@@ -47,9 +49,9 @@ final class ModelApiCatalogTest extends TestCase
         $model = $catalog->getModel('anthropic/claude-3-opus');
 
         $this->assertSame('anthropic/claude-3-opus', $model->getName());
-        $this->assertContains(Capability::INPUT_TEXT, $model->getCapabilities());
-        $this->assertContains(Capability::INPUT_IMAGE, $model->getCapabilities());
-        $this->assertContains(Capability::OUTPUT_TEXT, $model->getCapabilities());
+        $this->assertTrue($model->accepts(Modality::TEXT));
+        $this->assertTrue($model->accepts(Modality::IMAGE));
+        $this->assertTrue($model->produces(Modality::TEXT));
         $this->assertSame(2, $httpClient->getRequestsCount());
     }
 
@@ -152,8 +154,8 @@ final class ModelApiCatalogTest extends TestCase
         $catalog = new ModelApiCatalog($httpClient);
         $model = $catalog->getModel('openai/whisper');
 
-        $this->assertContains(Capability::INPUT_AUDIO, $model->getCapabilities());
-        $this->assertContains(Capability::OUTPUT_TEXT, $model->getCapabilities());
+        $this->assertTrue($model->accepts(Modality::AUDIO));
+        $this->assertTrue($model->produces(Modality::TEXT));
     }
 
     public function testGetModelWithFileInputModality()
@@ -178,9 +180,9 @@ final class ModelApiCatalogTest extends TestCase
         $catalog = new ModelApiCatalog($httpClient);
         $model = $catalog->getModel('anthropic/claude-pdf');
 
-        $this->assertContains(Capability::INPUT_TEXT, $model->getCapabilities());
-        $this->assertContains(Capability::INPUT_PDF, $model->getCapabilities());
-        $this->assertContains(Capability::OUTPUT_TEXT, $model->getCapabilities());
+        $this->assertTrue($model->accepts(Modality::TEXT));
+        $this->assertTrue($model->accepts(Modality::PDF));
+        $this->assertTrue($model->produces(Modality::TEXT));
     }
 
     public function testGetModelWithVideoInputModality()
@@ -205,9 +207,9 @@ final class ModelApiCatalogTest extends TestCase
         $catalog = new ModelApiCatalog($httpClient);
         $model = $catalog->getModel('google/gemini-video');
 
-        $this->assertContains(Capability::INPUT_TEXT, $model->getCapabilities());
-        $this->assertContains(Capability::INPUT_VIDEO, $model->getCapabilities());
-        $this->assertContains(Capability::OUTPUT_TEXT, $model->getCapabilities());
+        $this->assertTrue($model->accepts(Modality::TEXT));
+        $this->assertTrue($model->accepts(Modality::VIDEO));
+        $this->assertTrue($model->produces(Modality::TEXT));
     }
 
     public function testGetModelWithImageOutputModality()
@@ -232,8 +234,8 @@ final class ModelApiCatalogTest extends TestCase
         $catalog = new ModelApiCatalog($httpClient);
         $model = $catalog->getModel('openai/dall-e');
 
-        $this->assertContains(Capability::INPUT_TEXT, $model->getCapabilities());
-        $this->assertContains(Capability::OUTPUT_IMAGE, $model->getCapabilities());
+        $this->assertTrue($model->accepts(Modality::TEXT));
+        $this->assertTrue($model->produces(Modality::IMAGE));
     }
 
     public function testPresetModelStillWorksWithApiCatalog()
@@ -251,7 +253,10 @@ final class ModelApiCatalogTest extends TestCase
         $model = $catalog->getModel('@preset/my-preset');
 
         $this->assertSame('@preset/my-preset', $model->getName());
-        $this->assertSame(Capability::cases(), $model->getCapabilities());
+        $this->assertEqualsCanonicalizing(Task::cases(), $model->getTasks());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getInputModalities());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing(Feature::cases(), $model->getFeatures());
     }
 
     public function testAutoRouterModelStillWorksWithApiCatalog()
@@ -269,6 +274,9 @@ final class ModelApiCatalogTest extends TestCase
         $model = $catalog->getModel('openrouter/auto');
 
         $this->assertSame('openrouter/auto', $model->getName());
-        $this->assertSame(Capability::cases(), $model->getCapabilities());
+        $this->assertEqualsCanonicalizing(Task::cases(), $model->getTasks());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getInputModalities());
+        $this->assertEqualsCanonicalizing(Modality::cases(), $model->getOutputModalities());
+        $this->assertEqualsCanonicalizing(Feature::cases(), $model->getFeatures());
     }
 }

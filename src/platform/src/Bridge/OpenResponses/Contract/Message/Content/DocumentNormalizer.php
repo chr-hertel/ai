@@ -12,7 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\OpenResponses\Contract\Message\Content;
 
 use Symfony\AI\Platform\Bridge\OpenResponses\ResponsesModel;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Modality;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
 use Symfony\AI\Platform\Message\Content\Document;
 use Symfony\AI\Platform\Message\Content\File;
@@ -44,6 +44,6 @@ final class DocumentNormalizer extends ModelContractNormalizer
 
     protected function supportsModel(Model $model): bool
     {
-        return $model instanceof ResponsesModel && $model->supports(Capability::INPUT_PDF);
+        return $model instanceof ResponsesModel && $model->accepts(Modality::PDF);
     }
 }

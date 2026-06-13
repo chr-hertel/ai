@@ -39,7 +39,8 @@ use Symfony\AI\Platform\Bridge\ElevenLabs\Factory as ElevenLabsFactory;
 use Symfony\AI\Platform\Bridge\Failover\FailoverPlatform;
 use Symfony\AI\Platform\Bridge\Failover\FailoverPlatformFactory;
 use Symfony\AI\Platform\Bridge\Ollama\Factory as OllamaFactory;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\EventListener\TemplateRendererListener;
 use Symfony\AI\Platform\Message\TemplateRenderer\ExpressionLanguageTemplateRenderer;
 use Symfony\AI\Platform\Message\TemplateRenderer\StringTemplateRenderer;
@@ -7879,7 +7880,9 @@ class AiBundleTest extends TestCase
                 'model' => [
                     'openai' => [
                         'my-custom-model' => [
-                            'capabilities' => ['input-text', 'output-text'],
+                            'tasks' => ['text-generation'],
+                            'input' => ['text'],
+                            'output' => ['text'],
                         ],
                     ],
                 ],
@@ -7899,7 +7902,9 @@ class AiBundleTest extends TestCase
                     'openai' => [
                         'my-custom-model' => [
                             'class' => 'NonExistentModelClass',
-                            'capabilities' => ['input-text', 'output-text'],
+                            'tasks' => ['text-generation'],
+                            'input' => ['text'],
+                            'output' => ['text'],
                         ],
                     ],
                 ],
@@ -7919,7 +7924,9 @@ class AiBundleTest extends TestCase
                     'openai' => [
                         'my-custom-model' => [
                             'class' => \stdClass::class,
-                            'capabilities' => ['input-text', 'output-text'],
+                            'tasks' => ['text-generation'],
+                            'input' => ['text'],
+                            'output' => ['text'],
                         ],
                     ],
                 ],
@@ -7936,7 +7943,9 @@ class AiBundleTest extends TestCase
                     'openai' => [
                         'my-custom-model' => [
                             'class' => Model::class,
-                            'capabilities' => ['input-text', 'output-text'],
+                            'tasks' => ['text-generation'],
+                            'input' => ['text'],
+                            'output' => ['text'],
                         ],
                     ],
                 ],
@@ -7949,7 +7958,9 @@ class AiBundleTest extends TestCase
         $this->assertCount(1, $arguments);
         $this->assertArrayHasKey('my-custom-model', $arguments[0]);
         $this->assertSame(Model::class, $arguments[0]['my-custom-model']['class']);
-        $this->assertEquals([Capability::INPUT_TEXT, Capability::OUTPUT_TEXT], $arguments[0]['my-custom-model']['capabilities']);
+        $this->assertEquals([Task::TEXT_GENERATION], $arguments[0]['my-custom-model']['tasks']);
+        $this->assertEquals([Modality::TEXT], $arguments[0]['my-custom-model']['input']);
+        $this->assertEquals([Modality::TEXT], $arguments[0]['my-custom-model']['output']);
     }
 
     #[TestDox('Model configuration for vertexai uses correct catalog service id')]
@@ -7961,7 +7972,9 @@ class AiBundleTest extends TestCase
                     'vertexai' => [
                         'my-custom-vertex-model' => [
                             'class' => Model::class,
-                            'capabilities' => ['input-text', 'output-text'],
+                            'tasks' => ['text-generation'],
+                            'input' => ['text'],
+                            'output' => ['text'],
                         ],
                     ],
                 ],
@@ -8045,7 +8058,9 @@ class AiBundleTest extends TestCase
                     'unknown_platform' => [
                         'my-custom-model' => [
                             'class' => Model::class,
-                            'capabilities' => ['input-text', 'output-text'],
+                            'tasks' => ['text-generation'],
+                            'input' => ['text'],
+                            'output' => ['text'],
                         ],
                     ],
                 ],

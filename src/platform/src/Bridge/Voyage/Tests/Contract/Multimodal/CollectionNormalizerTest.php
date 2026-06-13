@@ -17,7 +17,9 @@ use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\CollectionNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\ImageUrlNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Contract\Multimodal\TextNormalizer;
 use Symfony\AI\Platform\Bridge\Voyage\Voyage;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\Collection;
 use Symfony\AI\Platform\Message\Content\ImageUrl;
@@ -44,7 +46,7 @@ class CollectionNormalizerTest extends TestCase
         $actual = $serializer->normalize(
             $data,
             context: [
-                Contract::CONTEXT_MODEL => new Voyage('some-model', [Capability::INPUT_MULTIMODAL]),
+                Contract::CONTEXT_MODEL => new Voyage('some-model', [], [Modality::TEXT, Modality::IMAGE], [], []),
             ],
         );
 
@@ -94,14 +96,14 @@ class CollectionNormalizerTest extends TestCase
         yield 'supported object' => [
             new Collection(),
             [
-                Contract::CONTEXT_MODEL => new Voyage('some-model', [Capability::INPUT_MULTIMODAL]),
+                Contract::CONTEXT_MODEL => new Voyage('some-model', [], [Modality::TEXT, Modality::IMAGE], [], []),
             ],
             true,
         ];
         yield 'unsupported model' => [
             new Collection(),
             [
-                Contract::CONTEXT_MODEL => new Model('some-model', [Capability::INPUT_MULTIMODAL]),
+                Contract::CONTEXT_MODEL => new Model('some-model', [], [Modality::TEXT, Modality::IMAGE], [], []),
             ],
             false,
         ];
@@ -115,7 +117,7 @@ class CollectionNormalizerTest extends TestCase
         yield 'unsupported data' => [
             'Foo',
             [
-                Contract::CONTEXT_MODEL => new Voyage('some-model', [Capability::INPUT_MULTIMODAL]),
+                Contract::CONTEXT_MODEL => new Voyage('some-model', [], [Modality::TEXT, Modality::IMAGE], [], []),
             ],
             false,
         ];

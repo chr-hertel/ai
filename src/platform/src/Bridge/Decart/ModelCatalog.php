@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Decart;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -27,46 +29,88 @@ final class ModelCatalog extends AbstractModelCatalog
         $defaultModels = [
             'lucy-dev-i2v' => [
                 'class' => Decart::class,
-                'capabilities' => [
-                    Capability::IMAGE_TO_VIDEO,
-                    Capability::VIDEO_TO_VIDEO,
+                'tasks' => [
+                    Task::VIDEO_GENERATION,
+                ],
+                'input' => [
+                    Modality::IMAGE,
+                    Modality::VIDEO,
+                ],
+                'output' => [
+                    Modality::VIDEO,
                 ],
             ],
             'lucy-pro-t2i' => [
                 'class' => Decart::class,
-                'capabilities' => [
-                    Capability::TEXT_TO_IMAGE,
+                'tasks' => [
+                    Task::IMAGE_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::IMAGE,
                 ],
             ],
             'lucy-pro-t2v' => [
                 'class' => Decart::class,
-                'capabilities' => [
-                    Capability::TEXT_TO_VIDEO,
-                    Capability::IMAGE_TO_VIDEO,
+                'tasks' => [
+                    Task::VIDEO_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::VIDEO,
                 ],
             ],
             'lucy-pro-i2i' => [
                 'class' => Decart::class,
-                'capabilities' => [
-                    Capability::IMAGE_TO_IMAGE,
+                'tasks' => [
+                    Task::IMAGE_GENERATION,
+                ],
+                'input' => [
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::IMAGE,
                 ],
             ],
             'lucy-pro-i2v' => [
                 'class' => Decart::class,
-                'capabilities' => [
-                    Capability::IMAGE_TO_VIDEO,
+                'tasks' => [
+                    Task::VIDEO_GENERATION,
+                ],
+                'input' => [
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::VIDEO,
                 ],
             ],
             'lucy-pro-v2v' => [
                 'class' => Decart::class,
-                'capabilities' => [
-                    Capability::VIDEO_TO_VIDEO,
+                'tasks' => [
+                    Task::VIDEO_GENERATION,
+                ],
+                'input' => [
+                    Modality::VIDEO,
+                ],
+                'output' => [
+                    Modality::VIDEO,
                 ],
             ],
             'lucy-pro-flf2v' => [
                 'class' => Decart::class,
-                'capabilities' => [
-                    Capability::IMAGE_TO_VIDEO,
+                'tasks' => [
+                    Task::VIDEO_GENERATION,
+                ],
+                'input' => [
+                    Modality::IMAGE,
+                ],
+                'output' => [
+                    Modality::VIDEO,
                 ],
             ],
         ];

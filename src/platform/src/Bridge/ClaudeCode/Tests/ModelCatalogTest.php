@@ -13,7 +13,9 @@ namespace Symfony\AI\Platform\Bridge\ClaudeCode\Tests;
 
 use Symfony\AI\Platform\Bridge\ClaudeCode\ClaudeCode;
 use Symfony\AI\Platform\Bridge\ClaudeCode\ModelCatalog;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
 
@@ -24,11 +26,11 @@ final class ModelCatalogTest extends ModelCatalogTestCase
 {
     public static function modelsProvider(): iterable
     {
-        $capabilities = [Capability::INPUT_MESSAGES, Capability::INPUT_TEXT, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING];
+        $capabilities = [[Task::TEXT_GENERATION], [Modality::TEXT], [Modality::TEXT], [Feature::STREAMING]];
 
-        yield 'opus' => ['opus', ClaudeCode::class, $capabilities];
-        yield 'sonnet' => ['sonnet', ClaudeCode::class, $capabilities];
-        yield 'haiku' => ['haiku', ClaudeCode::class, $capabilities];
+        yield 'opus' => ['opus', ClaudeCode::class, ...$capabilities];
+        yield 'sonnet' => ['sonnet', ClaudeCode::class, ...$capabilities];
+        yield 'haiku' => ['haiku', ClaudeCode::class, ...$capabilities];
     }
 
     protected function createModelCatalog(): ModelCatalogInterface

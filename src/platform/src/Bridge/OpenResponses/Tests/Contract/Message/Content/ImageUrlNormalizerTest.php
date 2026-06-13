@@ -15,7 +15,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\OpenAi\Gpt;
 use Symfony\AI\Platform\Bridge\OpenResponses\Contract\Message\Content\ImageUrlNormalizer;
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Content\ImageUrl;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -46,11 +48,11 @@ class ImageUrlNormalizerTest extends TestCase
     public static function supportsNormalizationProvider(): \Generator
     {
         $url = new ImageUrl('https://example.com/image.jpg');
-        $gpt = new Gpt('o3', [Capability::INPUT_IMAGE]);
+        $gpt = new Gpt('o3', [], [Modality::IMAGE], [], []);
 
         yield 'supported' => [$url, $gpt, true];
 
-        yield 'unsupported model' => [$url, new Model('foo', [Capability::INPUT_IMAGE]), false];
+        yield 'unsupported model' => [$url, new Model('foo', [], [Modality::IMAGE], [], []), false];
 
         yield 'model lacks image input capability' => [$url, new Gpt('o3'), false];
 

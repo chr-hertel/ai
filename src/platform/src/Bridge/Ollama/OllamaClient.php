@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\Ollama;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\JsonBodyEncodingTrait;
 use Symfony\AI\Platform\Model;
@@ -57,8 +57,8 @@ final class OllamaClient implements ModelClientInterface
     public function request(Model $model, array|string $payload, array $options = []): RawHttpResult
     {
         return match (true) {
-            $model->supports(Capability::INPUT_MESSAGES) => $this->doCompletionRequest($payload, $options),
-            $model->supports(Capability::EMBEDDINGS) => $this->doEmbeddingsRequest($model, $payload, $options),
+            $model->handles(Task::TEXT_GENERATION) => $this->doCompletionRequest($payload, $options),
+            $model->handles(Task::EMBEDDING) => $this->doEmbeddingsRequest($model, $payload, $options),
             default => throw new InvalidArgumentException(\sprintf('Unsupported model "%s": "%s".', $model::class, $model->getName())),
         };
     }

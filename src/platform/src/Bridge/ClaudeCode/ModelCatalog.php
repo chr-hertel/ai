@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\ClaudeCode;
 
-use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Feature;
+use Symfony\AI\Platform\Modality;
+use Symfony\AI\Platform\Task;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -20,36 +22,54 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, tasks: list<Task>, input: list<Modality>, output: list<Modality>, features: list<Feature>}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
         $defaultModels = [
             'opus' => [
                 'class' => ClaudeCode::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_TEXT,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
                 ],
             ],
             'sonnet' => [
                 'class' => ClaudeCode::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_TEXT,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
                 ],
             ],
             'haiku' => [
                 'class' => ClaudeCode::class,
-                'capabilities' => [
-                    Capability::INPUT_MESSAGES,
-                    Capability::INPUT_TEXT,
-                    Capability::OUTPUT_TEXT,
-                    Capability::OUTPUT_STREAMING,
+                'tasks' => [
+                    Task::TEXT_GENERATION,
+                ],
+                'input' => [
+                    Modality::TEXT,
+                ],
+                'output' => [
+                    Modality::TEXT,
+                ],
+                'features' => [
+                    Feature::STREAMING,
                 ],
             ],
         ];
