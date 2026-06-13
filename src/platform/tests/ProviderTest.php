@@ -13,6 +13,7 @@ namespace Symfony\AI\Platform\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\EndpointHandlerInterface;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\Event\ResultEvent;
 use Symfony\AI\Platform\Exception\RuntimeException;
@@ -110,6 +111,98 @@ final class ProviderTest extends TestCase
         $result = $provider->invoke($model, 'Hello');
 
         $this->assertInstanceOf(DeferredResult::class, $result);
+    }
+
+    public function testInvokeUsesEndpointHandlerWhenSupported()
+    {
+        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
+        $textResult = new TextResult('Hello');
+
+        $catalog = $this->createStub(ModelCatalogInterface::class);
+        $catalog->method('getModel')->willReturn($model);
+
+        $modelClient = $this->createMock(ModelClientInterface::class);
+        $modelClient->expects($this->never())->method('request');
+
+        $resultConverter = $this->createMock(ResultConverterInterface::class);
+        $resultConverter->expects($this->never())->method('convert');
+
+        $endpointHandler = $this->createMock(EndpointHandlerInterface::class);
+        $endpointHandler->method('supports')->willReturn(true);
+        $endpointHandler->expects($this->once())
+            ->method('request')
+            ->with($model, 'Hello')
+            ->willReturn($textResult);
+
+        $provider = new Provider('openai', [$modelClient], [$resultConverter], $catalog, null, null, [$endpointHandler]);
+
+        $result = $provider->invoke('gpt-4o', 'Hello');
+
+        $this->assertInstanceOf(DeferredResult::class, $result);
+        $this->assertSame($textResult, $result->getResult());
+    }
+
+    public function testInvokeRoutesEndpointHandlerByTask()
+    {
+        $model = new Model('whisper-1', [Capability::INPUT_AUDIO]);
+        $translationResult = new TextResult('Bonjour');
+
+        $catalog = $this->createStub(ModelCatalogInterface::class);
+        $catalog->method('getModel')->willReturn($model);
+
+        $transcription = $this->createMock(EndpointHandlerInterface::class);
+        $transcription->method('supports')->willReturnCallback(static fn (Model $m, ?string $task = null): bool => null === $task || 'transcription' === $task);
+        $transcription->expects($this->never())->method('request');
+
+        $translation = $this->createMock(EndpointHandlerInterface::class);
+        $translation->method('supports')->willReturnCallback(static fn (Model $m, ?string $task = null): bool => 'translation' === $task);
+        $translation->expects($this->once())->method('request')->willReturn($translationResult);
+
+        $provider = new Provider('openai', [], [], $catalog, null, null, [$transcription, $translation]);
+
+        $result = $provider->invoke('whisper-1', ['audio'], ['task' => 'translation']);
+
+        $this->assertSame($translationResult, $result->getResult());
+    }
+
+    public function testInvokeFallsBackToLegacyWhenNoEndpointHandlerMatches()
+    {
+        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
+        $rawResult = $this->createStub(RawResultInterface::class);
+        $textResult = new TextResult('Hello');
+
+        $catalog = $this->createStub(ModelCatalogInterface::class);
+        $catalog->method('getModel')->willReturn($model);
+
+        $modelClient = $this->createMock(ModelClientInterface::class);
+        $modelClient->method('supports')->willReturn(true);
+        $modelClient->expects($this->once())->method('request')->willReturn($rawResult);
+
+        $resultConverter = $this->createStub(ResultConverterInterface::class);
+        $resultConverter->method('supports')->willReturn(true);
+        $resultConverter->method('convert')->willReturn($textResult);
+
+        $endpointHandler = $this->createMock(EndpointHandlerInterface::class);
+        $endpointHandler->method('supports')->willReturn(false);
+        $endpointHandler->expects($this->never())->method('request');
+
+        $provider = new Provider('openai', [$modelClient], [$resultConverter], $catalog, null, null, [$endpointHandler]);
+
+        $result = $provider->invoke('gpt-4o', 'Hello');
+
+        $this->assertSame($textResult, $result->getResult());
+    }
+
+    public function testSupportsModelObjectViaEndpointHandler()
+    {
+        $model = new Model('gpt-4o', [Capability::INPUT_MESSAGES]);
+
+        $endpointHandler = $this->createStub(EndpointHandlerInterface::class);
+        $endpointHandler->method('supports')->willReturn(true);
+
+        $provider = new Provider('openai', [], [], $this->createStub(ModelCatalogInterface::class), null, null, [$endpointHandler]);
+
+        $this->assertTrue($provider->supports($model));
     }
 
     public function testInvokeResolvesModelAndDelegates()

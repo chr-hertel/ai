@@ -4,6 +4,8 @@ CHANGELOG
 0.10
 ----
 
+ * Add `EndpointHandlerInterface`, a slim, additive alternative to the per-bridge `ModelClientInterface` + `ResultConverterInterface` pair that owns request building, transport, and conversion in one class and routes by model and task; `Provider` accepts endpoint handlers and tries them before the legacy clients/converters. The OpenAI bridge ships endpoint handlers for all of its endpoints
+ * Add `DeferredResult::fromResult()` to wrap an already-converted `ResultInterface` (e.g. produced by an `EndpointHandlerInterface`) while still wiring stream listeners and promoting metadata
  * Add `IncompleteStreamException`, thrown by bridge converters when a stream ends before its terminal event
  * Add `JsonBodyEncodingTrait` so model clients can encode JSON request bodies without aborting on malformed UTF-8
  * Add support for passing a fully defined `Model` instance to `Platform::invoke()` (and `Provider::invoke()`) instead of a model name string, bypassing the model catalog; widen `ProviderInterface::supports()` to `string|Model` to route a model instance to the first provider whose model clients accept it

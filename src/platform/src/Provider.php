@@ -37,6 +37,8 @@ final class Provider implements ProviderInterface
      * @param non-empty-string                   $name
      * @param iterable<ModelClientInterface>     $modelClients
      * @param iterable<ResultConverterInterface> $resultConverters
+     * @param iterable<EndpointHandlerInterface> $endpointHandlers Tried before the legacy
+     *                                                             modelClients/resultConverters pair
      */
     public function __construct(
         private readonly string $name,
@@ -45,6 +47,7 @@ final class Provider implements ProviderInterface
         private readonly ModelCatalogInterface $modelCatalog,
         private ?Contract $contract = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly iterable $endpointHandlers = [],
     ) {
         $this->contract = $contract ?? Contract::create();
     }
@@ -59,6 +62,12 @@ final class Provider implements ProviderInterface
         if ($model instanceof Model) {
             foreach ($this->modelClients as $modelClient) {
                 if ($modelClient->supports($model)) {
+                    return true;
+                }
+            }
+
+            foreach ($this->endpointHandlers as $endpointHandler) {
+                if ($endpointHandler->supports($model)) {
                     return true;
                 }
             }
@@ -102,7 +111,13 @@ final class Provider implements ProviderInterface
             $options['tools'] = $this->contract->createToolOption($options['tools'], $model);
         }
 
-        $result = $this->convertResult($model, $this->doInvoke($model, $payload, $options), $options);
+        $task = \is_string($options['task'] ?? null) ? $options['task'] : null;
+
+        if (null !== $endpointHandler = $this->findEndpointHandler($model, $task)) {
+            $result = DeferredResult::fromResult($endpointHandler->request($model, $payload, $options), $options);
+        } else {
+            $result = $this->convertResult($model, $this->doInvoke($model, $payload, $options), $options);
+        }
 
         $resultEvent = new ResultEvent($model, $result, $options, $input);
         $this->eventDispatcher?->dispatch($resultEvent);
@@ -113,6 +128,17 @@ final class Provider implements ProviderInterface
     public function getModelCatalog(): ModelCatalogInterface
     {
         return $this->modelCatalog;
+    }
+
+    private function findEndpointHandler(Model $model, ?string $task): ?EndpointHandlerInterface
+    {
+        foreach ($this->endpointHandlers as $endpointHandler) {
+            if ($endpointHandler->supports($model, $task)) {
+                return $endpointHandler;
+            }
+        }
+
+        return null;
     }
 
     /**

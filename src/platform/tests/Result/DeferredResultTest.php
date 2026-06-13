@@ -169,6 +169,48 @@ final class DeferredResultTest extends TestCase
         $this->assertSame(123456, $tokenUsage->getPromptTokens());
     }
 
+    public function testFromResultReturnsPreConvertedResult()
+    {
+        $textResult = new TextResult('Hello World');
+
+        $deferredResult = DeferredResult::fromResult($textResult);
+
+        $this->assertSame($textResult, $deferredResult->getResult());
+        $this->assertSame('Hello World', $deferredResult->asText());
+    }
+
+    public function testFromResultPromotesResultMetadata()
+    {
+        $textResult = new TextResult('Hello World');
+        $textResult->getMetadata()->add('foo', 'bar');
+
+        $deferredResult = DeferredResult::fromResult($textResult);
+
+        $this->assertSame('bar', $deferredResult->getMetadata()->get('foo'));
+    }
+
+    public function testFromResultWithoutRawResultReturnsNull()
+    {
+        $deferredResult = DeferredResult::fromResult(new TextResult('Hello World'));
+
+        $this->assertNull($deferredResult->getRawResult());
+    }
+
+    public function testFromResultWiresStreamListeners()
+    {
+        $result = new StreamResult((static function () {
+            yield new TextDelta('part 1');
+            yield new TextDelta('part 2');
+            yield new TokenUsage(123456);
+        })());
+
+        $deferredResult = DeferredResult::fromResult($result);
+        iterator_to_array($deferredResult->asStream());
+
+        $this->assertInstanceOf(TokenUsageInterface::class, $tokenUsage = $deferredResult->getMetadata()->get('token_usage'));
+        $this->assertSame(123456, $tokenUsage->getPromptTokens());
+    }
+
     public function testItSavesConversionFailureAndDoesNotRetryConvert()
     {
         $rawHttpResult = new RawHttpResult($this->createStub(SymfonyHttpResponse::class));
