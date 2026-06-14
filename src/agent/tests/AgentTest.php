@@ -13,13 +13,15 @@ namespace Symfony\AI\Agent\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\AgentAwareInterface;
 use Symfony\AI\Agent\AgentInterface;
+use Symfony\AI\Agent\Context\AgentContext;
+use Symfony\AI\Agent\Context\AgentRequest;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
-use Symfony\AI\Agent\Input;
-use Symfony\AI\Agent\InputProcessorInterface;
-use Symfony\AI\Agent\Output;
-use Symfony\AI\Agent\OutputProcessorInterface;
+use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Store\InMemoryStore;
 use Symfony\AI\Platform\Message\Content\Audio;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -36,164 +38,42 @@ final class AgentTest extends TestCase
 {
     public function testConstructorInitializesWithDefaults()
     {
-        $platform = $this->createMock(PlatformInterface::class);
-
-        $agent = new Agent($platform, 'gpt-4o');
+        $agent = new Agent($this->createMock(PlatformInterface::class), model: 'gpt-4o');
 
         $this->assertInstanceOf(AgentInterface::class, $agent);
     }
 
-    public function testConstructorInitializesWithProcessors()
+    public function testGetNameReturnsDefaultName()
     {
-        $platform = $this->createMock(PlatformInterface::class);
-        $inputProcessor = $this->createMock(InputProcessorInterface::class);
-        $outputProcessor = $this->createMock(OutputProcessorInterface::class);
+        $agent = new Agent($this->createMock(PlatformInterface::class), model: 'gpt-4');
 
-        $agent = new Agent($platform, 'gpt-4o', [$inputProcessor], [$outputProcessor]);
-
-        $this->assertInstanceOf(AgentInterface::class, $agent);
+        $this->assertSame('agent', $agent->getName());
     }
 
-    public function testAgentExposesHisModel()
+    public function testGetNameReturnsProvidedName()
     {
-        $platform = $this->createMock(PlatformInterface::class);
+        $agent = new Agent($this->createMock(PlatformInterface::class), 'research', model: 'gpt-4');
 
-        $agent = new Agent($platform, 'gpt-4o');
-
-        $this->assertSame('gpt-4o', $agent->getModel());
+        $this->assertSame('research', $agent->getName());
     }
 
-    public function testSetsAgentOnAgentAwareProcessors()
+    public function testCallReturnsResult()
     {
-        $agentAwareProcessor = new class implements InputProcessorInterface, AgentAwareInterface {
-            public ?AgentInterface $agent = null;
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4');
 
-            public function processInput(Input $input): void
-            {
-            }
+        $result = $agent->call('Hello');
 
-            public function setAgent(AgentInterface $agent): void
-            {
-                $this->agent = $agent;
-            }
-        };
-
-        $agent = new Agent(new InMemoryPlatform('Hi'), 'gpt-4o', [$agentAwareProcessor]);
-        $agent->call(new MessageBag());
-
-        $this->assertSame($agent, $agentAwareProcessor->agent);
+        $this->assertInstanceOf(ResultInterface::class, $result);
+        $this->assertSame('Hi', $result->getContent());
     }
 
-    public function testConstructorThrowsExceptionForInvalidInputProcessor()
+    public function testCallWithoutAnyModelThrows()
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage(\sprintf('Input processor "stdClass" must implement "%s".', InputProcessorInterface::class));
+        $agent = new Agent(new InMemoryPlatform('Hi'));
 
-        /** @phpstan-ignore-next-line argument.type */
-        $agent = new Agent(new InMemoryPlatform('Hi'), 'gpt-4o', [new \stdClass()]);
-        $agent->call(new MessageBag());
-    }
+        $this->expectException(RuntimeException::class);
 
-    public function testConstructorThrowsExceptionForInvalidOutputProcessor()
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage(\sprintf('Output processor "stdClass" must implement "%s".', OutputProcessorInterface::class));
-
-        /** @phpstan-ignore-next-line argument.type */
-        $agent = new Agent(new InMemoryPlatform('Hi'), 'gpt-4o', [], [new \stdClass()]);
-        $agent->call(new MessageBag());
-    }
-
-    public function testCallProcessesInputThroughProcessors()
-    {
-        $platform = $this->createMock(PlatformInterface::class);
-        $modelName = 'gpt-4o';
-        $messages = new MessageBag(new UserMessage(new Text('Hello')));
-        $result = $this->createMock(ResultInterface::class);
-
-        $inputProcessor = $this->createMock(InputProcessorInterface::class);
-        $inputProcessor->expects($this->once())
-            ->method('processInput')
-            ->with($this->isInstanceOf(Input::class));
-
-        $rawResult = $this->createMock(RawResultInterface::class);
-        $response = new DeferredResult(new PlainConverter($result), $rawResult, []);
-
-        $platform->expects($this->once())
-            ->method('invoke')
-            ->with($modelName, $messages, [])
-            ->willReturn($response);
-
-        $agent = new Agent($platform, $modelName, [$inputProcessor]);
-        $actualResult = $agent->call($messages);
-
-        $this->assertSame($result, $actualResult);
-    }
-
-    public function testCallProcessesOutputThroughProcessors()
-    {
-        $platform = $this->createMock(PlatformInterface::class);
-        $modelName = 'gpt-4o';
-        $messages = new MessageBag(new UserMessage(new Text('Hello')));
-        $result = $this->createMock(ResultInterface::class);
-
-        $outputProcessor = $this->createMock(OutputProcessorInterface::class);
-        $outputProcessor->expects($this->once())
-            ->method('processOutput')
-            ->with($this->isInstanceOf(Output::class));
-
-        $rawResult = $this->createMock(RawResultInterface::class);
-        $response = new DeferredResult(new PlainConverter($result), $rawResult, []);
-
-        $platform->expects($this->once())
-            ->method('invoke')
-            ->with($modelName, $messages, [])
-            ->willReturn($response);
-
-        $agent = new Agent($platform, $modelName, [], [$outputProcessor]);
-        $actualResult = $agent->call($messages);
-
-        $this->assertSame($result, $actualResult);
-    }
-
-    public function testCallAllowsAudioInputWithSupport()
-    {
-        $platform = $this->createMock(PlatformInterface::class);
-        $messages = new MessageBag(new UserMessage(new Audio('audio-data', 'audio/mp3')));
-        $result = $this->createMock(ResultInterface::class);
-
-        $rawResult = $this->createMock(RawResultInterface::class);
-        $response = new DeferredResult(new PlainConverter($result), $rawResult, []);
-
-        $platform->expects($this->once())
-            ->method('invoke')
-            ->with('gpt-4', $messages, [])
-            ->willReturn($response);
-
-        $agent = new Agent($platform, 'gpt-4');
-        $actualResult = $agent->call($messages);
-
-        $this->assertSame($result, $actualResult);
-    }
-
-    public function testCallAllowsImageInputWithSupport()
-    {
-        $platform = $this->createMock(PlatformInterface::class);
-        $messages = new MessageBag(new UserMessage(new Image('image-data', 'image/png')));
-        $result = $this->createMock(ResultInterface::class);
-
-        $rawResult = $this->createMock(RawResultInterface::class);
-        $response = new DeferredResult(new PlainConverter($result), $rawResult, []);
-
-        $platform->expects($this->once())
-            ->method('invoke')
-            ->with('gpt-4', $messages, [])
-            ->willReturn($response);
-
-        $agent = new Agent($platform, 'gpt-4');
-        $actualResult = $agent->call($messages);
-
-        $this->assertSame($result, $actualResult);
+        $agent->call('Hello');
     }
 
     public function testCallPassesOptionsToInvoke()
@@ -202,52 +82,154 @@ final class AgentTest extends TestCase
         $messages = new MessageBag(new UserMessage(new Text('Hello')));
         $options = ['temperature' => 0.7, 'max_tokens' => 100];
         $result = $this->createMock(ResultInterface::class);
-
-        $rawResult = $this->createMock(RawResultInterface::class);
-        $response = new DeferredResult(new PlainConverter($result), $rawResult, []);
+        $response = new DeferredResult(new PlainConverter($result), $this->createMock(RawResultInterface::class), []);
 
         $platform->expects($this->once())
             ->method('invoke')
             ->with('gpt-4', $messages, $options)
             ->willReturn($response);
 
-        $agent = new Agent($platform, 'gpt-4');
-        $actualResult = $agent->call($messages, $options);
+        $agent = new Agent($platform, model: 'gpt-4');
 
-        $this->assertSame($result, $actualResult);
+        $this->assertSame($result, $agent->call($messages, options: $options));
     }
 
-    public function testConstructorAcceptsTraversableProcessors()
+    public function testModelOptionOverridesDefaultModel()
     {
         $platform = $this->createMock(PlatformInterface::class);
+        $messages = new MessageBag(new UserMessage(new Text('Hello')));
+        $result = $this->createMock(ResultInterface::class);
+        $response = new DeferredResult(new PlainConverter($result), $this->createMock(RawResultInterface::class), []);
 
-        $inputProcessor = $this->createMock(InputProcessorInterface::class);
-        $outputProcessor = $this->createMock(OutputProcessorInterface::class);
+        $platform->expects($this->once())
+            ->method('invoke')
+            ->with('gpt-4o', $messages, ['model' => 'gpt-4o'])
+            ->willReturn($response);
 
-        $inputProcessors = new \ArrayIterator([$inputProcessor]);
-        $outputProcessors = new \ArrayIterator([$outputProcessor]);
-
-        $agent = new Agent($platform, 'gpt-4', $inputProcessors, $outputProcessors);
-
-        $this->assertInstanceOf(AgentInterface::class, $agent);
+        $agent = new Agent($platform, model: 'gpt-4');
+        $agent->call($messages, options: ['model' => 'gpt-4o']);
     }
 
-    public function testGetNameReturnsDefaultName()
+    public function testCallAllowsAudioInput()
     {
         $platform = $this->createMock(PlatformInterface::class);
+        $messages = new MessageBag(new UserMessage(new Audio('audio-data', 'audio/mp3')));
+        $result = $this->createMock(ResultInterface::class);
+        $response = new DeferredResult(new PlainConverter($result), $this->createMock(RawResultInterface::class), []);
 
-        $agent = new Agent($platform, 'gpt-4');
+        $platform->expects($this->once())
+            ->method('invoke')
+            ->with('gpt-4', $messages, [])
+            ->willReturn($response);
 
-        $this->assertSame('agent', $agent->getName());
+        $agent = new Agent($platform, model: 'gpt-4');
+
+        $this->assertSame($result, $agent->call($messages));
     }
 
-    public function testGetNameReturnsProvidedName()
+    public function testCallAllowsImageInput()
     {
         $platform = $this->createMock(PlatformInterface::class);
-        $name = 'test';
+        $messages = new MessageBag(new UserMessage(new Image('image-data', 'image/png')));
+        $result = $this->createMock(ResultInterface::class);
+        $response = new DeferredResult(new PlainConverter($result), $this->createMock(RawResultInterface::class), []);
 
-        $agent = new Agent($platform, 'gpt-4', [], [], $name);
+        $platform->expects($this->once())
+            ->method('invoke')
+            ->with('gpt-4', $messages, [])
+            ->willReturn($response);
 
-        $this->assertSame($name, $agent->getName());
+        $agent = new Agent($platform, model: 'gpt-4');
+
+        $this->assertSame($result, $agent->call($messages));
+    }
+
+    public function testRunYieldsExactlyOneResultUpdate()
+    {
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4');
+
+        $execution = $agent->run('Hello');
+        $this->assertInstanceOf(Execution::class, $execution);
+
+        $updates = iterator_to_array($execution, false);
+        $resultUpdates = array_filter($updates, static fn (object $update): bool => $update instanceof ResultUpdate);
+
+        $this->assertCount(1, $resultUpdates);
+    }
+
+    public function testContextProcessorReceivesRequest()
+    {
+        $processor = new class implements ContextProcessorInterface {
+            public ?AgentRequest $request = null;
+
+            public static function supportedTypes(): array
+            {
+                return [];
+            }
+
+            public function process(AgentRequest $request, AgentContext $context): void
+            {
+                $this->request = $request;
+            }
+        };
+
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4', contextProcessors: [$processor]);
+        $agent->call('Hello');
+
+        $this->assertInstanceOf(AgentRequest::class, $processor->request);
+    }
+
+    public function testInvalidContextProcessorThrowsException()
+    {
+        /** @phpstan-ignore-next-line argument.type */
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4', contextProcessors: [new \stdClass()]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $agent->call('Hello');
+    }
+
+    public function testInstructionIsInjectedAsSystemMessage()
+    {
+        $platform = $this->createMock(PlatformInterface::class);
+        $captured = null;
+        $result = $this->createMock(ResultInterface::class);
+
+        $platform->method('invoke')
+            ->willReturnCallback(function (string $model, MessageBag $messages) use (&$captured, $result): DeferredResult {
+                $captured = $messages;
+
+                return new DeferredResult(new PlainConverter($result), $this->createMock(RawResultInterface::class), []);
+            });
+
+        $agent = new Agent($platform, instruction: 'You are a helpful assistant.', model: 'gpt-4');
+        $agent->call('Hello');
+
+        $this->assertInstanceOf(MessageBag::class, $captured);
+        $this->assertNotNull($captured->getSystemMessage());
+        $this->assertSame('You are a helpful assistant.', $captured->getSystemMessage()->getContent());
+    }
+
+    public function testStatefulAgentPersistsConversationAcrossCalls()
+    {
+        $store = new InMemoryStore();
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4', store: $store);
+
+        $agent->call('Hello');
+        $this->assertCount(2, $store->load());
+
+        $agent->call('How are you?');
+        $this->assertCount(4, $store->load());
+    }
+
+    public function testRunManyReturnsResultsKeyedByInput()
+    {
+        $agent = new Agent(new InMemoryPlatform('Hi'), model: 'gpt-4');
+
+        $results = $agent->runMany(['first' => 'Hello', 'second' => 'Hey'])->await();
+
+        $this->assertSame(['first', 'second'], array_keys($results));
+        $this->assertSame('Hi', $results['first']->getContent());
+        $this->assertSame('Hi', $results['second']->getContent());
     }
 }

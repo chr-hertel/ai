@@ -1,3 +1,79 @@
+UPGRADE FROM 0.10 to 1.0
+========================
+
+Agent
+-----
+
+ * `AgentInterface::call()` now takes the input as `string|MessageBag|UserMessage`, an
+   optional `Context` and an options array, instead of `(MessageBag $messages, array $options)`:
+
+   ```diff
+   -$result = $agent->call($messageBag, ['temperature' => 0.5]);
+   +$result = $agent->call($messageBag, options: ['temperature' => 0.5]);
+   +$result = $agent->call('A plain string input works too.');
+   ```
+
+ * `AgentInterface` gained `run()`, which returns a lazy, iterable `Execution` yielding
+   `Progress`, `Interaction` and `Result` updates for progress reporting and human-in-the-loop.
+
+ * `AgentInterface::getModel()` was removed. The model is configured on the `Agent`
+   constructor and overridable per call via the `model` option.
+
+ * The `Agent` constructor changed to first-class named arguments:
+
+   ```diff
+   -$agent = new Agent($platform, 'gpt-4o', $inputProcessors, $outputProcessors, 'research');
+   +$agent = new Agent($platform, name: 'research', instruction: '...', tools: [...], model: 'gpt-4o');
+   ```
+
+ * Tools are passed directly via the `tools:` argument (local tools, subagents or a
+   pre-built `ToolboxInterface`) and routing via the `handoffs:` argument, instead of
+   being wired through `Toolbox\AgentProcessor` and `MultiAgent\MultiAgent`.
+
+ * An optional `MessageStoreInterface` can be passed via the `store:` argument to make
+   the agent stateful: it loads, appends and persists the conversation across calls.
+
+ * The input/output processor system was removed in favor of the context processor
+   one. Classes removed: `InputProcessorInterface`, `OutputProcessorInterface`,
+   `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `Attribute\AsInputProcessor`,
+   `Attribute\AsOutputProcessor`, `InputProcessor\SystemPromptInputProcessor`,
+   `InputProcessor\ModelOverrideInputProcessor`, `Memory\MemoryInputProcessor`,
+   `Toolbox\AgentProcessor`, `Toolbox\StreamListener` and the entire `MultiAgent`
+   namespace. Implement `Context\ContextProcessorInterface` instead and pass instances
+   via the `contextProcessors` argument:
+
+   ```diff
+   -class MyProcessor implements InputProcessorInterface
+   -{
+   -    public function processInput(Input $input): void { /* ... */ }
+   -}
+   +class MyProcessor implements ContextProcessorInterface
+   +{
+   +    public static function supportedTypes(): array { return []; }
+   +    public function process(AgentRequest $request, AgentContext $context): void { /* ... */ }
+   +}
+   ```
+
+ * `MultiAgent\MultiAgent` was removed. Configure handoffs directly on the `Agent`:
+
+   ```diff
+   -$multi = new MultiAgent(
+   -    orchestrator: $orchestrator,
+   -    handoffs: [new MultiAgent\Handoff(to: $technical, when: ['bug', 'error'])],
+   -    fallback: $fallback,
+   -);
+   +$orchestrator = new Agent($platform,
+   +    name: 'orchestrator',
+   +    instruction: '...',
+   +    handoffs: [new Handoff\Handoff(to: $technical, description: 'bugs, errors')],
+   +    model: 'gpt-4o',
+   +);
+   ```
+
+ * `MemoryProviderInterface::load()` now takes a `Context\AgentRequest` instead of the
+   removed `Input`. Update custom providers and replace `MemoryInputProcessor` with
+   `Context\Processor\MemoryProcessor`.
+
 UPGRADE FROM 0.9 to 0.10
 ========================
 
