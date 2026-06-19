@@ -59,7 +59,7 @@ final class MockModelClientTest extends TestCase
         $client = new MockModelClient(['known' => 'answer']);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('No fake response configured for model "unknown".');
+        $this->expectExceptionMessage('No scripted response configured for model "unknown".');
 
         $client->request(new Model('unknown'), 'q');
     }
