@@ -149,6 +149,119 @@ The MCP SDK, and therefore the MCP Bundle, supports two patterns for placing att
         public function toolTwo(): string { }
     }
 
+MCP Apps
+........
+
+`MCP Apps`_ let a tool return an interactive HTML screen (an "app") that the host renders in a
+sandboxed iframe instead of plain text — for example a dashboard, a form, or a record viewer. The
+bundle registers the underlying UI resource for you and enables the MCP Apps server extension, so you
+only write the markup.
+
+A single class is the whole app (similar to a Symfony UX LiveComponent): the ``#[AsMcpApp]`` attribute
+carries the linked tool's identity (``name``/``description``) and the HTML shell (``template``), the
+constructor carries service dependencies, and a handler method (``render`` by default) produces the
+tool result::
+
+    // src/Mcp/WeatherApp.php
+    use Symfony\AI\McpBundle\Attribute\AsMcpApp;
+
+    #[AsMcpApp(
+        uri: 'ui://weather',
+        name: 'get_weather',                 // the linked tool's name (model-facing)
+        title: 'Weather',
+        description: 'Show the weather for a city as an interactive dashboard.',
+        template: 'mcp/weather.html.twig',
+    )]
+    class WeatherApp
+    {
+        public function __construct(private WeatherClient $weather)
+        {
+        }
+
+        // The returned value is the tool result, delivered to the iframe's JS render(model).
+        // The input schema is derived from the method signature.
+        public function render(string $city): array
+        {
+            return ['summary' => $this->weather->summaryFor($city)];
+        }
+    }
+
+The template extends the bundle's base template, which implements the MCP Apps ``postMessage``
+handshake, iframe size reporting and a ``render(model)`` hook:
+
+.. code-block:: html+twig
+
+    {# templates/mcp/weather.html.twig #}
+    {% extends '@Mcp/app/base.html.twig' %}
+
+    {% block style %}.card { font: 1rem system-ui; }{% endblock %}
+    {% block body %}<div id="root" class="card"></div>{% endblock %}
+
+    {% block app_script %}
+        // Called with the linked tool's result. The iframe shell is static HTML; the per-request
+        // data arrives at runtime via the tool-result message, not through Twig.
+        function render(model) {
+            document.getElementById('root').textContent = model.summary;
+        }
+    {% endblock %}
+
+The bundle registers the UI resource (with the required ``_meta.ui`` descriptor marker), registers the
+tool with its ``ui`` link auto-set to this app (``resourceUri`` plus visibility ``[model, app]``), and
+enables the MCP Apps extension. ``uri`` defaults to ``ui://<kebab-class-name>``; the tool ``name``
+defaults to that URI slug with dashes replaced by underscores, and the handler method defaults to
+``render`` (set the ``method`` argument to use another). The tool is registered only when the handler
+method exists — an app without it is a static, tool-less screen.
+
+The base template exposes the blocks ``title``, ``head``, ``style``, ``body`` and ``app_script``
+(override ``render(model)`` / ``onToolInput(params)`` there), plus ``sendRpc``, ``callTool`` and
+``openLink`` JavaScript helpers.
+
+The template form requires ``symfony/twig-bundle``. For a dynamic shell, omit ``template`` and give the
+class an ``__invoke(): TextResourceContents`` method instead (inject
+``Symfony\AI\McpBundle\App\McpAppRenderer`` to render Twig with your own context); that method then owns
+the returned content and its ``_meta.ui``.
+
+You can declare CSP and permission requirements for the iframe directly on the attribute::
+
+    #[AsMcpApp(
+        uri: 'ui://weather',
+        name: 'get_weather',
+        template: 'mcp/weather.html.twig',
+        prefersBorder: true,
+        cspConnect: ['https://api.weather.example.com'],
+        geolocation: true,
+    )]
+
+The MCP Apps extension is enabled automatically as soon as one ``#[AsMcpApp]`` class exists. Use the
+``apps.enabled`` option to force it on or off:
+
+.. code-block:: yaml
+
+    # config/packages/mcp.yaml
+    mcp:
+        apps:
+            enabled: true # null (default) = auto-enable when an app is registered; true/false forces it
+
+Interactive apps
+^^^^^^^^^^^^^^^^
+
+Beyond the initial screen, an app can drive further work itself: from the iframe call
+``callTool(name, args)`` (a base-template helper that sends a ``tools/call`` request) and render the
+result. These follow-up tools are **ordinary** ``#[McpTool]``\ s — there is no app-specific tool
+attribute. Set ``visibility: ['app']`` in the ``ui`` meta to keep a tool callable from the app but
+hidden from the model's ``tools/list`` (omit it, or include ``'model'``, to let the model call it too)::
+
+    use Mcp\Capability\Attribute\McpTool;
+
+    // ... on the same #[AsMcpApp] class, alongside render() ...
+
+    #[McpTool(name: 'set_unit', meta: ['ui' => ['resourceUri' => 'ui://weather', 'visibility' => ['app']]])]
+    public function setUnit(string $unit): array
+    {
+        // invoked from the iframe: const result = await callTool('set_unit', { unit: 'celsius' });
+        return ['summary' => $this->weather->summaryFor($unit)];
+    }
+
 Transport Types
 ...............
 
@@ -279,6 +392,10 @@ Configuration
         discovery:
             scan_dirs: ['src/Mcp'] # limit discovery scanning to a directory where you can group all your tools, resources, prompts, etc ...
 
+        # MCP Apps (interactive HTML UI resources, registered with #[AsMcpApp])
+        apps:
+            enabled: ~ # null = auto-enable when at least one app exists; true/false forces it
+
         client_transports:
             stdio: true # Enable STDIO via command
             http: true # Enable HTTP transport via controller
@@ -394,6 +511,8 @@ You can create event listeners to respond to capability changes::
 The events are simple marker events that notify when lists have changed, but don't contain specific details about what was added or modified.
 
 .. _`Model Context Protocol`: https://modelcontextprotocol.io/
+.. _`MCP Apps`: https://github.com/modelcontextprotocol/ext-apps
+.. _`Twig`: https://twig.symfony.com/
 .. _`mcp/sdk`: https://github.com/modelcontextprotocol/php-sdk
 .. _`Claude Desktop`: https://claude.ai/download
 .. _`MCP Server List`: https://modelcontextprotocol.io/examples

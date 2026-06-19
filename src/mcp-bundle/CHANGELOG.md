@@ -1,6 +1,16 @@
 CHANGELOG
 =========
 
+0.11
+----
+
+ * Add first-class MCP Apps support: the `#[AsMcpApp]` attribute registers an interactive HTML UI
+   resource (including the `_meta.ui` descriptor marker), registers the linked tool from a handler
+   method (`render` by default) with its `ui` link auto-set to the app, and auto-enables the MCP Apps
+   server extension; configurable via `mcp.apps.enabled`
+ * Add the `@Mcp/app/base.html.twig` base template carrying the MCP Apps postMessage bridge, and a
+   Twig-backed renderer so template apps need no handler code
+
 0.8
 ---
 
