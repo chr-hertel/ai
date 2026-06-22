@@ -23,6 +23,7 @@ use Symfony\AI\Platform\StructuredOutput\ResponseFormatFactory;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\ColorProvider;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\ConflictDto;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\ContextAwareProvider;
+use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\LongerStaticEnumDto;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\SearchQueryDto;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\StatusProvider;
 
@@ -90,6 +91,16 @@ final class SchemaProviderFactoryIntegrationTest extends TestCase
         // ConflictDto: #[Schema(enum: ['a','b'], provider: StatusProvider::class)] - provider applied after
         // the static fragment via array_replace_recursive, so the runtime values override.
         $schema = $this->factory->buildProperties(ConflictDto::class);
+
+        $this->assertSame(['active', 'archived'], $schema['properties']['status']['enum']);
+    }
+
+    public function testRuntimeProviderReplacesLongerStaticEnum()
+    {
+        // LongerStaticEnumDto: #[Schema(enum: ['a', 'b', 'c'], provider: StatusProvider::class)].
+        // The provider returns fewer values than the static enum, so an index-wise merge would
+        // leave the trailing 'c' behind. The runtime fragment must replace the enum wholesale.
+        $schema = $this->factory->buildProperties(LongerStaticEnumDto::class);
 
         $this->assertSame(['active', 'archived'], $schema['properties']['status']['enum']);
     }

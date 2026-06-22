@@ -21,6 +21,7 @@ use Symfony\AI\Platform\Exception\IOException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\ColorProvider;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\ContextAwareProvider;
+use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\LongerStaticEnumDto;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\SearchQueryDto;
 use Symfony\AI\Platform\Tests\Fixtures\JsonSchema\StatusProvider;
 use Symfony\AI\Platform\Tests\Fixtures\StructuredOutput\ExampleDto;
@@ -137,5 +138,39 @@ final class SchemaAttributeDescriberTest extends TestCase
         $describer->describeProperty($subject, $schema);
 
         $this->assertSame(['type' => 'string', 'enum' => ['draft', 'published']], $schema);
+    }
+
+    public function testProviderEnumFullyReplacesLongerStaticEnum()
+    {
+        $describer = new SchemaAttributeDescriber([
+            StatusProvider::class => new StatusProvider(['active', 'archived']),
+        ]);
+
+        // LongerStaticEnumDto::$status carries #[Schema(enum: ['a', 'b', 'c'], provider: StatusProvider::class)].
+        $subject = new PropertySubject('status', new \ReflectionProperty(LongerStaticEnumDto::class, 'status'));
+        $schema = ['type' => 'string'];
+
+        $describer->describeProperty($subject, $schema);
+
+        // The runtime fragment must replace the static enum wholesale, not merge by index
+        // (which would leave the trailing 'c' from the static enum behind).
+        $this->assertSame(['type' => 'string', 'enum' => ['active', 'archived']], $schema);
+    }
+
+    public function testProviderEnumReplacesEnumLeftByEarlierDescriber()
+    {
+        $describer = new SchemaAttributeDescriber([
+            StatusProvider::class => new StatusProvider(['active', 'archived']),
+        ]);
+
+        // SearchQueryDto::$status only carries #[Schema(provider: StatusProvider::class)] (no
+        // static enum), so the incoming enum stands in for one an earlier describer produced
+        // (e.g. TypeInfoDescriber generating cases() for a backed-enum-typed property).
+        $subject = new PropertySubject('status', new \ReflectionProperty(SearchQueryDto::class, 'status'));
+        $schema = ['type' => 'string', 'enum' => ['draft', 'review', 'published', 'archived']];
+
+        $describer->describeProperty($subject, $schema);
+
+        $this->assertSame(['type' => 'string', 'enum' => ['active', 'archived']], $schema);
     }
 }

@@ -57,7 +57,16 @@ final class SchemaAttributeDescriber implements PropertyDescriberInterface
                     throw new RuntimeException(\sprintf('Schema provider "%s" is not registered. Register it as a service tagged "ai.platform.json_schema.provider" or pass it to the describer.', $attribute->provider));
                 }
 
-                $schema = array_replace_recursive($schema, $this->providers[$attribute->provider]->getSchemaFragment($attribute->context));
+                $fragment = $this->providers[$attribute->provider]->getSchemaFragment($attribute->context);
+
+                // Drop keys the fragment overrides before merging: array_replace_recursive merges
+                // lists by index, so a shorter runtime enum would otherwise leave stale tail values
+                // from the static schema (e.g. ['a', 'b', 'c'] + ['x'] => ['x', 'b', 'c']).
+                foreach (array_keys($fragment) as $key) {
+                    unset($schema[$key]);
+                }
+
+                $schema = array_replace_recursive($schema, $fragment);
             }
         }
     }
