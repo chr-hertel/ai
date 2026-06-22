@@ -1,0 +1,553 @@
+<!-- This file is generated from docs/cookbook by "bin/console app:cookbook:build". Do not edit. -->
+<div class="section">
+
+<p>The <code translate="no" class="notranslate">#[Schema(enum: [...])]</code> attribute constrains a value to a static allowlist, but PHP
+attributes only accept constant expressions. As soon as the allowed values come from <code translate="no" class="notranslate">.env</code>,
+a database table, or any service, <code translate="no" class="notranslate">enum</code> alone is no longer usable. In this guide you will
+build a <em>schema provider</em> that contributes a JSON Schema fragment at runtime and reference it
+from both a tool parameter and a structured output DTO.</p>
+<div class="section">
+<h2 id="prerequisites">
+    Prerequisites
+    
+</h2>
+<ul>
+    <li>Symfony AI Platform component</li>
+<li>Symfony AI Agent component (for the tool example)</li>
+<li>Symfony AI Bundle (recommended, for autoconfiguration)</li>
+</ul>
+</div>
+<div class="section">
+<h2 id="step-1-install-packages">
+    Step 1: Install Packages
+    
+</h2>
+<div translate="no" class="highlight-terminal highlight-bash notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs terminal bash"><span class="hljs-prompt">$ </span>composer require symfony/ai-platform symfony/ai-agent</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</div>
+<div class="section">
+<h2 id="step-2-create-a-schema-provider">
+    Step 2: Create a Schema Provider
+    
+</h2>
+<p>A provider implements <a href="https://github.com/symfony/ai/blob/main/src/platform/src/Contract/JsonSchema/Provider/SchemaProviderInterface.php" class="reference external" title="Symfony\AI\Platform\Contract\JsonSchema\Provider\SchemaProviderInterface" rel="external noopener noreferrer" target="_blank">SchemaProviderInterface</a>
+and returns the runtime-computed fragment from <code translate="no" class="notranslate">getSchemaFragment()</code>. Here the allowed statuses
+come from an environment variable:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">namespace</span> <span class="hljs-title">App</span>\<span class="hljs-title">Schema</span>;
+
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Platform</span>\<span class="hljs-title">Contract</span>\<span class="hljs-title">JsonSchema</span>\<span class="hljs-title">Provider</span>\<span class="hljs-title">SchemaProviderInterface</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">Component</span>\<span class="hljs-title">DependencyInjection</span>\<span class="hljs-title">Attribute</span>\<span class="hljs-title">Autowire</span>;
+
+<span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PartStatusProvider</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">SchemaProviderInterface</span>
+</span>{
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">__construct</span><span class="hljs-params">(
+        <span class="hljs-meta">#[Autowire(<span class="hljs-string">'%env(csv:ACME_PART_STATUSES)%'</span>)]</span>
+        <span class="hljs-keyword">private</span> readonly <span class="hljs-keyword">array</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>statuses</span>,
+    )</span> </span>{
+    }
+
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getSchemaFragment</span><span class="hljs-params">(<span class="hljs-keyword">array</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>context</span> = [])</span>: <span class="hljs-title">array</span>
+    </span>{
+        <span class="hljs-keyword">return</span> [<span class="hljs-string">'enum'</span> =&gt; <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>this</span>-&gt;statuses];
+    }
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>A second provider can pull values from any other service — here, a database-backed catalog:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">namespace</span> <span class="hljs-title">App</span>\<span class="hljs-title">Schema</span>;
+
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Platform</span>\<span class="hljs-title">Contract</span>\<span class="hljs-title">JsonSchema</span>\<span class="hljs-title">Provider</span>\<span class="hljs-title">SchemaProviderInterface</span>;
+
+<span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PartColorProvider</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">SchemaProviderInterface</span>
+</span>{
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">__construct</span><span class="hljs-params">(<span class="hljs-keyword">private</span> readonly PartColorCatalog <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>catalog</span>)</span>
+    </span>{
+    }
+
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getSchemaFragment</span><span class="hljs-params">(<span class="hljs-keyword">array</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>context</span> = [])</span>: <span class="hljs-title">array</span>
+    </span>{
+        <span class="hljs-keyword">return</span> [<span class="hljs-string">'enum'</span> =&gt; <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>this</span>-&gt;catalog-&gt;<span class="hljs-title invoke__">labels</span>()];
+    }
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>The AI Bundle autoconfigures every class implementing <code translate="no" class="notranslate">SchemaProviderInterface</code>, so declaring
+them as services is enough — no tag, no compiler pass.</p>
+</div>
+<div class="section">
+<h2 id="step-3-constrain-a-tool-parameter">
+    Step 3: Constrain a Tool Parameter
+    
+</h2>
+<p>Reference each provider from a tool parameter via <code translate="no" class="notranslate">#[Schema(provider: ...)]</code>:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">namespace</span> <span class="hljs-title">App</span>\<span class="hljs-title">Tool</span>;
+
+<span class="hljs-keyword">use</span> <span class="hljs-title">App</span>\<span class="hljs-title">Schema</span>\<span class="hljs-title">PartColorProvider</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">App</span>\<span class="hljs-title">Schema</span>\<span class="hljs-title">PartStatusProvider</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">Attribute</span>\<span class="hljs-title">AsTool</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Platform</span>\<span class="hljs-title">Contract</span>\<span class="hljs-title">JsonSchema</span>\<span class="hljs-title">Attribute</span>\<span class="hljs-title">Schema</span>;
+
+<span class="hljs-meta">#[AsTool(<span class="hljs-string">'search_parts'</span>, <span class="hljs-string">'Search parts by status and color'</span>)]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SearchPartsTool</span>
+</span>{
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">__invoke</span><span class="hljs-params">(
+        <span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: PartStatusProvider::<span class="hljs-variable language_">class</span>)]</span>
+        <span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>status</span>,
+        <span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: PartColorProvider::<span class="hljs-variable language_">class</span>)]</span>
+        <span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>color</span>,
+    )</span>: <span class="hljs-title">array</span> </span>{
+        <span class="hljs-comment">// ...</span>
+    }
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>The LLM now sees the runtime-resolved enums in the tool's JSON Schema and is constrained
+accordingly when calling <code translate="no" class="notranslate">search_parts</code>.</p>
+<div class="admonition admonition-tip ">
+    <p class="admonition-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                <span>Tip</span>
+    </p><p>On tagged tools the AI Bundle validates every <code translate="no" class="notranslate">provider</code> reference at container build
+time, so a typo or a missing service fails the build instead of a request.</p>
+</div>
+</div>
+<div class="section">
+<h2 id="step-4-reuse-the-provider-for-structured-output">
+    Step 4: Reuse the Provider for Structured Output
+    
+</h2>
+<p>The same attribute works on properties of a DTO used as <code translate="no" class="notranslate">response_format</code>, so a single
+provider implementation serves both tools and structured output without duplication:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">namespace</span> <span class="hljs-title">App</span>\<span class="hljs-title">Dto</span>;
+
+<span class="hljs-keyword">use</span> <span class="hljs-title">App</span>\<span class="hljs-title">Schema</span>\<span class="hljs-title">PartColorProvider</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">App</span>\<span class="hljs-title">Schema</span>\<span class="hljs-title">PartStatusProvider</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Platform</span>\<span class="hljs-title">Contract</span>\<span class="hljs-title">JsonSchema</span>\<span class="hljs-title">Attribute</span>\<span class="hljs-title">Schema</span>;
+
+<span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PartQuery</span>
+</span>{
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">__construct</span><span class="hljs-params">(
+        <span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: PartStatusProvider::<span class="hljs-variable language_">class</span>)]</span>
+        <span class="hljs-keyword">public</span> readonly <span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>status</span>,
+        <span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: PartColorProvider::<span class="hljs-variable language_">class</span>)]</span>
+        <span class="hljs-keyword">public</span> readonly <span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>color</span>,
+    )</span> </span>{
+    }
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</div>
+<div class="section">
+<h2 id="step-5-compose-with-static-constraints">
+    Step 5: Compose with Static Constraints
+    
+</h2>
+<p>The runtime fragment is merged on top of the static schema built from the same attribute,
+reflection, PHPDoc and Validator constraints, so static and dynamic concerns coexist on the
+same parameter:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">__invoke</span><span class="hljs-params">(
+    <span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: PartStatusProvider::<span class="hljs-variable language_">class</span>, <span class="hljs-attr">description</span>: <span class="hljs-string">'The current part status'</span>)]</span>
+    <span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>status</span>,
+)</span>: <span class="hljs-title">array</span> </span>{
+    <span class="hljs-comment">// schema['properties']['status'] = [</span>
+    <span class="hljs-comment">//     'type' =&gt; 'string',</span>
+    <span class="hljs-comment">//     'description' =&gt; 'The current part status',</span>
+    <span class="hljs-comment">//     'enum' =&gt; ['active', 'archived', ...],</span>
+    <span class="hljs-comment">// ]</span>
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>When the provider returns a key that is already present in the static schema, the provider's
+value replaces it.</p>
+</div>
+<div class="section">
+<h2 id="step-6-pass-context-to-a-provider">
+    Step 6: Pass Context to a Provider
+    
+</h2>
+<p>Providers can be made generic by accepting a context array from the attribute, which lets you
+reuse the same provider class for different data sets:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">namespace</span> <span class="hljs-title">App</span>\<span class="hljs-title">Schema</span>;
+
+<span class="hljs-keyword">use</span> <span class="hljs-title">Doctrine</span>\<span class="hljs-title">ORM</span>\<span class="hljs-title">EntityManagerInterface</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Platform</span>\<span class="hljs-title">Contract</span>\<span class="hljs-title">JsonSchema</span>\<span class="hljs-title">Provider</span>\<span class="hljs-title">SchemaProviderInterface</span>;
+
+<span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">EntityEnumProvider</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">SchemaProviderInterface</span>
+</span>{
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">__construct</span><span class="hljs-params">(<span class="hljs-keyword">private</span> readonly EntityManagerInterface <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>em</span>)</span>
+    </span>{
+    }
+
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getSchemaFragment</span><span class="hljs-params">(<span class="hljs-keyword">array</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>context</span> = [])</span>: <span class="hljs-title">array</span>
+    </span>{
+        <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>entity</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>context</span>[<span class="hljs-string">'entity'</span>] ?? <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> \<span class="hljs-title invoke__">LogicException</span>(<span class="hljs-string">'Missing entity context.'</span>);
+        <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>field</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>context</span>[<span class="hljs-string">'field'</span>] ?? <span class="hljs-string">'name'</span>;
+
+        <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>values</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>this</span>-&gt;em-&gt;<span class="hljs-title invoke__">getRepository</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>entity</span>)-&gt;<span class="hljs-title invoke__">findAll</span>();
+
+        <span class="hljs-keyword">return</span> [
+            <span class="hljs-string">'type'</span> =&gt; <span class="hljs-string">'string'</span>,
+            <span class="hljs-string">'enum'</span> =&gt; <span class="hljs-title invoke__">array_map</span>(<span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-params">(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>obj</span>)</span> =&gt;</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>obj</span>-&gt;{<span class="hljs-string">'get'</span>.<span class="hljs-title invoke__">ucfirst</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>field</span>)}(), <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>values</span>),
+        ];
+    }
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>Pass the context via the <code translate="no" class="notranslate">context</code> argument of <code translate="no" class="notranslate">#[Schema]</code>:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">__invoke</span><span class="hljs-params">(
+    <span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: EntityEnumProvider::<span class="hljs-variable language_">class</span>, <span class="hljs-attr">context</span>: [<span class="hljs-string">'entity'</span> =&gt; Color::<span class="hljs-variable language_">class</span>])]</span>
+    <span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>color</span>,
+    <span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: EntityEnumProvider::<span class="hljs-variable language_">class</span>, <span class="hljs-attr">context</span>: [<span class="hljs-string">'entity'</span> =&gt; Category::<span class="hljs-variable language_">class</span>, <span class="hljs-string">'field'</span> =&gt; <span class="hljs-string">'label'</span>])]</span>
+    <span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>category</span>,
+)</span>: <span class="hljs-title">array</span> </span>{
+    <span class="hljs-comment">// ...</span>
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</div>
+<div class="section">
+<h2 id="step-7-register-multiple-instances-by-service-id">
+    Step 7: Register Multiple Instances by Service ID
+    
+</h2>
+<p>The <code translate="no" class="notranslate">provider</code> argument accepts any container service ID, not only fully-qualified class
+names. This lets you register the same provider class as several services with different
+configurations and reference each one by its service ID:</p>
+<div translate="no" class="highlight-yaml notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs yaml"><span class="hljs-comment"># config/services.yaml</span>
+<span class="hljs-attr">services:</span>
+    <span class="hljs-attr">app.provider.status:</span>
+        <span class="hljs-attr">class:</span> <span class="hljs-string">App\Schema\EnumSchemaProvider</span>
+        <span class="hljs-attr">arguments:</span>
+            <span class="hljs-string">$values:</span> <span class="hljs-string">['draft',</span> <span class="hljs-string">'published'</span><span class="hljs-string">,</span> <span class="hljs-string">'archived'</span><span class="hljs-string">]</span>
+
+    <span class="hljs-attr">app.provider.priority:</span>
+        <span class="hljs-attr">class:</span> <span class="hljs-string">App\Schema\EnumSchemaProvider</span>
+        <span class="hljs-attr">arguments:</span>
+            <span class="hljs-string">$values:</span> <span class="hljs-string">['low',</span> <span class="hljs-string">'medium'</span><span class="hljs-string">,</span> <span class="hljs-string">'high'</span><span class="hljs-string">]</span></pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: <span class="hljs-string">'app.provider.status'</span>)]</span>
+<span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>status</span>,
+<span class="hljs-meta">#[Schema(<span class="hljs-attr">provider</span>: <span class="hljs-string">'app.provider.priority'</span>)]</span>
+<span class="hljs-keyword">string</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>priority</span>,</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</div>
+<div class="section">
+<h2 id="using-the-components-directly">
+    Using the Components Directly
+    
+</h2>
+<p>Without the AI Bundle, build a <code translate="no" class="notranslate">Describer</code> chain that includes
+<a href="https://github.com/symfony/ai/blob/main/src/platform/src/Contract/JsonSchema/Describer/SchemaAttributeDescriber.php" class="reference external" title="Symfony\AI\Platform\Contract\JsonSchema\Describer\SchemaAttributeDescriber" rel="external noopener noreferrer" target="_blank">SchemaAttributeDescriber</a> and pass
+it an iterable of providers indexed by the identifier referenced from <code translate="no" class="notranslate">#[Schema(provider: ...)]</code>
+(FQCN by default). The <a href="https://github.com/symfony/ai/blob/main/src/platform/src/Contract/JsonSchema/Factory.php" class="reference external" title="Symfony\AI\Platform\Contract\JsonSchema\Factory" rel="external noopener noreferrer" target="_blank">Factory</a> is then handed
+to <a href="https://github.com/symfony/ai/blob/main/src/agent/src/Toolbox/ToolFactory/ReflectionToolFactory.php" class="reference external" title="Symfony\AI\Agent\Toolbox\ToolFactory\ReflectionToolFactory" rel="external noopener noreferrer" target="_blank">ReflectionToolFactory</a> for tool parameters or
+to <a href="https://github.com/symfony/ai/blob/main/src/platform/src/StructuredOutput/ResponseFormatFactory.php" class="reference external" title="Symfony\AI\Platform\StructuredOutput\ResponseFormatFactory" rel="external noopener noreferrer" target="_blank">ResponseFormatFactory</a> for structured output.
+See <code translate="no" class="notranslate">examples/toolbox/schema-provider.php</code> and
+<code translate="no" class="notranslate">examples/openai/structured-output-schema-provider.php</code> in the repository for complete runnable
+setups.</p>
+</div>
+<div class="section">
+<h2 id="caveats">
+    Caveats
+    
+</h2>
+<div class="admonition admonition-note ">
+    <p class="admonition-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <span>Note</span>
+    </p><p>Tool metadata is cached on the <a href="https://github.com/symfony/ai/blob/main/src/agent/src/Toolbox/Toolbox.php" class="reference external" title="Symfony\AI\Agent\Toolbox\Toolbox" rel="external noopener noreferrer" target="_blank">Toolbox</a> instance on first
+call to <code translate="no" class="notranslate">getTools()</code>. In a typical PHP-FPM request the toolbox is recreated each time, so
+providers are re-invoked per request. In a long-running process (worker, daemon) the cached
+schema lives as long as the toolbox instance, so changes to the underlying values are not
+picked up until the worker restarts.</p>
+</div>
+<div class="admonition admonition-note ">
+    <p class="admonition-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <span>Note</span>
+    </p><p>The describer does not validate the shape of the fragment returned by <code translate="no" class="notranslate">getSchemaFragment()</code>.
+Returning a malformed JSON Schema produces a malformed schema sent to the LLM — stick to
+documented JSON Schema keys.</p>
+</div>
+</div>
+<div class="section">
+<h2 id="learn-more">
+    Learn More
+    
+</h2>
+<ul>
+    <li><a href="https://symfony.com/doc/current/ai/components/agent.html" class="reference internal">Symfony AI - Agent Component</a> - Tools, processors, and structured output</li>
+<li><a href="https://symfony.com/doc/current/ai/components/platform.html" class="reference internal">Symfony AI - Platform Component</a> - The JSON Schema factory and describer chain</li>
+<li><a href="https://symfony.com/doc/current/ai/bundles/ai-bundle.html" class="reference internal">AI Bundle</a> - Auto-wiring providers as Symfony services</li>
+</ul>
+</div>
+</div>

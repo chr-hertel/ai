@@ -47,6 +47,15 @@
         ]
     },
     {
+        "slug": "runtime-driven-tool-parameters",
+        "title": "Runtime-driven Tool Parameters",
+        "description": "Constrain tool parameters and structured output with values from env, a database, or services.",
+        "icon": "list-check",
+        "components": [
+            "Agent"
+        ]
+    },
+    {
         "slug": "chatbot-with-memory",
         "title": "Chatbot with Memory",
         "description": "Give an agent memory of user facts for personalized conversations.",

@@ -1,29 +1,38 @@
+.. card:
+    title: Runtime-driven Tool Parameters
+    description: Constrain tool parameters and structured output with values from env, a database, or services.
+    icon: list-check
+    components: Agent
+
 Runtime-driven Tool Parameters and Structured Output
 ====================================================
 
-This guide shows how to constrain tool parameters or structured output DTO properties
-with values that are only known at runtime — environment variables, database lookups,
-or any injected service. The same mechanism applies to tools and structured output
-because it lives in the JSON Schema describer chain.
+The ``#[Schema(enum: [...])]`` attribute constrains a value to a static allowlist, but PHP
+attributes only accept constant expressions. As soon as the allowed values come from ``.env``,
+a database table, or any service, ``enum`` alone is no longer usable. In this guide you will
+build a *schema provider* that contributes a JSON Schema fragment at runtime and reference it
+from both a tool parameter and a structured output DTO.
 
 Prerequisites
+-------------
 
 * Symfony AI Platform component
 * Symfony AI Agent component (for the tool example)
 * Symfony AI Bundle (recommended, for autoconfiguration)
 
-The ``#[Schema(enum: [...])]`` attribute is convenient for static allowlists, but PHP
-attributes only accept constant expressions. As soon as the allowed values come from
-``.env``, a database table, or any service, ``enum`` alone is no longer usable. Setting
-the ``provider`` argument on ``#[Schema]`` fills that gap by referencing a service
-implementing :class:`Symfony\\AI\\Platform\\Contract\\JsonSchema\\Provider\\SchemaProviderInterface`,
-which contributes a JSON Schema fragment computed at runtime.
+Step 1: Install Packages
+------------------------
 
-Setting up a Schema Provider
-----------------------------
+.. code-block:: terminal
 
-First, create a provider that returns the runtime-computed fragment. In this example,
-the allowed statuses come from an environment variable::
+    $ composer require symfony/ai-platform symfony/ai-agent
+
+Step 2: Create a Schema Provider
+--------------------------------
+
+A provider implements :class:`Symfony\\AI\\Platform\\Contract\\JsonSchema\\Provider\\SchemaProviderInterface`
+and returns the runtime-computed fragment from ``getSchemaFragment()``. Here the allowed statuses
+come from an environment variable::
 
     namespace App\Schema;
 
@@ -44,8 +53,7 @@ the allowed statuses come from an environment variable::
         }
     }
 
-A second provider can pull values from any other service — here, a database-backed
-catalog::
+A second provider can pull values from any other service — here, a database-backed catalog::
 
     namespace App\Schema;
 
@@ -63,38 +71,15 @@ catalog::
         }
     }
 
-The AI Bundle autoconfigures every class implementing ``SchemaProviderInterface``, so
-declaring them as services is enough — no tag, no compiler pass.
+The AI Bundle autoconfigures every class implementing ``SchemaProviderInterface``, so declaring
+them as services is enough — no tag, no compiler pass.
 
-The ``provider`` argument accepts any container service ID, not only fully-qualified
-class names. This lets you register the same provider class as multiple services with
-different configurations and reference each one by its service ID:
-
-.. code-block:: yaml
-
-    # config/services.yaml
-    services:
-        app.provider.status:
-            class: App\Schema\EnumSchemaProvider
-            arguments:
-                $values: ['draft', 'published', 'archived']
-
-        app.provider.priority:
-            class: App\Schema\EnumSchemaProvider
-            arguments:
-                $values: ['low', 'medium', 'high']
-
-::
-
-    #[Schema(provider: 'app.provider.status')]
-    string $status,
-    #[Schema(provider: 'app.provider.priority')]
-    string $priority,
-
-Case 1: Tool Parameters
------------------------
+Step 3: Constrain a Tool Parameter
+----------------------------------
 
 Reference each provider from a tool parameter via ``#[Schema(provider: ...)]``::
+
+    namespace App\Tool;
 
     use App\Schema\PartColorProvider;
     use App\Schema\PartStatusProvider;
@@ -117,10 +102,18 @@ Reference each provider from a tool parameter via ``#[Schema(provider: ...)]``::
 The LLM now sees the runtime-resolved enums in the tool's JSON Schema and is constrained
 accordingly when calling ``search_parts``.
 
-Case 2: Structured Output Properties
-------------------------------------
+.. tip::
 
-The same attribute works on properties of a DTO used as ``response_format``::
+    On tagged tools the AI Bundle validates every ``provider`` reference at container build
+    time, so a typo or a missing service fails the build instead of a request.
+
+Step 4: Reuse the Provider for Structured Output
+------------------------------------------------
+
+The same attribute works on properties of a DTO used as ``response_format``, so a single
+provider implementation serves both tools and structured output without duplication::
+
+    namespace App\Dto;
 
     use App\Schema\PartColorProvider;
     use App\Schema\PartStatusProvider;
@@ -137,15 +130,12 @@ The same attribute works on properties of a DTO used as ``response_format``::
         }
     }
 
-A single provider implementation serves both tools and structured output without
-duplication.
+Step 5: Compose with Static Constraints
+---------------------------------------
 
-Composing with Static Constraints
----------------------------------
-
-The runtime fragment is merged with ``array_replace_recursive`` on top of the static
-schema built from the same attribute, reflection, PHPDoc and Validator constraints, so
-static and dynamic concerns coexist on the same parameter::
+The runtime fragment is merged on top of the static schema built from the same attribute,
+reflection, PHPDoc and Validator constraints, so static and dynamic concerns coexist on the
+same parameter::
 
     public function __invoke(
         #[Schema(provider: PartStatusProvider::class, description: 'The current part status')]
@@ -158,14 +148,14 @@ static and dynamic concerns coexist on the same parameter::
         // ]
     }
 
-When the provider returns a key already present in the static schema, the provider's
-value wins.
+When the provider returns a key that is already present in the static schema, the provider's
+value replaces it.
 
-Passing Context to Providers
-----------------------------
+Step 6: Pass Context to a Provider
+----------------------------------
 
-Providers can be made generic by accepting a context array from the attribute. This
-is useful to reuse the same provider class for different data sets::
+Providers can be made generic by accepting a context array from the attribute, which lets you
+reuse the same provider class for different data sets::
 
     namespace App\Schema;
 
@@ -187,7 +177,7 @@ is useful to reuse the same provider class for different data sets::
 
             return [
                 'type' => 'string',
-                'enum' => array_map(fn($obj) => $obj->{'get'.ucfirst($field)}(), $values),
+                'enum' => array_map(fn ($obj) => $obj->{'get'.ucfirst($field)}(), $values),
             ];
         }
     }
@@ -203,30 +193,67 @@ Pass the context via the ``context`` argument of ``#[Schema]``::
         // ...
     }
 
-Standalone Wiring (without the AI Bundle)
------------------------------------------
+Step 7: Register Multiple Instances by Service ID
+-------------------------------------------------
 
-When using the components directly, build a ``Describer`` chain that includes
-:class:`Symfony\\AI\\Platform\\Contract\\JsonSchema\\Describer\\SchemaAttributeDescriber`
-and pass it an iterable of providers indexed by the identifier referenced from
-``#[Schema(provider: ...)]`` (FQCN by default), then pass the resulting
-:class:`Symfony\\AI\\Platform\\Contract\\JsonSchema\\Factory` to
-:class:`Symfony\\AI\\Agent\\Toolbox\\ToolFactory\\ReflectionToolFactory` for tool
-parameters or to :class:`Symfony\\AI\\Platform\\StructuredOutput\\ResponseFormatFactory`
-for structured output. See ``examples/toolbox/schema-provider.php`` and
-``examples/openai/structured-output-schema-provider.php`` in the repository for complete
-runnable setups.
+The ``provider`` argument accepts any container service ID, not only fully-qualified class
+names. This lets you register the same provider class as several services with different
+configurations and reference each one by its service ID:
+
+.. code-block:: yaml
+
+    # config/services.yaml
+    services:
+        app.provider.status:
+            class: App\Schema\EnumSchemaProvider
+            arguments:
+                $values: ['draft', 'published', 'archived']
+
+        app.provider.priority:
+            class: App\Schema\EnumSchemaProvider
+            arguments:
+                $values: ['low', 'medium', 'high']
+
+::
+
+    #[Schema(provider: 'app.provider.status')]
+    string $status,
+    #[Schema(provider: 'app.provider.priority')]
+    string $priority,
+
+Using the Components Directly
+-----------------------------
+
+Without the AI Bundle, build a ``Describer`` chain that includes
+:class:`Symfony\\AI\\Platform\\Contract\\JsonSchema\\Describer\\SchemaAttributeDescriber` and pass
+it an iterable of providers indexed by the identifier referenced from ``#[Schema(provider: ...)]``
+(FQCN by default). The :class:`Symfony\\AI\\Platform\\Contract\\JsonSchema\\Factory` is then handed
+to :class:`Symfony\\AI\\Agent\\Toolbox\\ToolFactory\\ReflectionToolFactory` for tool parameters or
+to :class:`Symfony\\AI\\Platform\\StructuredOutput\\ResponseFormatFactory` for structured output.
+See ``examples/toolbox/schema-provider.php`` and
+``examples/openai/structured-output-schema-provider.php`` in the repository for complete runnable
+setups.
+
+Caveats
+-------
 
 .. note::
 
-    Tool metadata is cached on the :class:`Symfony\\AI\\Agent\\Toolbox\\Toolbox` instance
-    on first call to ``getTools()``. In a typical PHP-FPM request the toolbox is recreated
-    each time, so providers are re-invoked per request. In a long-running process (worker,
-    daemon) the cached schema lives as long as the toolbox instance, so changes to the
-    underlying values are not picked up until the worker restarts.
+    Tool metadata is cached on the :class:`Symfony\\AI\\Agent\\Toolbox\\Toolbox` instance on first
+    call to ``getTools()``. In a typical PHP-FPM request the toolbox is recreated each time, so
+    providers are re-invoked per request. In a long-running process (worker, daemon) the cached
+    schema lives as long as the toolbox instance, so changes to the underlying values are not
+    picked up until the worker restarts.
 
 .. note::
 
-    The describer does not validate the shape of the fragment returned by
-    ``getSchemaFragment()``. Returning a malformed JSON Schema produces a malformed
-    schema sent to the LLM — stick to documented JSON Schema keys.
+    The describer does not validate the shape of the fragment returned by ``getSchemaFragment()``.
+    Returning a malformed JSON Schema produces a malformed schema sent to the LLM — stick to
+    documented JSON Schema keys.
+
+Learn More
+----------
+
+* :doc:`../components/agent` - Tools, processors, and structured output
+* :doc:`../components/platform` - The JSON Schema factory and describer chain
+* :doc:`../bundles/ai-bundle` - Auto-wiring providers as Symfony services
