@@ -4,8 +4,7 @@ CHANGELOG
 0.11
 ----
 
- * Add autoconfiguration for `SchemaProviderInterface` (tag `ai.platform.json_schema.provider`) and inject the tagged iterator into `SchemaAttributeDescriber` to back the `#[Schema(provider: ...)]` runtime fragments
- * Add `SchemaProviderValidationPass` compiler pass that validates `#[Schema(provider: ...)]` references on tagged tools at container build time
+ * Autoconfigure `SchemaProviderInterface` implementations so they can be referenced from `#[Schema(provider: ...)]`, and validate those references on tools at container build time
  * Add support for `ScopingHttpClient` usage in `Typesense` store via `http_client` option
  * Wire `Typesense\StoreFactory` from `AiBundle`
 
