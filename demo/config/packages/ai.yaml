@@ -129,6 +129,10 @@ ai:
                 dbal_connection: 'doctrine.dbal.default_connection'
                 table_name: 'symfony_blog'
                 distance: 'cosine'
+            movies:
+                dbal_connection: 'doctrine.dbal.default_connection'
+                table_name: 'movies'
+                distance: 'cosine'
     vectorizer:
         openai:
             platform: 'ai.platform.openai'
@@ -144,9 +148,20 @@ ai:
                 - 'Symfony\AI\Store\Document\Transformer\TextTrimTransformer'
             vectorizer: 'ai.vectorizer.openai'
             store: 'ai.store.postgres.symfony_blog'
+        movies:
+            loader: 'App\Movies\MarkdownDirectoryLoader'
+            source: '%movies_dir%'
+            transformers:
+                - 'Symfony\AI\Store\Document\Transformer\TextSplitTransformer'
+                - 'Symfony\AI\Store\Document\Transformer\TextTrimTransformer'
+            vectorizer: 'ai.vectorizer.openai'
+            store: 'ai.store.postgres.movies'
     retriever:
         blog:
             store: 'ai.store.postgres.symfony_blog'
+            vectorizer: 'ai.vectorizer.openai'
+        movies:
+            store: 'ai.store.postgres.movies'
             vectorizer: 'ai.vectorizer.openai'
 
 services:
@@ -158,6 +173,7 @@ services:
         $retriever: '@ai.retriever.blog'
 
     Symfony\AI\Store\Document\Loader\RssFeedLoader: ~
+    Symfony\AI\Store\Document\Loader\MarkdownLoader: ~
     Symfony\AI\Store\Document\Transformer\TextSplitTransformer: ~
     Symfony\AI\Store\Document\Transformer\TextTrimTransformer: ~
 

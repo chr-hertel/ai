@@ -112,3 +112,25 @@
         color: #7f1d1d;
     }
 }
+
+body.movies-browser {
+    background:
+        radial-gradient(ellipse 140% 70% at 50% 0%, rgba(139, 20, 32, 0.35) 0%, transparent 55%),
+        linear-gradient(180deg, #0a0d12 0%, #12151c 45%, #0a0d12 100%);
+    background-attachment: fixed;
+    color: #e8e8e8;
+
+    footer, footer a {
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    .card > .card-body {
+        height: 700px;
+        overflow-y: auto;
+    }
+
+    .movie-browser-card {
+        background: transparent;
+        border: none;
+    }
+}

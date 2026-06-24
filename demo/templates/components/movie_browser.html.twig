@@ -1,0 +1,59 @@
+<div {{ attributes }}>
+    <style>
+        .movie-browser-grid .movie-browser-card {
+            transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+            will-change: transform;
+        }
+        .movie-browser-grid .movie-browser-card .movie-poster { position: relative; }
+        .movie-browser-grid .movie-browser-card .movie-poster::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.18) 50%, transparent 70%);
+            opacity: 0;
+            transition: opacity .25s ease, transform .6s ease;
+            transform: translateX(-40%);
+            pointer-events: none;
+        }
+        .movie-browser-grid .movie-browser-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 1rem 1.75rem rgba(0, 0, 0, .2) !important;
+            filter: saturate(1.12);
+        }
+        .movie-browser-grid .movie-browser-card:hover .movie-poster::after {
+            opacity: 1;
+            transform: translateX(40%);
+        }
+    </style>
+
+    {% set selectedMovie = this.selectedMovie %}
+
+    {% if selectedMovie %}
+        <div class="h-100 d-flex flex-column">
+            <div class="position-absolute top-0 end-0 mt-1 me-1">
+                <button {{ live_action('search') }} class="btn btn-sm btn-outline-secondary">&larr; Back</button>
+            </div>
+            <div class="flex-grow-1" style="min-height: 0;">
+                <twig:movie_card :movie="selectedMovie" class="h-100" />
+            </div>
+        </div>
+    {% else %}
+        {% set movies = this.movies %}
+        {% if movies is empty %}
+            <p class="text-muted text-center my-4">No movies to display.</p>
+        {% else %}
+            <div class="row g-3 movie-browser-grid">
+                {% for movie in movies %}
+                    <div class="col-6 col-md-3">
+                        <button type="button"
+                                class="card movie-browser-card bg-body shadow-sm overflow-hidden border-0 p-0 w-100 text-start"
+                                aria-label="Select {{ movie.title }}"
+                                {{ live_action('select', { slug: movie.slug }) }}>
+                            {% include 'components/_movie_poster.html.twig' with { movie, aspect: '1/1' } only %}
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

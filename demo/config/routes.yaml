@@ -31,6 +31,12 @@ crop:
     defaults:
         template:  'crop.html.twig'
 
+movie_browser:
+    path: '/movies/browse'
+    controller: 'Symfony\Bundle\FrameworkBundle\Controller\TemplateController'
+    defaults:
+        template:  'movies.html.twig'
+
 recipe:
     path: '/recipe'
     controller: 'Symfony\Bundle\FrameworkBundle\Controller\TemplateController'
