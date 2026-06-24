@@ -157,6 +157,7 @@ Document loaders are responsible for fetching and preparing documents for indexi
 To help loading documents and integrate them into your RAG system, you can use the provided document loaders or create your own custom loaders to suit your specific needs:
 
 * :class:`Symfony\\AI\\Store\\Document\\Loader\\CsvLoader`
+* :class:`Symfony\\AI\\Store\\Document\\Loader\\DirectoryLoader`
 * :class:`Symfony\\AI\\Store\\Document\\Loader\\InMemoryLoader`
 * :class:`Symfony\\AI\\Store\\Document\\Loader\\JsonFileLoader`
 * :class:`Symfony\\AI\\Store\\Document\\Loader\\MarkdownLoader`
@@ -164,6 +165,23 @@ To help loading documents and integrate them into your RAG system, you can use t
 * :class:`Symfony\\AI\\Store\\Document\\Loader\\RstLoader`
 * :class:`Symfony\\AI\\Store\\Document\\Loader\\RstToctreeLoader`
 * :class:`Symfony\\AI\\Store\\Document\\Loader\\TextFileLoader`
+
+The :class:`Symfony\\AI\\Store\\Document\\Loader\\DirectoryLoader` scans a directory and delegates each
+file to a sub-loader chosen by its extension. The sub-loaders are injected as a map of file extension
+(without the leading dot) to a loader, and recursion into subdirectories can be toggled::
+
+    use Symfony\AI\Store\Document\Loader\DirectoryLoader;
+    use Symfony\AI\Store\Document\Loader\MarkdownLoader;
+    use Symfony\AI\Store\Document\Loader\TextFileLoader;
+
+    $loader = new DirectoryLoader([
+        'md' => new MarkdownLoader(),
+        'txt' => new TextFileLoader(),
+    ], recursive: false);
+
+    $documents = $loader->load('/path/to/directory');
+
+Files whose extension has no registered loader are skipped.
 
 Create a Custom Loader
 ----------------------
