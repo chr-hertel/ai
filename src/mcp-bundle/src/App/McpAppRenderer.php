@@ -49,4 +49,15 @@ final class McpAppRenderer
             meta: null !== $contentMeta ? ['ui' => $contentMeta] : null,
         );
     }
+
+    /**
+     * Renders a Twig template to a raw HTML string, for use as the `html` field of a tool result
+     * (the HTML-over-the-wire path: the base template's default `render(model)` injects `model.html`).
+     *
+     * @param array<string, mixed> $context
+     */
+    public function renderFragment(string $template, array $context = []): string
+    {
+        return $this->twig->render($template, $context);
+    }
 }

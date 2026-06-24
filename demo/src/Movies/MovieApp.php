@@ -11,14 +11,21 @@
 
 namespace App\Movies;
 
+use Mcp\Capability\Attribute\McpTool;
+use Symfony\AI\McpBundle\App\McpAppRenderer;
 use Symfony\AI\McpBundle\Attribute\AsMcpApp;
 
 /**
  * MCP App version of the movie browser.
  *
- * Unlike the web {@see MovieBrowser} Live Component, this is a plain class: the linked tool
- * (`search_movies`) returns the matching movies as a structured model, and the static iframe shell
- * ({@see ../../templates/mcp/movies.html.twig}) renders it client-side and re-searches via `callTool`.
+ * Like the web {@see MovieBrowser} Live Component, the markup is rendered by Twig — not built in
+ * JavaScript. The tools return server-rendered HTML fragments (the "HTML-over-the-wire" pattern) that
+ * the static iframe shell ({@see ../../templates/mcp/movies.html.twig}) drops into place:
+ *
+ *  - `search_movies` (the app's linked tool) returns the result grid ({@see ../../templates/mcp/_movies_grid.html.twig});
+ *  - `show_movie` (an app-only follow-up tool) returns a movie's detail view ({@see ../../templates/mcp/_movie_detail.html.twig}).
+ *
+ * The iframe only wires events to `callTool(...)` and swaps the returned HTML in.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -26,7 +33,7 @@ use Symfony\AI\McpBundle\Attribute\AsMcpApp;
     uri: 'ui://movies',
     name: 'search_movies',
     title: 'Movies',
-    description: 'Search the movie collection by title, director or content and browse the results as an interactive grid.',
+    description: 'Search the movie collection by title, director or cast and browse the results as an interactive grid.',
     template: 'mcp/movies.html.twig',
     prefersBorder: true,
 )]
@@ -34,46 +41,47 @@ final class MovieApp
 {
     public function __construct(
         private readonly MovieRepository $movies,
+        private readonly McpAppRenderer $renderer,
     ) {
     }
 
     /**
-     * Search movies and return the matches as the app model.
+     * Search movies and return the matching grid as a rendered HTML fragment.
      *
-     * @param string $query search term matched against title, director and content; empty returns all movies
+     * @param string $query search term matched against title, director and cast; empty returns all movies
      *
-     * @return array{
-     *     query: string,
-     *     count: int,
-     *     movies: list<array{
-     *         slug: string,
-     *         title: string,
-     *         year: int|null,
-     *         director: string|null,
-     *         imdb: string|null,
-     *         hue: int,
-     *         cast: list<array{name: string, role: string}>,
-     *         plot: list<string>,
-     *     }>,
-     * }
+     * @return array{html: string, query: string, count: int}
      */
     public function render(string $query = ''): array
     {
         $movies = $this->search($query);
 
         return [
+            'html' => $this->renderer->renderFragment('mcp/_movies_grid.html.twig', [
+                'movies' => $movies,
+                'query' => $query,
+            ]),
             'query' => $query,
             'count' => \count($movies),
-            'movies' => array_map(static fn (Movie $movie): array => [
-                'slug' => $movie->slug,
-                'title' => $movie->title,
-                'year' => $movie->year,
-                'director' => $movie->director,
-                'imdb' => $movie->imdb,
-                'hue' => $movie->hue(),
-                'cast' => $movie->cast,
-                'plot' => $movie->plot,
-            ], $movies),
+        ];
+    }
+
+    /**
+     * Render a single movie's detail view as a rendered HTML fragment.
+     *
+     * @param string $slug the movie slug identifier
+     *
+     * @return array{html: string}
+     */
+    #[McpTool(name: 'show_movie', meta: ['ui' => ['resourceUri' => 'ui://movies', 'visibility' => ['app']]])]
+    public function showMovie(string $slug): array
+    {
+        $movie = $this->movies->find($slug);
+
+        return [
+            'html' => $this->renderer->renderFragment('mcp/_movie_detail.html.twig', [
+                'movie' => $movie,
+            ]),
         ];
     }
 
@@ -91,9 +99,25 @@ final class MovieApp
         $needle = mb_strtolower($query);
 
         return array_values(array_filter($all, static function (Movie $movie) use ($needle): bool {
-            return str_contains(mb_strtolower($movie->title), $needle)
-                || str_contains(mb_strtolower($movie->director ?? ''), $needle)
-                || str_contains(mb_strtolower($movie->rawMarkdown), $needle);
+            if (str_contains(mb_strtolower($movie->title), $needle)) {
+                return true;
+            }
+
+            if (str_contains(mb_strtolower($movie->director ?? ''), $needle)) {
+                return true;
+            }
+
+            foreach ($movie->cast as $member) {
+                if (str_contains(mb_strtolower($member['name']), $needle)) {
+                    return true;
+                }
+
+                if (str_contains(mb_strtolower($member['role']), $needle)) {
+                    return true;
+                }
+            }
+
+            return false;
         }));
     }
 }

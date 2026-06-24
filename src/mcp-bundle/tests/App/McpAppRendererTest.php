@@ -45,4 +45,17 @@ final class McpAppRendererTest extends TestCase
 
         $this->assertSame(['ui' => $meta], $contents->meta);
     }
+
+    public function testRenderFragmentReturnsRenderedHtml()
+    {
+        $twig = $this->createMock(Environment::class);
+        $twig->expects($this->once())
+            ->method('render')
+            ->with('grid.html.twig', ['count' => 2])
+            ->willReturn('<div class="grid">…</div>');
+
+        $html = (new McpAppRenderer($twig))->renderFragment('grid.html.twig', ['count' => 2]);
+
+        $this->assertSame('<div class="grid">…</div>', $html);
+    }
 }

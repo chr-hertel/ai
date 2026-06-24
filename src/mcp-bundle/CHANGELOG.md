@@ -10,6 +10,9 @@ CHANGELOG
    server extension; configurable via `mcp.apps.enabled`
  * Add the `@Mcp/app/base.html.twig` base template carrying the MCP Apps postMessage bridge, and a
    Twig-backed renderer so template apps need no handler code
+ * Add an HTML-over-the-wire path for MCP Apps: the base template's default `render(model)` injects an
+   `html` model (or the `#root` element) so a tool can return server-rendered Twig markup with no
+   client-side DOM building; `McpAppRenderer::renderFragment()` renders a Twig template to that HTML string
 
 0.8
 ---

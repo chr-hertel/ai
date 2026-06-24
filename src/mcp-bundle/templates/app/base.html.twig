@@ -1,18 +1,29 @@
 {#
     Base template for an MCP App (a "text/html;profile=mcp-app" UI resource rendered by the host in a
-    sandboxed iframe). Extend it and fill the blocks:
+    sandboxed iframe).
 
-        {% extends '@Mcp/app/base.html.twig' %}
-        {% block title %}My App{% endblock %}
-        {% block style %}.card { ... }{% endblock %}
-        {% block body %}<div id="root"></div>{% endblock %}
-        {% block app_script %}
-            function render(model) { /* build the DOM from the tool result */ }
-        {% endblock %}
+    The iframe HTML is a STATIC shell. Per-request data is NOT rendered into it with Twig: the host
+    delivers the tool result at runtime via the `ui/notifications/tool-result` message, which calls
+    `render(model)`. There are two ways to turn that result into markup:
 
-    The iframe HTML is a STATIC shell. Per-request data is NOT rendered with Twig: the host delivers it
-    at runtime via the `ui/notifications/tool-result` message, which calls your `render(model)`. Use the
-    Twig context only for static shell composition (branding, styles, the app name).
+    1. HTML-over-the-wire (default, recommended): the tool returns server-rendered HTML — e.g.
+       `['html' => $renderer->renderFragment('app/grid.html.twig', {...})]`. The default `render()`
+       below injects `model.html` into `#root`, so Twig owns ALL markup and you write no JS:
+
+           {% extends '@Mcp/app/base.html.twig' %}
+           {% block title %}My App{% endblock %}
+           {% block style %}.card { ... }{% endblock %}
+           (the body defaults to a <div id="root"></div>, where the tool result HTML lands)
+
+    2. JS-driven: override `app_script` with your own `render(model)` (it shadows the default) and build
+       the DOM from a structured model. Use this for rich client-side interactivity:
+
+           {% block body %}<div id="root"></div>{% endblock %}
+           {% block app_script %}
+               function render(model) { /* build the DOM from the structured tool result */ }
+           {% endblock %}
+
+    Either way, the Twig context here is only for static shell composition (branding, styles, app name).
 
     The `bridge` block below implements the MCP Apps postMessage protocol so you don't have to:
     the ui/initialize -> ui/notifications/initialized -> size-changed handshake, request/response
@@ -30,7 +41,7 @@
     <style>{% block style %}{% endblock %}</style>
 </head>
 <body{% block body_attributes %}{% endblock %}>
-    {% block body %}{% endblock %}
+    {% block body %}<div id="root"></div>{% endblock %}
     <script>
         {% block bridge %}
         // --- MCP Apps protocol bridge (iframe <-> host via postMessage) -------------------------
@@ -117,13 +128,22 @@
             sendNotification('ui/notifications/size-changed', { width: w, height: h });
         }
         new ResizeObserver(reportSize).observe(document.body);
-        {% endblock %}
 
-        {% block app_script %}
-        // Default no-op hooks; override this block in your template.
-        function render(model) {}
+        // Default hooks. The default render() implements the HTML-over-the-wire path: when the tool
+        // result is (or carries) an HTML string, it is injected into #root and Twig owns all markup —
+        // no client-side DOM building. Override these in the app_script block for a JS-driven UI; an
+        // override's `function render` declaration shadows this one.
+        function render(model) {
+            const html = (model && typeof model.html === 'string') ? model.html
+                : (typeof model === 'string' ? model : null);
+            if (null === html) return;
+            const root = document.getElementById('root');
+            if (root) root.innerHTML = html;
+        }
         function onToolInput(params) {}
         {% endblock %}
+
+        {% block app_script %}{% endblock %}
     </script>
 </body>
 </html>

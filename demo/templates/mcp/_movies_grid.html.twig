@@ -1,0 +1,17 @@
+{#
+    Result grid for the movie MCP app, returned as HTML by App\Movies\MovieApp::render() (the
+    `search_movies` tool) and dropped into the shell's #results container.
+
+    Param: movies — list<App\Movies\Movie>
+#}
+{% if movies is empty %}
+    <p class="muted">No movies match your search.</p>
+{% else %}
+    <div class="grid">
+        {% for movie in movies %}
+            <button class="card" type="button" data-slug="{{ movie.slug }}" aria-label="Open {{ movie.title }}">
+                {% include 'mcp/_poster.html.twig' with { movie, showLabel: true } only %}
+            </button>
+        {% endfor %}
+    </div>
+{% endif %}

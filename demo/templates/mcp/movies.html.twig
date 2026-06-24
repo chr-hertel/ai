@@ -1,9 +1,11 @@
 {#
     MCP App shell for the movie browser (see App\Movies\MovieApp).
 
-    This is a STATIC shell: the per-request data (matching movies) is delivered at runtime by the host
-    via the tool-result message and handed to render(model). The app re-searches by calling the same
-    linked tool from inside the iframe with callTool('search_movies', { query }).
+    HTML-over-the-wire: the markup is rendered by Twig on the server (mcp/_movies_grid.html.twig and
+    mcp/_movie_detail.html.twig) and returned as the `html` field of the tool result. This shell only
+    keeps the search bar, swaps that HTML into #results, and wires clicks to callTool() — no client-side
+    DOM building. callTool('search_movies', { query }) returns the grid; callTool('show_movie', { slug })
+    returns a movie's detail view.
 #}
 {% extends '@Mcp/app/base.html.twig' %}
 
@@ -40,7 +42,7 @@
     }
     .card:hover { transform: translateY(-4px) scale(1.02); }
     .poster {
-        aspect-ratio: 2 / 3; border-radius: 12px; display: flex; align-items: flex-end; padding: 12px;
+        aspect-ratio: 1 / 1; border-radius: 12px; display: flex; align-items: flex-end; padding: 12px;
         box-shadow: 0 10px 24px rgba(0,0,0,.45); position: relative; overflow: hidden;
     }
     .poster .initials {
@@ -70,95 +72,43 @@
 
 {% block body %}
     <div class="bar">
-        <input id="q" type="text" placeholder="Search movies by title, director or plot…" autocomplete="off">
+        <input id="q" type="text" placeholder="Search movies by title, director or cast…" autocomplete="off">
         <button id="go" type="button">Search</button>
     </div>
     <div id="results"><p class="muted">Loading…</p></div>
 {% endblock %}
 
 {% block app_script %}
-    const state = { movies: [], selected: null };
-
-    function esc(value) {
-        const div = document.createElement('div');
-        div.textContent = value == null ? '' : String(value);
-        return div.innerHTML;
-    }
-
-    function initials(title) {
-        return title.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-    }
-
-    function posterStyle(hue) {
-        return `background: linear-gradient(135deg, hsl(${hue}, 60%, 45%), hsl(${(hue + 40) % 360}, 55%, 22%));`;
-    }
-
-    // Override the base template hook: called with the linked tool's result.
+    // Swap a tool result's server-rendered HTML into #results. Twig owns the markup; there is no
+    // client-side DOM building here.
     function render(model) {
-        state.movies = (model && model.movies) || [];
-        state.selected = null;
+        if (model && typeof model.html === 'string') {
+            document.getElementById('results').innerHTML = model.html;
+        }
         const input = document.getElementById('q');
-        if (input && document.activeElement !== input) {
-            input.value = (model && model.query) || '';
+        if (input && model && typeof model.query === 'string' && document.activeElement !== input) {
+            input.value = model.query;
         }
-        paint();
     }
 
-    function paint() {
-        const results = document.getElementById('results');
-        const movie = state.selected ? state.movies.find(m => m.slug === state.selected) : null;
-        results.innerHTML = movie ? detailHtml(movie) : gridHtml();
+    function search() {
+        callTool('search_movies', { query: document.getElementById('q').value })
+            .then(result => render(extractModel(result)));
     }
 
-    function gridHtml() {
-        if (state.movies.length === 0) {
-            return '<p class="muted">No movies match your search.</p>';
-        }
-        const cards = state.movies.map(m => `
-            <button class="card" type="button" data-slug="${esc(m.slug)}" aria-label="Open ${esc(m.title)}">
-                <div class="poster" style="${posterStyle(m.hue)}">
-                    <span class="initials">${esc(initials(m.title))}</span>
-                    <span class="label">${esc(m.title)}<span class="year">${m.year ? esc(m.year) : ''}</span></span>
-                </div>
-            </button>`).join('');
-        return `<div class="grid">${cards}</div>`;
-    }
-
-    function detailHtml(m) {
-        const cast = (m.cast || []).map(c => `<li><b>${esc(c.name)}</b> as ${esc(c.role)}</li>`).join('');
-        const plot = (m.plot || []).map(p => `<p>${esc(p)}</p>`).join('');
-        return `
-            <button class="back" type="button" data-back="1">&larr; Back</button>
-            <div class="detail">
-                <div class="poster" style="${posterStyle(m.hue)}; aspect-ratio: 2/3;">
-                    <span class="initials">${esc(initials(m.title))}</span>
-                </div>
-                <div>
-                    <h1>${esc(m.title)} ${m.year ? '<span>(' + esc(m.year) + ')</span>' : ''}</h1>
-                    <div class="meta">
-                        ${m.director ? 'Directed by ' + esc(m.director) : ''}
-                        ${m.imdb ? ' · <span class="link" data-imdb="' + esc(m.imdb) + '">IMDb</span>' : ''}
-                    </div>
-                    ${cast ? '<h2>Cast</h2><ul>' + cast + '</ul>' : ''}
-                    ${plot ? '<h2>Plot</h2>' + plot : ''}
-                </div>
-            </div>`;
-    }
-
-    function doSearch() {
-        const query = document.getElementById('q').value;
-        callTool('search_movies', { query }).then(result => render(extractModel(result)));
-    }
-
-    document.getElementById('go').addEventListener('click', doSearch);
+    document.getElementById('go').addEventListener('click', search);
     document.getElementById('q').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+        if (e.key === 'Enter') { e.preventDefault(); search(); }
     });
 
     document.getElementById('results').addEventListener('click', (e) => {
         const card = e.target.closest('[data-slug]');
-        if (card) { state.selected = card.getAttribute('data-slug'); paint(); return; }
-        if (e.target.closest('[data-back]')) { state.selected = null; paint(); return; }
+        if (card) {
+            callTool('show_movie', { slug: card.getAttribute('data-slug') })
+                .then(result => render(extractModel(result)));
+            return;
+        }
+        if (e.target.closest('[data-back]')) { search(); return; }
         const imdb = e.target.closest('[data-imdb]');
         if (imdb) { openLink(imdb.getAttribute('data-imdb')); }
     });

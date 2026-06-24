@@ -214,7 +214,8 @@ method exists — an app without it is a static, tool-less screen.
 
 The base template exposes the blocks ``title``, ``head``, ``style``, ``body`` and ``app_script``
 (override ``render(model)`` / ``onToolInput(params)`` there), plus ``sendRpc``, ``callTool`` and
-``openLink`` JavaScript helpers.
+``openLink`` JavaScript helpers. The default ``render(model)`` implements the HTML-over-the-wire path
+described below; override ``app_script`` only when you want a JS-driven UI instead.
 
 The template form requires ``symfony/twig-bundle``. For a dynamic shell, omit ``template`` and give the
 class an ``__invoke(): TextResourceContents`` method instead (inject
@@ -241,6 +242,48 @@ The MCP Apps extension is enabled automatically as soon as one ``#[AsMcpApp]`` c
     mcp:
         apps:
             enabled: true # null (default) = auto-enable when an app is registered; true/false forces it
+
+Rendering with Twig (HTML-over-the-wire)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The recommended way to fill the screen is to render the markup with **Twig on the server** and ship it
+in the tool result, rather than building the DOM in JavaScript. The iframe shell stays static (the
+protocol reads the UI resource only once), but the per-request tool result can carry an ``html``
+string: the base template's default ``render(model)`` injects ``model.html`` into the ``#root`` element
+(which the default ``body`` block already provides), so you write **no** client-side rendering code.
+
+Return the HTML from the handler — ``McpAppRenderer::renderFragment()`` renders a Twig template to a
+string::
+
+    #[AsMcpApp(uri: 'ui://weather', name: 'get_weather', template: 'mcp/weather.html.twig')]
+    class WeatherApp
+    {
+        public function __construct(private McpAppRenderer $renderer)
+        {
+        }
+
+        // @return array{html: string}
+        public function render(string $city): array
+        {
+            return ['html' => $this->renderer->renderFragment('mcp/_weather.html.twig', [
+                'forecast' => $this->weather->forecastFor($city),
+            ])];
+        }
+    }
+
+The shell only needs styling — the result HTML lands in ``#root`` automatically:
+
+.. code-block:: html+twig
+
+    {# templates/mcp/weather.html.twig #}
+    {% extends '@Mcp/app/base.html.twig' %}
+    {% block style %}.card { font: 1rem system-ui; }{% endblock %}
+    {# body defaults to <div id="root"></div>; the tool result's `html` is injected there #}
+
+Because the markup is Twig, the fragment can ``{% include %}`` partials and use filters such as
+``markdown_to_html`` — the same building blocks as the rest of your application. Follow-up tools
+(see below) return HTML the same way, and the iframe just swaps it in. Reach for the JS ``render(model)``
+override (shown above) only when you need rich client-side interactivity over a structured model.
 
 Interactive apps
 ^^^^^^^^^^^^^^^^
