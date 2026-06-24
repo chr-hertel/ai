@@ -1,0 +1,165 @@
+{#
+    MCP App shell for the movie browser (see App\Movies\MovieApp).
+
+    This is a STATIC shell: the per-request data (matching movies) is delivered at runtime by the host
+    via the tool-result message and handed to render(model). The app re-searches by calling the same
+    linked tool from inside the iframe with callTool('search_movies', { query }).
+#}
+{% extends '@Mcp/app/base.html.twig' %}
+
+{% block title %}Movies{% endblock %}
+
+{% block style %}
+    :root { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #f3f4f6;
+        background:
+            radial-gradient(ellipse 140% 70% at 50% 0%, rgba(139, 20, 32, 0.45) 0%, transparent 55%),
+            linear-gradient(180deg, #0a0d12 0%, #12151c 45%, #0a0d12 100%);
+        background-attachment: fixed;
+        padding: 16px;
+    }
+    .bar { display: flex; gap: 8px; margin-bottom: 16px; }
+    .bar input {
+        flex: 1; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.15);
+        background: rgba(255,255,255,.06); color: inherit; font-size: 14px; outline: none;
+    }
+    .bar input:focus { border-color: rgba(229,57,75,.7); }
+    .bar button {
+        padding: 10px 18px; border-radius: 999px; border: 0; cursor: pointer; font-weight: 600;
+        background: #e5394b; color: #fff; font-size: 14px;
+    }
+    .bar button:hover { background: #c8313f; }
+    .muted { color: #9ca3af; font-size: 14px; padding: 24px 4px; text-align: center; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+    .card {
+        text-align: left; border: 0; padding: 0; cursor: pointer; background: none; color: inherit;
+        border-radius: 12px; overflow: hidden; transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .card:hover { transform: translateY(-4px) scale(1.02); }
+    .poster {
+        aspect-ratio: 2 / 3; border-radius: 12px; display: flex; align-items: flex-end; padding: 12px;
+        box-shadow: 0 10px 24px rgba(0,0,0,.45); position: relative; overflow: hidden;
+    }
+    .poster .initials {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 44px; font-weight: 800; color: rgba(255,255,255,.28); letter-spacing: 2px;
+    }
+    .poster .label { position: relative; font-size: 13px; font-weight: 700; line-height: 1.25;
+        text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+    .poster .year { display: block; font-size: 11px; font-weight: 500; opacity: .8; margin-top: 2px; }
+
+    .detail { display: grid; grid-template-columns: 180px 1fr; gap: 20px; }
+    @media (max-width: 520px) { .detail { grid-template-columns: 1fr; } }
+    .detail h1 { font-size: 22px; line-height: 1.2; }
+    .detail h1 span { font-weight: 400; color: #9ca3af; }
+    .detail .meta { color: #9ca3af; font-size: 14px; margin: 6px 0 14px; }
+    .detail h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af;
+        margin: 16px 0 6px; }
+    .detail ul { list-style: none; font-size: 14px; }
+    .detail ul li { padding: 2px 0; }
+    .detail ul li b { font-weight: 600; }
+    .detail p { font-size: 14px; line-height: 1.55; margin-bottom: 10px; color: #d1d5db; }
+    .back { background: none; border: 1px solid rgba(255,255,255,.2); color: inherit; cursor: pointer;
+        border-radius: 999px; padding: 6px 14px; font-size: 13px; margin-bottom: 14px; }
+    .back:hover { background: rgba(255,255,255,.08); }
+    .link { color: #ef6b78; cursor: pointer; text-decoration: underline; }
+{% endblock %}
+
+{% block body %}
+    <div class="bar">
+        <input id="q" type="text" placeholder="Search movies by title, director or plot…" autocomplete="off">
+        <button id="go" type="button">Search</button>
+    </div>
+    <div id="results"><p class="muted">Loading…</p></div>
+{% endblock %}
+
+{% block app_script %}
+    const state = { movies: [], selected: null };
+
+    function esc(value) {
+        const div = document.createElement('div');
+        div.textContent = value == null ? '' : String(value);
+        return div.innerHTML;
+    }
+
+    function initials(title) {
+        return title.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    }
+
+    function posterStyle(hue) {
+        return `background: linear-gradient(135deg, hsl(${hue}, 60%, 45%), hsl(${(hue + 40) % 360}, 55%, 22%));`;
+    }
+
+    // Override the base template hook: called with the linked tool's result.
+    function render(model) {
+        state.movies = (model && model.movies) || [];
+        state.selected = null;
+        const input = document.getElementById('q');
+        if (input && document.activeElement !== input) {
+            input.value = (model && model.query) || '';
+        }
+        paint();
+    }
+
+    function paint() {
+        const results = document.getElementById('results');
+        const movie = state.selected ? state.movies.find(m => m.slug === state.selected) : null;
+        results.innerHTML = movie ? detailHtml(movie) : gridHtml();
+    }
+
+    function gridHtml() {
+        if (state.movies.length === 0) {
+            return '<p class="muted">No movies match your search.</p>';
+        }
+        const cards = state.movies.map(m => `
+            <button class="card" type="button" data-slug="${esc(m.slug)}" aria-label="Open ${esc(m.title)}">
+                <div class="poster" style="${posterStyle(m.hue)}">
+                    <span class="initials">${esc(initials(m.title))}</span>
+                    <span class="label">${esc(m.title)}<span class="year">${m.year ? esc(m.year) : ''}</span></span>
+                </div>
+            </button>`).join('');
+        return `<div class="grid">${cards}</div>`;
+    }
+
+    function detailHtml(m) {
+        const cast = (m.cast || []).map(c => `<li><b>${esc(c.name)}</b> as ${esc(c.role)}</li>`).join('');
+        const plot = (m.plot || []).map(p => `<p>${esc(p)}</p>`).join('');
+        return `
+            <button class="back" type="button" data-back="1">&larr; Back</button>
+            <div class="detail">
+                <div class="poster" style="${posterStyle(m.hue)}; aspect-ratio: 2/3;">
+                    <span class="initials">${esc(initials(m.title))}</span>
+                </div>
+                <div>
+                    <h1>${esc(m.title)} ${m.year ? '<span>(' + esc(m.year) + ')</span>' : ''}</h1>
+                    <div class="meta">
+                        ${m.director ? 'Directed by ' + esc(m.director) : ''}
+                        ${m.imdb ? ' · <span class="link" data-imdb="' + esc(m.imdb) + '">IMDb</span>' : ''}
+                    </div>
+                    ${cast ? '<h2>Cast</h2><ul>' + cast + '</ul>' : ''}
+                    ${plot ? '<h2>Plot</h2>' + plot : ''}
+                </div>
+            </div>`;
+    }
+
+    function doSearch() {
+        const query = document.getElementById('q').value;
+        callTool('search_movies', { query }).then(result => render(extractModel(result)));
+    }
+
+    document.getElementById('go').addEventListener('click', doSearch);
+    document.getElementById('q').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+    });
+
+    document.getElementById('results').addEventListener('click', (e) => {
+        const card = e.target.closest('[data-slug]');
+        if (card) { state.selected = card.getAttribute('data-slug'); paint(); return; }
+        if (e.target.closest('[data-back]')) { state.selected = null; paint(); return; }
+        const imdb = e.target.closest('[data-imdb]');
+        if (imdb) { openLink(imdb.getAttribute('data-imdb')); }
+    });
+{% endblock %}
