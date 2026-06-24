@@ -25,10 +25,19 @@
 
     Either way, the Twig context here is only for static shell composition (branding, styles, app name).
 
+    Interactions need no JS either: the bridge wires DOM attributes to tool calls. An element with
+    `data-call="tool_name"` invokes that tool on activation (args from its `data-arg-*` attributes, e.g.
+    `data-arg-slug` -> `{ slug }`), a `<form data-call="tool_name">` sends its named fields as the args,
+    and the returned HTML is rendered automatically. `data-open="https://…"` opens an external link.
+
+           <button data-call="show_item" data-arg-id="42">Open</button>
+           <form data-call="search"><input name="q"><button>Go</button></form>
+
     The `bridge` block below implements the MCP Apps postMessage protocol so you don't have to:
     the ui/initialize -> ui/notifications/initialized -> size-changed handshake, request/response
     plumbing (`sendRpc`/`sendNotification`), an `openLink(url)` helper (sandboxed iframes cannot open
-    links directly), and dispatch of tool-result/tool-input to your `render`/`onToolInput` hooks.
+    links directly), the declarative `data-call`/`data-open` wiring above, and dispatch of
+    tool-result/tool-input to your `render`/`onToolInput` hooks.
     Spec: https://github.com/modelcontextprotocol/ext-apps
 #}
 <!DOCTYPE html>
@@ -141,6 +150,39 @@
             if (root) root.innerHTML = html;
         }
         function onToolInput(params) {}
+
+        // --- Declarative actions (so apps need no JS) ---------------------------------------------
+        // Activating an element with [data-call="tool_name"] invokes that tool and renders the result
+        // through render() above; arguments come from its [data-arg-*] attributes (data-arg-slug ->
+        // { slug }). A <form data-call="tool_name"> sends its named fields as the arguments instead.
+        // [data-open="https://…"] asks the host to open an external link (sandbox-safe).
+        function callAndRender(name, args) {
+            return callTool(name, args).then((result) => render(extractModel(result)));
+        }
+        function dataArgs(el) {
+            const args = {};
+            for (const name of el.getAttributeNames()) {
+                if (name.startsWith('data-arg-')) {
+                    args[name.slice(9).replace(/-/g, '_')] = el.getAttribute(name);
+                }
+            }
+            return args;
+        }
+        document.addEventListener('click', (event) => {
+            const opener = event.target.closest('[data-open]');
+            if (opener) { event.preventDefault(); openLink(opener.getAttribute('data-open')); return; }
+            const trigger = event.target.closest('[data-call]');
+            if (trigger && 'FORM' !== trigger.tagName) {
+                event.preventDefault();
+                callAndRender(trigger.getAttribute('data-call'), dataArgs(trigger));
+            }
+        });
+        document.addEventListener('submit', (event) => {
+            const form = event.target.closest('form[data-call]');
+            if (!form) { return; }
+            event.preventDefault();
+            callAndRender(form.getAttribute('data-call'), Object.fromEntries(new FormData(form)));
+        });
         {% endblock %}
 
         {% block app_script %}{% endblock %}

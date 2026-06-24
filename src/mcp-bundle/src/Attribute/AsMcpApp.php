@@ -38,6 +38,10 @@ final class AsMcpApp
      * @param string|null   $description    the linked tool's description (model-facing)
      * @param string|null   $template       Twig template name for the HTML shell (e.g. `@App/mcp/dashboard.html.twig`)
      * @param string|null   $method         handler method producing the tool result; defaults to `render`. Set explicitly to require a differently-named method.
+     * @param string|null   $toolTemplate   Twig fragment template the bundle renders for the primary tool. When set, the handler
+     *                                      method returns a context array and the bundle injects the rendered HTML as the `html`
+     *                                      field of the tool result (the HTML-over-the-wire path) — no Twig in the handler.
+     *                                      See {@see AsMcpAppTool} for additional tool methods.
      * @param bool|null     $prefersBorder  content-meta: hint that the host should render a border around the iframe
      * @param string|null   $domain         content-meta: associated domain for the app
      * @param string[]|null $cspConnect     content-meta CSP: domains allowed for network requests (fetch/XHR/WebSocket)
@@ -56,6 +60,7 @@ final class AsMcpApp
         public ?string $description = null,
         public ?string $template = null,
         public ?string $method = null,
+        public ?string $toolTemplate = null,
         public ?bool $prefersBorder = null,
         public ?string $domain = null,
         public ?array $cspConnect = null,

@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\McpBundle\App\McpAppRenderer;
 use Symfony\AI\McpBundle\App\McpAppResourceRenderer;
 use Symfony\AI\McpBundle\Attribute\AsMcpApp;
+use Symfony\AI\McpBundle\Attribute\AsMcpAppTool;
 use Symfony\AI\McpBundle\DependencyInjection\McpAppPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
@@ -197,6 +198,68 @@ final class McpAppPassTest extends TestCase
         (new McpAppPass())->process($container);
     }
 
+    public function testToolTemplateAndAppToolTemplatesAreExported()
+    {
+        $container = $this->containerWithBuilder(withRenderer: true);
+        $container->setDefinition(MultiToolApp::class, (new Definition(MultiToolApp::class))->addTag('mcp.app'));
+
+        (new McpAppPass())->process($container);
+
+        $templates = $container->getParameter('mcp.apps.tool_templates');
+        $this->assertSame('grid.html.twig', $templates[MultiToolApp::class.'::render']);
+        $this->assertSame('detail.html.twig', $templates[MultiToolApp::class.'::showDetail']);
+        $this->assertArrayNotHasKey(MultiToolApp::class.'::plain', $templates); // no template declared
+    }
+
+    public function testAppToolMethodsRegisterAdditionalLinkedTools()
+    {
+        $container = $this->containerWithBuilder(withRenderer: true);
+        $container->setDefinition(MultiToolApp::class, (new Definition(MultiToolApp::class))->addTag('mcp.app'));
+
+        (new McpAppPass())->process($container);
+
+        $calls = $container->getDefinition('mcp.server.builder')->getMethodCalls();
+        $byName = [];
+        foreach ($this->callsNamed($calls, 'addTool') as $tool) {
+            $byName[$tool[1][1]] = $tool[1];
+        }
+
+        // primary tool + two #[AsMcpAppTool] methods
+        $this->assertSame(['do_multi', 'detail', 'plain'], array_keys($byName));
+
+        // follow-up tool inherits the app URI and is app-only
+        $detailUi = $byName['detail'][7]['ui'];
+        $this->assertSame(UiToolMeta::class, $detailUi->getClass());
+        $this->assertSame('ui://multi', $detailUi->getArgument(0));
+        $this->assertSame([ToolVisibility::App], $detailUi->getArgument(1));
+        $this->assertSame([MultiToolApp::class, 'showDetail'], $byName['detail'][0]);
+
+        // default tool name is the snake_cased method; default visibility is model + app
+        $this->assertSame([ToolVisibility::Model, ToolVisibility::App], $byName['plain'][7]['ui']->getArgument(1));
+    }
+
+    public function testPrimaryMethodWithAppToolAttributeThrows()
+    {
+        $container = $this->containerWithBuilder(withRenderer: true);
+        $container->setDefinition(CollidingToolApp::class, (new Definition(CollidingToolApp::class))->addTag('mcp.app'));
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/primary tool/');
+
+        (new McpAppPass())->process($container);
+    }
+
+    public function testToolTemplateWithoutTwigThrows()
+    {
+        $container = $this->containerWithBuilder(withRenderer: false);
+        $container->setDefinition(InvokeWithToolTemplateApp::class, (new Definition(InvokeWithToolTemplateApp::class))->addTag('mcp.app'));
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/Twig is not available/');
+
+        (new McpAppPass())->process($container);
+    }
+
     public function testDoesNothingWhenNoServerBuilder()
     {
         $container = new ContainerBuilder();
@@ -258,4 +321,64 @@ class WidgetApp
 #[AsMcpApp(template: 'bad.html.twig', method: 'missing')]
 class BadMethodApp
 {
+}
+
+#[AsMcpApp(uri: 'ui://multi', name: 'do_multi', title: 'Multi', description: 'Primary', template: 'shell.html.twig', toolTemplate: 'grid.html.twig')]
+class MultiToolApp
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function render(string $query = ''): array
+    {
+        return ['query' => $query];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    #[AsMcpAppTool(name: 'detail', description: 'Show details', template: 'detail.html.twig', appOnly: true)]
+    public function showDetail(string $slug): array
+    {
+        return ['slug' => $slug];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    #[AsMcpAppTool]
+    public function plain(): array
+    {
+        return [];
+    }
+}
+
+#[AsMcpApp(uri: 'ui://collide', name: 'collide', template: 'shell.html.twig')]
+class CollidingToolApp
+{
+    /**
+     * @return array<string, mixed>
+     */
+    #[AsMcpAppTool]
+    public function render(): array
+    {
+        return [];
+    }
+}
+
+#[AsMcpApp(uri: 'ui://inv', toolTemplate: 'grid.html.twig')]
+class InvokeWithToolTemplateApp
+{
+    public function __invoke(): TextResourceContents
+    {
+        return new TextResourceContents('ui://inv', McpApps::MIME_TYPE, '<html></html>');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function render(): array
+    {
+        return [];
+    }
 }

@@ -20,6 +20,7 @@ use Mcp\Schema\Extension\Apps\UiToolMeta;
 use Symfony\AI\McpBundle\App\McpAppRenderer;
 use Symfony\AI\McpBundle\App\McpAppResourceRenderer;
 use Symfony\AI\McpBundle\Attribute\AsMcpApp;
+use Symfony\AI\McpBundle\Attribute\AsMcpAppTool;
 use Symfony\AI\McpBundle\Exception\LogicException;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -64,6 +65,7 @@ final class McpAppPass implements CompilerPassInterface
         }
 
         $templateApps = [];
+        $toolTemplates = [];
 
         foreach ($appServiceIds as $serviceId) {
             $class = $this->resolveClass($container, $serviceId);
@@ -92,7 +94,8 @@ final class McpAppPass implements CompilerPassInterface
                 ['ui' => $descriptorMarker],
             ]);
 
-            $this->registerTool($container, $serviceId, $class, $app, $uri, $slug, $builder);
+            $this->registerTool($container, $serviceId, $class, $app, $uri, $slug, $builder, $toolTemplates);
+            $this->registerAppToolMethods($container, $serviceId, $class, $app, $uri, $builder, $toolTemplates);
         }
 
         if ([] !== $templateApps) {
@@ -100,6 +103,14 @@ final class McpAppPass implements CompilerPassInterface
                 ->setArguments([new Reference(McpAppRenderer::SERVICE_ID), $templateApps])
                 ->addTag('mcp.resource');
         }
+
+        if ([] !== $toolTemplates && !$container->hasDefinition(McpAppRenderer::SERVICE_ID)) {
+            throw new LogicException('An MCP App tool declares a Twig template but Twig is not available. Run "composer require symfony/twig-bundle".');
+        }
+
+        // Consumed by McpPass to wire the McpAppReferenceHandler that renders these templates into the
+        // tool result's `html` field (keeps Twig out of the developer's tool methods).
+        $container->setParameter('mcp.apps.tool_templates', $toolTemplates);
     }
 
     /**
@@ -135,8 +146,10 @@ final class McpAppPass implements CompilerPassInterface
     /**
      * Registers the app's linked tool from its handler method ($method, default "render"), auto-setting
      * the `ui` link to this app. No-op when the method is absent (a static, tool-less app).
+     *
+     * @param array<string, string> $toolTemplates map of "<serviceId>::<method>" => fragment template, appended to here
      */
-    private function registerTool(ContainerBuilder $container, string $serviceId, string $class, AsMcpApp $app, string $uri, string $slug, Definition $builder): void
+    private function registerTool(ContainerBuilder $container, string $serviceId, string $class, AsMcpApp $app, string $uri, string $slug, Definition $builder, array &$toolTemplates): void
     {
         $method = $app->method ?? 'render';
 
@@ -148,22 +161,65 @@ final class McpAppPass implements CompilerPassInterface
             return; // no default "render" method → static, tool-less app
         }
 
-        // Ensure the app service is in the handler locator McpPass builds.
+        // The primary tool is always visible to both the model and the app.
+        $this->addTool($container, $builder, $serviceId, $method, $app->name ?? str_replace('-', '_', $slug), $app->title, $app->description, $uri, false, $app->toolTemplate, $toolTemplates);
+    }
+
+    /**
+     * Registers each method carrying {@see AsMcpAppTool} as an additional tool linked to this app, with
+     * the `ui` link pointing at the app's resource and visibility derived from `appOnly`.
+     *
+     * @param array<string, string> $toolTemplates map of "<serviceId>::<method>" => fragment template, appended to here
+     */
+    private function registerAppToolMethods(ContainerBuilder $container, string $serviceId, string $class, AsMcpApp $app, string $uri, Definition $builder, array &$toolTemplates): void
+    {
+        $primaryMethod = $app->method ?? 'render';
+
+        foreach ((new \ReflectionClass($class))->getMethods(\ReflectionMethod::IS_PUBLIC) as $reflectionMethod) {
+            $attributes = $reflectionMethod->getAttributes(AsMcpAppTool::class);
+            if ([] === $attributes) {
+                continue;
+            }
+
+            $method = $reflectionMethod->getName();
+            if ($method === $primaryMethod) {
+                throw new LogicException(\sprintf('The MCP App "%s" method "%s" is the primary tool declared on #[AsMcpApp] and must not also carry #[AsMcpAppTool].', $class, $method));
+            }
+
+            $tool = $attributes[0]->newInstance();
+
+            $this->addTool($container, $builder, $serviceId, $method, $tool->name ?? $this->snake($method), $tool->title, $tool->description, $uri, $tool->appOnly, $tool->template, $toolTemplates);
+        }
+    }
+
+    /**
+     * Registers one tool on the server builder: tags the app service so {@see McpPass} adds it to the
+     * handler locator, links the tool's `ui` to the app resource (with model/app visibility), and records
+     * its fragment template (if any) for {@see \Symfony\AI\McpBundle\App\McpAppReferenceHandler}.
+     *
+     * @param array<string, string> $toolTemplates map of "<serviceId>::<method>" => fragment template, appended to here
+     */
+    private function addTool(ContainerBuilder $container, Definition $builder, string $serviceId, string $method, string $name, ?string $title, ?string $description, string $uri, bool $appOnly, ?string $template, array &$toolTemplates): void
+    {
         $container->getDefinition($serviceId)->addTag('mcp.tool');
 
-        $uiMeta = new Definition(UiToolMeta::class, [$uri, [ToolVisibility::Model, ToolVisibility::App]]);
+        $visibility = $appOnly ? [ToolVisibility::App] : [ToolVisibility::Model, ToolVisibility::App];
 
         $builder->addMethodCall('addTool', [
             [$serviceId, $method],
-            $app->name ?? str_replace('-', '_', $slug),
-            $app->title,
-            $app->description,
+            $name,
+            $title,
+            $description,
             null, // annotations
             null, // inputSchema (derived from the method signature)
             null, // icons
-            ['ui' => $uiMeta],
+            ['ui' => new Definition(UiToolMeta::class, [$uri, $visibility])],
             null, // outputSchema
         ]);
+
+        if (null !== $template) {
+            $toolTemplates[$serviceId.'::'.$method] = $template;
+        }
     }
 
     private function buildContentMeta(AsMcpApp $app): ?Definition
@@ -228,5 +284,10 @@ final class McpAppPass implements CompilerPassInterface
         $short = false !== ($pos = strrpos($class, '\\')) ? substr($class, $pos + 1) : $class;
 
         return strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $short));
+    }
+
+    private function snake(string $name): string
+    {
+        return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name));
     }
 }

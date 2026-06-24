@@ -4,15 +4,9 @@ CHANGELOG
 0.11
 ----
 
- * Add first-class MCP Apps support: the `#[AsMcpApp]` attribute registers an interactive HTML UI
-   resource (including the `_meta.ui` descriptor marker), registers the linked tool from a handler
-   method (`render` by default) with its `ui` link auto-set to the app, and auto-enables the MCP Apps
-   server extension; configurable via `mcp.apps.enabled`
- * Add the `@Mcp/app/base.html.twig` base template carrying the MCP Apps postMessage bridge, and a
-   Twig-backed renderer so template apps need no handler code
- * Add an HTML-over-the-wire path for MCP Apps: the base template's default `render(model)` injects an
-   `html` model (or the `#root` element) so a tool can return server-rendered Twig markup with no
-   client-side DOM building; `McpAppRenderer::renderFragment()` renders a Twig template to that HTML string
+ * Add MCP Apps support via the `#[AsMcpApp]`/`#[AsMcpAppTool]` attributes: interactive HTML UI resources
+   whose tools return a context array the bundle renders server-side with Twig (HTML-over-the-wire);
+   configurable via `mcp.apps.enabled`
 
 0.8
 ---

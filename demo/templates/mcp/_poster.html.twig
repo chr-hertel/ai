@@ -2,6 +2,10 @@
     Poster tile for the movie MCP app. The matching CSS (.poster / .initials / .label) lives in the
     shell, mcp/movies.html.twig.
 
+    This is a deliberate standalone copy of components/_movie_poster.html.twig: the MCP app renders inside
+    a sandboxed iframe and cannot reuse the host app's Twig components or Bootstrap CSS, so it ships its
+    own self-contained markup + styling.
+
     Params:
       - movie:     the App\Movies\Movie to render
       - showLabel: render the title/year overlay (grid cards); defaults to false (detail view)

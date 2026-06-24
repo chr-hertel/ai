@@ -2,10 +2,10 @@
     MCP App shell for the movie browser (see App\Movies\MovieApp).
 
     HTML-over-the-wire: the markup is rendered by Twig on the server (mcp/_movies_grid.html.twig and
-    mcp/_movie_detail.html.twig) and returned as the `html` field of the tool result. This shell only
-    keeps the search bar, swaps that HTML into #results, and wires clicks to callTool() — no client-side
-    DOM building. callTool('search_movies', { query }) returns the grid; callTool('show_movie', { slug })
-    returns a movie's detail view.
+    mcp/_movie_detail.html.twig) and returned as the `html` field of the tool result, which the base
+    template drops into #root. There is no JS here: the search form and the cards/links in the fragments
+    use the base template's declarative `data-call` / `data-open` attributes to invoke `movie_search` /
+    `movie_details` and open links.
 #}
 {% extends '@Mcp/app/base.html.twig' %}
 
@@ -71,45 +71,9 @@
 {% endblock %}
 
 {% block body %}
-    <div class="bar">
-        <input id="q" type="text" placeholder="Search movies by title, director or cast…" autocomplete="off">
-        <button id="go" type="button">Search</button>
-    </div>
-    <div id="results"><p class="muted">Loading…</p></div>
-{% endblock %}
-
-{% block app_script %}
-    // Swap a tool result's server-rendered HTML into #results. Twig owns the markup; there is no
-    // client-side DOM building here.
-    function render(model) {
-        if (model && typeof model.html === 'string') {
-            document.getElementById('results').innerHTML = model.html;
-        }
-        const input = document.getElementById('q');
-        if (input && model && typeof model.query === 'string' && document.activeElement !== input) {
-            input.value = model.query;
-        }
-    }
-
-    function search() {
-        callTool('search_movies', { query: document.getElementById('q').value })
-            .then(result => render(extractModel(result)));
-    }
-
-    document.getElementById('go').addEventListener('click', search);
-    document.getElementById('q').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); search(); }
-    });
-
-    document.getElementById('results').addEventListener('click', (e) => {
-        const card = e.target.closest('[data-slug]');
-        if (card) {
-            callTool('show_movie', { slug: card.getAttribute('data-slug') })
-                .then(result => render(extractModel(result)));
-            return;
-        }
-        if (e.target.closest('[data-back]')) { search(); return; }
-        const imdb = e.target.closest('[data-imdb]');
-        if (imdb) { openLink(imdb.getAttribute('data-imdb')); }
-    });
+    <form id="movie-search" class="bar" data-call="movie_search">
+        <input name="query" type="text" placeholder="Search movies by title, director or cast…" autocomplete="off">
+        <button type="submit">Search</button>
+    </form>
+    <div id="root"><p class="muted">Loading…</p></div>
 {% endblock %}

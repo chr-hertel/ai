@@ -35,9 +35,6 @@
         "symfony/monolog-bundle": "^3.10 || ^4.0",
         "symfony/twig-bundle": "^7.3|^8.0"
     },
-    "suggest": {
-        "symfony/twig-bundle": "To auto-render static MCP Apps from a Twig template via #[AsMcpApp(template: ...)]"
-    },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "autoload": {
