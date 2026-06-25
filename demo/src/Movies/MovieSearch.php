@@ -42,7 +42,7 @@ final class MovieSearch
         $needle = mb_strtolower(trim($query));
 
         $results = [];
-        foreach ($this->movies->all() as $movie) {
+        foreach ($this->movies->findAll() as $movie) {
             if ('' !== $needle && !$this->matches($movie, $needle)) {
                 continue;
             }

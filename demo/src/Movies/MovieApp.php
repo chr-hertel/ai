@@ -72,7 +72,7 @@ final class MovieApp
     public function showMovie(string $slug): array
     {
         return [
-            'movie' => $this->movies->find($slug),
+            'movie' => $this->movies->findOne($slug),
         ];
     }
 }
