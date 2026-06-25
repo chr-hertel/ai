@@ -145,9 +145,21 @@
         function render(model) {
             const html = (model && typeof model.html === 'string') ? model.html
                 : (typeof model === 'string' ? model : null);
-            if (null === html) return;
-            const root = document.getElementById('root');
-            if (root) root.innerHTML = html;
+            if (null !== html) {
+                const root = document.getElementById('root');
+                if (root) root.innerHTML = html;
+            }
+            // Mirror scalar model fields back into matching form controls (e.g. the `query` that produced
+            // this result fills <input name="query">), so the shell stays in sync on the first render too —
+            // without clobbering a field that is currently being edited.
+            if (model && typeof model === 'object') {
+                for (const field of document.querySelectorAll('input[name], textarea[name], select[name]')) {
+                    const value = model[field.getAttribute('name')];
+                    if ((typeof value === 'string' || typeof value === 'number') && field !== document.activeElement) {
+                        field.value = value;
+                    }
+                }
+            }
         }
         function onToolInput(params) {}
 
