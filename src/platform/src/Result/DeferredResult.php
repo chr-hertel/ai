@@ -16,9 +16,11 @@ use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
 use Symfony\AI\Platform\Metadata\MetadataAwareTrait;
 use Symfony\AI\Platform\Metadata\StreamListener as MetaDataStreamListener;
 use Symfony\AI\Platform\Reranking\RerankingEntry;
+use Symfony\AI\Platform\Result\Stream\Delta\PartialObjectDelta;
 use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 use Symfony\AI\Platform\ResultConverterInterface;
 use Symfony\AI\Platform\StructuredOutput\Streaming\PartialJsonParser;
+use Symfony\AI\Platform\StructuredOutput\Streaming\PartialObjectStreamListener;
 use Symfony\AI\Platform\TokenUsage\StreamListener as TokenUsageStreamListener;
 use Symfony\AI\Platform\Vector\Vector;
 
@@ -32,6 +34,12 @@ final class DeferredResult
     private bool $isConverted = false;
     private ResultInterface $convertedResult;
     private ?\Throwable $conversionFailure = null;
+
+    /**
+     * Shared stream generator so the one-shot stream is driven exactly once
+     * across asStream(), asStreamedObject() and asObject().
+     */
+    private ?\Generator $stream = null;
 
     /**
      * @var list<\Closure(ResultInterface): ResultInterface>
@@ -160,7 +168,58 @@ final class DeferredResult
      */
     public function asObject(): object
     {
+        $result = $this->getResult();
+
+        if ($result instanceof StreamResult && null !== $listener = $this->findPartialObjectListener($result)) {
+            $finalResult = $listener->getFinalObjectResult();
+
+            if (null === $finalResult) {
+                // Pump the remainder via next() instead of re-iterating: the
+                // stream may be mid-flight (asStreamedObject() stopped early) and
+                // cannot be restarted without reprocessing deltas. This finishes
+                // it and fires the listener's completion handler.
+                $generator = $this->stream ??= $result->getContent();
+
+                try {
+                    while ($generator->valid()) {
+                        $generator->next();
+                    }
+                } finally {
+                    $this->getMetadata()->set($result->getMetadata()->all());
+                }
+
+                $finalResult = $listener->getFinalObjectResult();
+            }
+
+            if (null === $finalResult) {
+                throw new UnexpectedResultTypeException(ObjectResult::class, StreamResult::class);
+            }
+
+            return $finalResult->getContent();
+        }
+
         return $this->as(ObjectResult::class)->getContent();
+    }
+
+    /**
+     * Yields progressively populated instances of the target class as the
+     * model emits more tokens. Each yielded value is the typed object itself;
+     * consumers that also need the raw JSON buffer can iterate asStream() and
+     * inspect the underlying PartialObjectDelta instances directly.
+     *
+     * @return \Generator<object>
+     *
+     * @throws ExceptionInterface
+     */
+    public function asStreamedObject(): \Generator
+    {
+        foreach ($this->asStream() as $delta) {
+            if (!$delta instanceof PartialObjectDelta) {
+                continue;
+            }
+
+            yield $delta->getObject();
+        }
     }
 
     /**
@@ -221,9 +280,10 @@ final class DeferredResult
     public function asStream(): \Generator
     {
         $result = $this->as(StreamResult::class);
+        $generator = $this->stream ??= $result->getContent();
 
         try {
-            yield from $result->getContent();
+            yield from $generator;
         } finally {
             $this->getMetadata()->set($result->getMetadata()->all());
         }
@@ -290,6 +350,17 @@ final class DeferredResult
     public function asToolCalls(): array
     {
         return $this->as(ToolCallResult::class)->getContent();
+    }
+
+    private function findPartialObjectListener(StreamResult $result): ?PartialObjectStreamListener
+    {
+        foreach ($result->getListeners() as $listener) {
+            if ($listener instanceof PartialObjectStreamListener) {
+                return $listener;
+            }
+        }
+
+        return null;
     }
 
     /**

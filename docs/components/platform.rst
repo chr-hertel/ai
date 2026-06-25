@@ -1010,6 +1010,39 @@ To enable validation, register the ``ValidatorSubscriber`` with your platform's 
 The ``ValidatorSubscriber`` will automatically validate any :class:`Symfony\\AI\\Platform\\Result\\ObjectResult` produced
 by the ``PlatformSubscriber``. To use this feature, make sure `symfony/validator` is installed in your project.
 
+Streaming Partial Objects
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When ``stream: true`` is combined with ``response_format: SomeClass::class``, the platform yields a
+progressively-populated instance of the target class on every chunk that materially changes the
+recovered structure. Use ``DeferredResult::asStreamedObject()`` to iterate the snapshots and
+``DeferredResult::asObject()`` to obtain the final, validated object once the stream completes::
+
+    use Symfony\AI\Platform\Message\Message;
+    use Symfony\AI\Platform\Message\MessageBag;
+    use Symfony\AI\Platform\StructuredOutput\PlatformSubscriber;
+
+    // Initialize platform with PlatformSubscriber registered on the event dispatcher.
+
+    $messages = new MessageBag(Message::ofUser('Give me a recipe for a Margherita pizza.'));
+    $result = $platform->invoke('gpt-4o-mini', $messages, [
+        'stream' => true,
+        'response_format' => Recipe::class,
+    ]);
+
+    foreach ($result->asStreamedObject() as $recipe) {
+        render($recipe); // progressively populated Recipe instance (name, then ingredients, then steps)
+    }
+
+    $final = $result->asObject(); // fully materialized Recipe; runs ValidatorSubscriber if registered
+
+``asStreamedObject()`` yields the typed object directly. Under the hood each snapshot is emitted as a
+``PartialObjectDelta`` carrying both the typed object (``$delta->getObject()``) and the raw JSON buffer
+accumulated so far (``$delta->getBuffer()``); iterate ``asStream()`` instead if you need the raw buffer.
+Snapshots are de-duplicated — the listener only emits when the parsed structure actually changes. If the
+``ValidatorSubscriber`` is registered, validation runs once on the final object only; partial snapshots
+are never validated, since they are by definition incomplete.
+
 Parsing Partial JSON from Streams
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1058,6 +1091,7 @@ Code Examples
 * `Structured Output with array`_
 * `Populating existing objects`_
 * `Partial JSON streaming via DeferredResult`_
+* `Streaming Structured Output`_
 
 Server Tools
 ------------
@@ -1419,6 +1453,7 @@ Code Examples
 .. _`Structured Output with array`: https://github.com/symfony/ai/blob/main/examples/openai/structured-output-clock.php
 .. _`Populating existing objects`: https://github.com/symfony/ai/blob/main/examples/platform/structured-output-populate-object.php
 .. _`Partial JSON streaming via DeferredResult`: https://github.com/symfony/ai/blob/main/examples/platform/partial-json-stream.php
+.. _`Streaming Structured Output`: https://github.com/symfony/ai/blob/main/examples/platform/streaming-structured-output.php
 .. _`Parallel GPT Calls`: https://github.com/symfony/ai/blob/main/examples/misc/parallel-chat-gpt.php
 .. _`Parallel Embeddings Calls`: https://github.com/symfony/ai/blob/main/examples/misc/parallel-embeddings.php
 .. _`LM Studio`: https://lmstudio.ai/

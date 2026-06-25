@@ -1,6 +1,13 @@
 CHANGELOG
 =========
 
+0.11
+----
+
+ * Add MCP Apps support via the `#[AsMcpApp]`/`#[AsMcpAppTool]` attributes: interactive HTML UI resources
+   whose tools return a context array the bundle renders server-side with Twig (HTML-over-the-wire);
+   configurable via `mcp.apps.enabled`
+
 0.8
 ---
 

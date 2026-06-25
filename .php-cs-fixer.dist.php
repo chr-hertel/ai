@@ -70,17 +70,9 @@ return (new PhpCsFixer\Config())
             return [
                 'void_return' => static function (SplFileInfo $file) {
                     // temporary hack due to bug: https://github.com/symfony/symfony/issues/62734
-                    if (!$file instanceof Symfony\Component\Finder\SplFileInfo) {
-                        return false;
-                    }
+                    $path = strtolower(str_replace('\\', '/', $file->getRealPath() ?: $file->getPathname()));
 
-                    $relativePathname = $file->getRelativePathname();
-
-                    if (
-                        str_contains($relativePathname, '/Tests/') // don't touch test files, as massive change with little benefit - as outside of public contract anyway
-                        || str_contains($relativePathname, '/tests/') // lowercase top-level test dirs (e.g. src/<component>/tests/) follow the same rule
-                        || str_contains($relativePathname, '/Test/') // public namespace not following the rule, do not mistake it with `/Tests/`
-                    ) {
+                    if (str_contains($path, '/tests/') || str_contains($path, '/test/')) {
                         return false;
                     }
 

@@ -79,11 +79,9 @@ Platform
 Store
 -----
 
- * Add support for `ScopingHttpClient` in Typesense `Store`
- * The `endpointUrl` parameter for Typesense `Store` has been removed
- * The `apiKey` parameter for Typesense `Store` has been removed
- * A `StoreFactory` has been introduced for Typesense `Store`
+ * The `endpointUrl` and `apiKey` parameter for Typesense `Store` has been removed, use `StoreFactory` instead
  * The `accountId`, `apiKey`, and `endpointUrl` parameter for Cloudflare `Store` has been removed, use `StoreFactory` instead
+ * The `endpoint` parameter for SurrealDB `Store` has been removed, use `StoreFactory` instead
 
  * Endpoint URLs are now normalized across all HTTP store bridges: a trailing slash is tolerated, and
    path-prefixed endpoints behind a reverse proxy keep their prefix.
