@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\MiniMax;
 
 use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Endpoint;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
@@ -199,5 +200,24 @@ final class ModelCatalog extends AbstractModelCatalog
             ...$defaultModels,
             ...$additionalModels,
         ];
+    }
+
+    protected function endpointsForModel(array $modelConfig): array
+    {
+        $capabilities = $modelConfig['capabilities'];
+
+        $supports = static fn (Capability $capability): bool => \in_array($capability, $capabilities, true);
+
+        return match (true) {
+            $supports(Capability::INPUT_MESSAGES) => [new Endpoint(ChatCompletionsClient::ENDPOINT)],
+            $supports(Capability::TEXT_TO_SPEECH) => [new Endpoint(SpeechClient::ENDPOINT)],
+            $supports(Capability::TEXT_TO_IMAGE),
+            $supports(Capability::IMAGE_TO_IMAGE) => [new Endpoint(ImageClient::ENDPOINT)],
+            $supports(Capability::MUSIC) => [new Endpoint(MusicClient::ENDPOINT)],
+            $supports(Capability::TEXT_TO_VIDEO),
+            $supports(Capability::IMAGE_TO_VIDEO),
+            $supports(Capability::VIDEO_WITH_SUBJECT) => [new Endpoint(VideoClient::ENDPOINT)],
+            default => [],
+        };
     }
 }

@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\Perplexity;
 
+use Symfony\AI\Platform\Bridge\Generic\ChatCompletionsClient;
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Bridge\Perplexity\Contract\PerplexityContract;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
@@ -42,14 +44,10 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
-        return new Provider(
-            $name,
-            [new ModelClient($httpClient, $apiKey, $baseUrl)],
-            [new ResultConverter()],
-            $modelCatalog,
-            $contract ?? PerplexityContract::create(),
-            $eventDispatcher,
-        );
+        $transport = new HttpTransport($httpClient, $baseUrl, $apiKey);
+        $clients = [new ChatCompletionsClient($transport, '/chat/completions')];
+
+        return new Provider($name, $clients, $clients, $modelCatalog, $contract ?? PerplexityContract::create(), $eventDispatcher);
     }
 
     /**

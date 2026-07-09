@@ -41,10 +41,18 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $clients = [
+            new ChatCompletionsClient($httpClient, $apiKey, $endpoint),
+            new SpeechClient($httpClient, $apiKey, $endpoint),
+            new ImageClient($httpClient, $apiKey, $endpoint),
+            new MusicClient($httpClient, $apiKey, $endpoint),
+            new VideoClient($httpClient, $apiKey, $endpoint),
+        ];
+
         return new Provider(
             $name,
-            [new MiniMaxClient($httpClient, $apiKey, $endpoint)],
-            [new MiniMaxResultConverter($httpClient, $apiKey, $endpoint)],
+            $clients,
+            $clients,
             $modelCatalog,
             $contract ?? MiniMaxContract::create(),
             $eventDispatcher,

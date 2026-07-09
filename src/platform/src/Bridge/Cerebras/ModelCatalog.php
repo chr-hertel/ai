@@ -11,7 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\Cerebras;
 
+use Symfony\AI\Platform\Bridge\Generic\ChatCompletionsClient;
 use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Endpoint;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
@@ -138,5 +140,10 @@ final class ModelCatalog extends AbstractModelCatalog
         // STATIC LIST END
 
         $this->models = array_merge($defaultModels, $additionalModels);
+    }
+
+    protected function endpointsForModel(array $modelConfig): array
+    {
+        return [new Endpoint(ChatCompletionsClient::ENDPOINT)];
     }
 }
