@@ -412,6 +412,21 @@ final class AiBundle extends AbstractBundle
     }
 
     /**
+     * Resolves the model catalog for a platform, honoring an optional
+     * "model_catalog" service id that replaces the bundled catalog.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function resolveModelCatalog(array $config, string $defaultServiceId): Reference
+    {
+        if (isset($config['model_catalog']) && '' !== $config['model_catalog']) {
+            return new Reference($config['model_catalog']);
+        }
+
+        return new Reference($defaultServiceId);
+    }
+
+    /**
      * @param array<string, mixed> $platform
      */
     private function processPlatformConfig(string $type, array $platform, ContainerBuilder $container): void
@@ -430,7 +445,7 @@ final class AiBundle extends AbstractBundle
                     $platform['api_key'],
                     $platform['base_url'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.albert'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.albert'),
                     new Reference('event_dispatcher'),
                 ])
                 ->addTag('ai.platform', ['name' => 'albert']);
@@ -464,7 +479,7 @@ final class AiBundle extends AbstractBundle
                     $platform['base_url'],
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.amazeeai'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.amazeeai'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -488,7 +503,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.anthropic'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.anthropic'),
                     new Reference('ai.platform.contract.anthropic'),
                     new Reference('event_dispatcher'),
                     $platform['cache_retention'],
@@ -517,7 +532,7 @@ final class AiBundle extends AbstractBundle
                         $config['api_version'],
                         $config['api_key'],
                         new Reference($config['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                        new Reference('ai.platform.model_catalog.azure.openai'),
+                        $this->resolveModelCatalog($config, 'ai.platform.model_catalog.azure.openai'),
                         new Reference('ai.platform.contract.openai'),
                         new Reference('event_dispatcher'),
                     ])
@@ -542,7 +557,7 @@ final class AiBundle extends AbstractBundle
                     ->addTag('proxy', ['interface' => PlatformInterface::class])
                     ->setArguments([
                         $config['bedrock_runtime_client'] ? new Reference($config['bedrock_runtime_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE) : null,
-                        $config['model_catalog'] ? new Reference($config['model_catalog']) : new Reference('ai.platform.model_catalog.bedrock'),
+                        $this->resolveModelCatalog($config, 'ai.platform.model_catalog.bedrock'),
                         null,
                         new Reference('event_dispatcher'),
                     ])
@@ -601,7 +616,7 @@ final class AiBundle extends AbstractBundle
                     $platform['api_key'],
                     $platform['version'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.cartesia'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.cartesia'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -622,7 +637,7 @@ final class AiBundle extends AbstractBundle
                     $platform['api_key'],
                     $platform['host'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.'.$type),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.'.$type),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -701,7 +716,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.gemini'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.gemini'),
                     new Reference('ai.platform.contract.gemini'),
                     new Reference('event_dispatcher'),
                 ])
@@ -757,7 +772,7 @@ final class AiBundle extends AbstractBundle
                     $platform['api_key'],
                     $platform['provider'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.huggingface'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.huggingface'),
                     new Reference('ai.platform.contract.huggingface'),
                     new Reference('event_dispatcher'),
                 ])
@@ -809,7 +824,7 @@ final class AiBundle extends AbstractBundle
                     $platform['project_id'] ?? null,
                     $platform['api_key'] ?? null,
                     $httpClient,
-                    new Reference('ai.platform.model_catalog.vertexai.gemini'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.vertexai.gemini'),
                     new Reference('ai.platform.contract.vertexai.gemini'),
                     new Reference('event_dispatcher'),
                 ])
@@ -833,7 +848,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.openai'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.openai'),
                     new Reference('ai.platform.contract.openai'),
                     $platform['region'] ?? null,
                     new Reference('event_dispatcher'),
@@ -886,7 +901,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.openrouter'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.openrouter'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -910,7 +925,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.mistral'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.mistral'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -934,7 +949,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['host_url'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.lmstudio'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.lmstudio'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -957,6 +972,7 @@ final class AiBundle extends AbstractBundle
                     $platform['endpoint'] ?? null,
                     $platform['api_key'] ?? null,
                     new Reference($platform['http_client']),
+                    isset($platform['model_catalog']) && '' !== $platform['model_catalog'] ? new Reference($platform['model_catalog']) : null,
                     new Reference('ai.platform.contract.ollama'),
                     new Reference('event_dispatcher'),
                 ])
@@ -982,7 +998,7 @@ final class AiBundle extends AbstractBundle
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
                     $platform['endpoint'],
-                    new Reference('ai.platform.model_catalog.minimax'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.minimax'),
                     new Reference('ai.platform.contract.minimax'),
                     new Reference('event_dispatcher'),
                 ])
@@ -1007,7 +1023,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.cerebras'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.cerebras'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -1031,7 +1047,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.cohere'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.cohere'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -1079,7 +1095,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.deepseek'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.deepseek'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -1103,7 +1119,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.voyage'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.voyage'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -1127,7 +1143,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.perplexity'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.perplexity'),
                     new Reference('ai.platform.contract.perplexity'),
                     new Reference('event_dispatcher'),
                 ])
@@ -1151,7 +1167,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['host_url'],
                     new Reference($platform['http_client'], ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.dockermodelrunner'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.dockermodelrunner'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -1175,7 +1191,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference('http_client', ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.scaleway'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.scaleway'),
                     null,
                     new Reference('event_dispatcher'),
                 ])
@@ -1197,7 +1213,7 @@ final class AiBundle extends AbstractBundle
                 ->setLazy(true)
                 ->addTag('proxy', ['interface' => PlatformInterface::class])
                 ->setArguments([
-                    new Reference('ai.platform.model_catalog.transformersphp'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.transformersphp'),
                     new Reference('event_dispatcher'),
                 ])
                 ->addTag('ai.platform', ['name' => 'transformersphp']);
@@ -1220,7 +1236,7 @@ final class AiBundle extends AbstractBundle
                 ->setArguments([
                     $platform['api_key'],
                     new Reference('http_client', ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('ai.platform.model_catalog.ovh'),
+                    $this->resolveModelCatalog($platform, 'ai.platform.model_catalog.ovh'),
                     null,
                     new Reference('event_dispatcher'),
                 ])

@@ -11,6 +11,7 @@ CHANGELOG
  * Add support for `ScopingHttpClient` usage in `Cloudflare` store via `http_client` option
  * Add support for `ScopingHttpClient` usage in `SurrealDB` store via `http_client` option
  * Register `StringToMessageBagListener` in DI to enable string-to-MessageBag upcasting by default
+ * Add the `model_catalog` configuration key to every platform that ships a catalog (previously only `generic`, `openresponses`, and `bedrock`), so a custom `ModelCatalogInterface` service can replace the bundled catalog; `elevenlabs` builds its catalog at runtime and remains the only exception
 
 0.10
 ----

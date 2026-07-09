@@ -76,6 +76,16 @@ Platform
  * The Albert factory no longer throws when the base URL ends with a trailing slash; the slash is
    stripped instead.
 
+ * `Ollama\Factory::createProvider()` and `createPlatform()` gained an optional `$modelCatalog`
+   parameter inserted right after `$httpClient` (matching the other bridge factories), shifting the
+   later parameters by one position. Code that passes `$contract`, `$eventDispatcher`, `$name`, or
+   `$modelRouter` positionally must switch to named arguments:
+
+   ```diff
+   -Factory::createPlatform($endpoint, $apiKey, $httpClient, $contract, $eventDispatcher);
+   +Factory::createPlatform($endpoint, $apiKey, httpClient: $httpClient, contract: $contract, eventDispatcher: $eventDispatcher);
+   ```
+
 Store
 -----
 
