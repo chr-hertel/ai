@@ -70,4 +70,9 @@ enum Capability: string
 
     // MUSIC
     case MUSIC = 'music';
+
+    public function isOutput(): bool
+    {
+        return str_starts_with($this->value, 'output-');
+    }
 }
