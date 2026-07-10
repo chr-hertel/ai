@@ -564,6 +564,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_STREAMING,
                     Capability::TOOL_CALLING,
                     Capability::INPUT_IMAGE,
+                    Capability::REASONING,
                 ],
             ],
             'o3-deep-research' => [
