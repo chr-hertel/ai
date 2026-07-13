@@ -12,6 +12,7 @@
 namespace Symfony\AI\Agent;
 
 use Symfony\AI\Agent\Exception\ExceptionInterface;
+use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\ResultInterface;
@@ -29,6 +30,13 @@ interface AgentInterface
      * @throws ExceptionInterface When the agent encounters an error (e.g., unsupported model capabilities, invalid arguments, network failures, or processor errors)
      */
     public function call(string|MessageBag|UserMessage $input, array $options = []): ResultInterface;
+
+    /**
+     * Starts the agent and returns a lazy, iterable {@see Execution} yielding progress and result updates.
+     *
+     * @param array<string, mixed> $options
+     */
+    public function run(string|MessageBag|UserMessage $input, array $options = []): Execution;
 
     /**
      * Get the agent's name, which can be used for debugging or multi-agent configuration.

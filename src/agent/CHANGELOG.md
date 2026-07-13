@@ -7,6 +7,10 @@ CHANGELOG
  * `ValidateToolCallArgumentsListener` now also validates scalar and array tool parameters carrying a `#[Schema]` attribute (`pattern`, `minLength`/`maxLength`, `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`, `multipleOf`, `minItems`/`maxItems`, `uniqueItems`, `enum`, `const`), not only object parameters validated through Symfony Validator constraints
  * [BC BREAK] Remove `Toolbox\AgentProcessor`; tool calling is now driven by the `Agent` itself, configured with the `toolbox`, `toolExecutor`, `maxToolCalls`, `excludeToolMessages`, `includeSources` and `eventDispatcher` constructor arguments
  * Add `Toolbox\ToolExecutorInterface` and its default `SequentialToolExecutor` implementation, making the execution of the requested tool calls replaceable
+ * Add `AgentInterface::run()`, returning a lazy, iterable `Execution` that reports every model request, tool call and streamed delta as a `Progress` update and the final answer as a `Result` update
+ * [BC BREAK] Remove `Toolbox\StreamListener`; streamed rounds are consumed by the agent itself and their deltas are reported as `Progress` updates of the `delta` stage
+ * [BC BREAK] Change `Toolbox\ToolExecutorInterface::execute()` to return a `Generator` of updates, returning the `ToolExecution`
+ * The tool-calling loop is now iterative instead of recursing through `AgentInterface::call()`, so `maxToolCalls` bounds the whole agent call instead of a single round
 
 0.12
 ----

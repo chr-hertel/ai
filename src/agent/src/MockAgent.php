@@ -14,6 +14,8 @@ namespace Symfony\AI\Agent;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\OutOfBoundsException;
 use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
@@ -94,6 +96,16 @@ final class MockAgent implements AgentInterface
         ];
 
         return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public function run(string|MessageBag|UserMessage $input, array $options = []): Execution
+    {
+        return new Execution(function () use ($input, $options): \Generator {
+            yield new ResultUpdate($this->call($input, $options));
+        });
     }
 
     /**

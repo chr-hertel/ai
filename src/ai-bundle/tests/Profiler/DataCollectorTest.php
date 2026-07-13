@@ -336,6 +336,7 @@ class DataCollectorTest extends TestCase
         $this->assertEquals([
             'input' => $messageBag,
             'options' => [],
+            'mode' => 'call',
             'called_at' => $clock->now(),
         ], $dataCollector->getAgents()[0]);
     }
