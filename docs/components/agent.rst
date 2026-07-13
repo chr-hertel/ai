@@ -186,6 +186,31 @@ The stages this package itself reports are available as ``Progress::STAGE_MODEL_
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
 
+Events
+------
+
+An agent dispatches events for every step of an execution, when an event dispatcher is passed to it. This is the
+hook for cross-cutting concerns like logging, caching or metrics:
+
+* :class:`Symfony\\AI\\Agent\\Event\\ExecutionStarted` before anything else runs
+* :class:`Symfony\\AI\\Agent\\Event\\ModelRequested` and :class:`Symfony\\AI\\Agent\\Event\\ModelResponded` around every model invocation, so once per tool-calling round
+* :class:`Symfony\\AI\\Agent\\Event\\ExecutionCompleted` with the final result
+
+A listener on ``ExecutionStarted`` can short-circuit the whole execution by providing a result, which is what
+makes a cache possible without touching the agent::
+
+    use Symfony\AI\Agent\Event\ExecutionStarted;
+
+    $dispatcher->addListener(ExecutionStarted::class, function (ExecutionStarted $event) use ($cache) {
+        $hit = $cache->get($event->getRequest());
+
+        if (null !== $hit) {
+            $event->setResult($hit); // the model is never invoked
+        }
+    });
+
+    $agent = new Agent($platform, $model, eventDispatcher: $dispatcher);
+
 Tools
 -----
 
