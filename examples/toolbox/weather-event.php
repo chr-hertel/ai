@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\OpenMeteo\OpenMeteo;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
@@ -27,8 +26,7 @@ $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $openMeteo = new OpenMeteo(http_client());
 $toolbox = new Toolbox([$openMeteo], logger: logger());
 $eventDispatcher = new EventDispatcher();
-$processor = new AgentProcessor($toolbox, eventDispatcher: $eventDispatcher);
-$agent = new Agent($platform, 'gpt-5-mini', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox, eventDispatcher: $eventDispatcher);
 
 // Add tool call result listener to enforce chain exits direct with structured response for weather tools
 $eventDispatcher->addListener(ToolCallsExecuted::class, static function (ToolCallsExecuted $event): void {

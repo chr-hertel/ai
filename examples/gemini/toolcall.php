@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Clock\Clock;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\Gemini\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -22,8 +21,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $platform = Factory::createPlatform(env('GEMINI_API_KEY'), http_client());
 
 $toolbox = new Toolbox([new Clock()], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gemini-2.5-flash', [$processor], [$processor]);
+$agent = new Agent($platform, 'gemini-2.5-flash', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('What time is it?'));
 $result = $agent->call($messages);

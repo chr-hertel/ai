@@ -1271,15 +1271,12 @@ final class AiBundle extends AbstractBundle
                     ->setDecoratedService('ai.toolbox.'.$name, priority: -1024);
             }
 
-            $toolProcessorDefinition = (new ChildDefinition('ai.tool.agent_processor.abstract'))
-                ->replaceArgument(0, new Reference('ai.toolbox.'.$name))
-                ->replaceArgument(3, $config['keep_tool_messages'])
-                ->replaceArgument(4, $config['include_sources'])
-                ->replaceArgument(5, $config['max_tool_calls']);
-
-            $container->setDefinition('ai.tool.agent_processor.'.$name, $toolProcessorDefinition)
-                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -10])
-                ->addTag('ai.agent.output_processor', ['agent' => $agentId, 'priority' => -10]);
+            $agentDefinition
+                ->setArgument(5, new Reference('ai.toolbox.'.$name))
+                ->setArgument(7, $config['max_tool_calls'])
+                ->setArgument(8, $config['keep_tool_messages'])
+                ->setArgument(9, $config['include_sources'])
+                ->setArgument(10, new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE));
 
             // Define specific list of tools if are explicitly defined
             if ([] !== $config['tools']['services']) {
@@ -1383,7 +1380,6 @@ final class AiBundle extends AbstractBundle
             ->setArgument(2, []) // placeholder until ProcessorCompilerPass process.
             ->setArgument(3, []) // placeholder until ProcessorCompilerPass process.
             ->setArgument(4, $name)
-            ->setArgument(5, new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE))
         ;
 
         $container->setDefinition($agentId, $agentDefinition);

@@ -204,22 +204,18 @@ documents from a source (file path, URL, etc.) via a <a href="https://github.com
 4
 5
 6
-7
-8
-9</pre>
+7</pre>
                     </div>
                 </td>
                 <td class="code">
                     <div class="highlight">
                         <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Bridge</span>\<span class="hljs-title">SimilaritySearch</span>\<span class="hljs-title">SimilaritySearch</span>;
-<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">AgentProcessor</span>;
 <span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">Toolbox</span>;
 <span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Store</span>\<span class="hljs-title">Retriever</span>;
 
 <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>retriever</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Retriever</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>store</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>vectorizer</span>);
 <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>similaritySearch</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">SimilaritySearch</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>retriever</span>);
-<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>toolbox</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Toolbox</span>([<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>similaritySearch</span>]);
-<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>processor</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">AgentProcessor</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>toolbox</span>);</pre>
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>toolbox</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Toolbox</span>([<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>similaritySearch</span>]);</pre>
                     </div>
                 </td>
             </tr>

@@ -62,13 +62,11 @@ does. Parameter descriptions come from ``@param`` docblocks on the ``__invoke()`
 Step 3: Build the Agent
 -----------------------
 
-Pass your tool instances into a :class:`Symfony\\AI\\Agent\\Toolbox\\Toolbox`, wrap it in an
-:class:`Symfony\\AI\\Agent\\Toolbox\\AgentProcessor`, and construct the
-:class:`Symfony\\AI\\Agent\\Agent`. The processor acts as both an input and output processor::
+Pass your tool instances into a :class:`Symfony\\AI\\Agent\\Toolbox\\Toolbox` and hand that toolbox to the
+:class:`Symfony\\AI\\Agent\\Agent`, which drives the tool-calling loop::
 
     use App\Tool\WeatherTool;
     use Symfony\AI\Agent\Agent;
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
     use Symfony\AI\Agent\Toolbox\Toolbox;
     use Symfony\AI\Platform\Bridge\OpenAi\Factory;
     use Symfony\Component\HttpClient\HttpClient;
@@ -76,8 +74,7 @@ Pass your tool instances into a :class:`Symfony\\AI\\Agent\\Toolbox\\Toolbox`, w
     $platform = Factory::createPlatform($apiKey, HttpClient::create());
 
     $toolbox = new Toolbox([new WeatherTool()]);
-    $processor = new AgentProcessor($toolbox);
-    $agent = new Agent($platform, 'gpt-5-mini', [$processor], [$processor]);
+    $agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox);
 
 Step 4: Let the Agent Call Tools
 --------------------------------

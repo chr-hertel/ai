@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Mapbox\Mapbox;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -23,8 +22,7 @@ $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $mapbox = new Mapbox(http_client(), env('MAPBOX_ACCESS_TOKEN'));
 $toolbox = new Toolbox([$mapbox], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gpt-5-mini', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('What address is at coordinates longitude -73.985131, latitude 40.758895?'));
 $result = $agent->call($messages);

@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Youtube\YoutubeTranscriber;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\Scaleway\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -24,8 +23,7 @@ $platform = Factory::createPlatform(env('SCALEWAY_SECRET_KEY'), http_client());
 
 $transcriber = new YoutubeTranscriber(http_client());
 $toolbox = new Toolbox([$transcriber], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gpt-oss-120b', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-oss-120b', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('Please summarize this video for me: https://www.youtube.com/watch?v=6uXW-ulpj0s'));
 $result = $agent->call($messages, ['stream' => true]);

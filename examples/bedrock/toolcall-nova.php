@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Wikipedia\Wikipedia;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\Bedrock\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -29,8 +28,7 @@ $platform = Factory::createPlatform();
 
 $wikipedia = new Wikipedia(http_client());
 $toolbox = new Toolbox([$wikipedia]);
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'nova-pro', [$processor], [$processor]);
+$agent = new Agent($platform, 'nova-pro', toolbox: $toolbox);
 
 $messages = new MessageBag(
     Message::ofUser('Who is the current chancellor of Germany? Use Wikipedia to find the answer.')

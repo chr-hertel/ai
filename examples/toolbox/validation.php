@@ -10,7 +10,6 @@
  */
 
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallArgumentsResolved;
 use Symfony\AI\Agent\Toolbox\EventListener\ValidateToolCallArgumentsListener;
@@ -47,8 +46,7 @@ $eventDispatcher = new EventDispatcher();
 $eventDispatcher->addListener(ToolCallArgumentsResolved::class, new ValidateToolCallArgumentsListener());
 
 $toolbox = new Toolbox([new GetCountryInfo()], logger: logger(), eventDispatcher: $eventDispatcher);
-$processor = new AgentProcessor($toolbox, eventDispatcher: $eventDispatcher);
-$agent = new Agent($platform, 'gpt-5-mini', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox, eventDispatcher: $eventDispatcher);
 
 $messages = new MessageBag(Message::ofUser('Use the tool to get info about Finland.'));
 $result = $agent->call($messages);

@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Clock\Clock;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\DeepSeek\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -29,8 +28,7 @@ $platform = Factory::createPlatform(env('DEEPSEEK_API_KEY'), http_client(), even
 
 $clock = new Clock(new SymfonyClock());
 $toolbox = new Toolbox([$clock], logger: logger());
-$toolProcessor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'deepseek-chat', [$toolProcessor], [$toolProcessor]);
+$agent = new Agent($platform, 'deepseek-chat', toolbox: $toolbox);
 
 $messages = new MessageBag(
     // for DeepSeek it is *mandatory* to mention JSON anywhere in the prompt when using structured output

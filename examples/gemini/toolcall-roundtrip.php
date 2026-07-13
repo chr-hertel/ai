@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Clock\Clock;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Fixtures\EuropeanCapitalsTool;
 use Symfony\AI\Platform\Bridge\Gemini\Factory;
@@ -23,8 +22,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $platform = Factory::createPlatform(env('GEMINI_API_KEY'), http_client());
 
 $toolbox = new Toolbox([new Clock(), new EuropeanCapitalsTool()], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gemini-3.1-pro-preview', [$processor], [$processor]);
+$agent = new Agent($platform, 'gemini-3.1-pro-preview', toolbox: $toolbox);
 
 $messages = new MessageBag(
     Message::forSystem('You are a helpful assistant.'),

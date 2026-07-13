@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Wikipedia\Wikipedia;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\AiMlApi\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -23,8 +22,7 @@ $platform = Factory::createPlatform(env('AIMLAPI_API_KEY'), http_client());
 
 $wikipedia = new Wikipedia(http_client());
 $toolbox = new Toolbox([$wikipedia], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'google/gemini-2.5-flash', [$processor], [$processor]);
+$agent = new Agent($platform, 'google/gemini-2.5-flash', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('Who is the current chancellor of Germany?'));
 $result = $agent->call($messages);

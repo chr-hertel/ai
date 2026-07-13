@@ -10,7 +10,6 @@
  */
 
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Agent\Toolbox\ToolCallArgumentResolver;
@@ -51,8 +50,7 @@ $platforms = [
 foreach ($platforms as $model => $platform) {
     $shippingTool = new ShippingTool();
     $toolbox = new Toolbox(tools: [$shippingTool]);
-    $processor = new AgentProcessor(toolbox: $toolbox);
-    $agent = new Agent($platform, $model, [$processor], [$processor]);
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
 
     echo "\n=== Testing with model: $model ===\n\n";
 

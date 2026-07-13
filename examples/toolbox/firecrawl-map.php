@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Firecrawl\Firecrawl;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -28,9 +27,8 @@ $firecrawl = new Firecrawl(
 );
 
 $toolbox = new Toolbox([$firecrawl], logger: logger());
-$toolProcessor = new AgentProcessor($toolbox);
 
-$agent = new Agent($platform, 'gpt-5-mini', inputProcessors: [$toolProcessor], outputProcessors: [$toolProcessor]);
+$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('Retrieve all the links from https://symfony.com then list only the ones related to the Messenger component.'));
 $result = $agent->call($messages);

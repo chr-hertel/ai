@@ -10,7 +10,6 @@
  */
 
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Agent\Toolbox\ToolFactory\MemoryToolFactory;
 use Symfony\AI\Platform\Bridge\Scaleway\Factory;
@@ -26,10 +25,9 @@ $platform = Factory::createPlatform(env('SCALEWAY_SECRET_KEY'), http_client());
 $metadataFactory = (new MemoryToolFactory())
     ->addTool(Clock::class, 'clock', 'Get the current date and time', 'now');
 $toolbox = new Toolbox([new Clock()], $metadataFactory, logger: logger());
-$processor = new AgentProcessor($toolbox);
 
 // gpt-oss-120b uses the Open Responses bridge which supports function calling
-$agent = new Agent($platform, 'gpt-oss-120b', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-oss-120b', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('What date and time is it right now?'));
 $result = $agent->call($messages);

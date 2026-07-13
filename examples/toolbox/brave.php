@@ -13,7 +13,6 @@ use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Brave\Brave;
 use Symfony\AI\Agent\Bridge\Clock\Clock;
 use Symfony\AI\Agent\Bridge\Scraper\Scraper;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -28,8 +27,7 @@ $brave = new Brave(http_client(), env('BRAVE_API_KEY'));
 $clock = new Clock(new SymfonyClock());
 $crawler = new Scraper(http_client());
 $toolbox = new Toolbox([$brave, $clock, $crawler], logger: logger());
-$processor = new AgentProcessor($toolbox, includeSources: true);
-$agent = new Agent($platform, 'gpt-5-mini', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox, includeSources: true);
 
 $prompt = <<<PROMPT
     Summarize the latest game of the Dallas Cowboys. When and where was it? Who was the opponent, what was the result,

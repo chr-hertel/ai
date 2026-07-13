@@ -10,7 +10,6 @@
  */
 
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\Gemini\Factory;
 use Symfony\AI\Platform\Message\Content\CodeExecution;
@@ -24,8 +23,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $platform = Factory::createPlatform(env('GEMINI_API_KEY'), http_client());
 
 $toolbox = new Toolbox([], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gemini-3.1-pro-preview', [$processor], [$processor]);
+$agent = new Agent($platform, 'gemini-3.1-pro-preview', toolbox: $toolbox);
 
 $options = ['server_tools' => ['code_execution' => true]];
 

@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Wikipedia\Wikipedia;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\DockerModelRunner\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -23,8 +22,7 @@ $platform = Factory::createPlatform(env('DOCKER_MODEL_RUNNER_HOST_URL'), http_cl
 
 $wikipedia = new Wikipedia(http_client());
 $toolbox = new Toolbox([$wikipedia]);
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'ai/gemma3n', [$processor], [$processor]);
+$agent = new Agent($platform, 'ai/gemma3n', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('Who is the actual Prime Minister of France?'));
 $result = $agent->call($messages);

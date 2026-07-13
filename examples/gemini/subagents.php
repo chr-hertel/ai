@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Tool\Subagent;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Agent\Toolbox\ToolFactory\MemoryToolFactory;
@@ -54,8 +53,7 @@ $memoryFactory->addTool(
 
 // Create the main orchestrating agent with both subagents as tools
 $toolbox = new Toolbox([$mathTool, $conversionTool], toolFactory: $memoryFactory, logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gemini-2.5-flash', [$processor], [$processor]);
+$agent = new Agent($platform, 'gemini-2.5-flash', toolbox: $toolbox);
 
 // Ask a question that requires both calculation and conversion
 $messages = new MessageBag(Message::ofUser('I drove 150 kilometers. How many miles is that? Also, what is 150 divided by 8?'));

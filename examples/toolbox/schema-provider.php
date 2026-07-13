@@ -10,7 +10,6 @@
  */
 
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Agent\Toolbox\ToolFactory\ReflectionToolFactory;
@@ -67,8 +66,7 @@ $schemaFactory = new SchemaFactory(new Describer([
 
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $toolbox = new Toolbox([new IssueSearchTool()], new ReflectionToolFactory($schemaFactory), logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gpt-5-mini', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('Search for closed issues'));
 $result = $agent->call($messages);

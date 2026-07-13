@@ -10,7 +10,6 @@
  */
 
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\Anthropic\Factory as AnthropicFactory;
@@ -32,8 +31,7 @@ $platforms = [
 
 foreach ($platforms as $model => $platform) {
     $toolbox = new Toolbox(tools: [new SearchTool()]);
-    $processor = new AgentProcessor(toolbox: $toolbox);
-    $agent = new Agent($platform, $model, [$processor], [$processor]);
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
 
     echo "\n=== Testing with model: $model ===\n\n";
 

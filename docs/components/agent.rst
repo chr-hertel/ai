@@ -65,20 +65,17 @@ To integrate LLMs with your application, Symfony AI supports tool calling out of
 called by the LLM to provide additional features or process data. Within a single agent call the LLM can request a chain
 of tool calls, where the result of one call may lead the model to request another.
 
-To control token costs and prevent infinite loops, the :class:`Symfony\\AI\\Agent\\Toolbox\\AgentProcessor` caps the
-number of tool-calling iterations per agent call. By default the limit is ``50``; once it is exceeded the processor
-throws a :class:`Symfony\\AI\\Agent\\Exception\\MaxIterationsExceededException`. Adjust the cap, or disable it entirely
-by passing ``null`` (unbounded), via the ``maxToolCalls`` parameter::
+To control token costs and prevent infinite loops, the agent caps the number of tool-calling iterations per agent
+call. By default the limit is ``50``; once it is exceeded the agent throws a
+:class:`Symfony\\AI\\Agent\\Exception\\MaxIterationsExceededException`. Adjust the cap, or disable it entirely by
+passing ``null`` (unbounded), via the ``maxToolCalls`` parameter::
 
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
+    $agent = new Agent($platform, $model, toolbox: $toolbox, maxToolCalls: 75); // raise the cap
+    $agent = new Agent($platform, $model, toolbox: $toolbox, maxToolCalls: null); // unbounded (no limit)
 
-    $toolProcessor = new AgentProcessor($toolbox, maxToolCalls: 75); // raise the cap
-    $toolProcessor = new AgentProcessor($toolbox, maxToolCalls: null); // unbounded (no limit)
-
-Tool calling can be enabled by registering the processors in the agent::
+Tool calling can be enabled by passing a toolbox to the agent::
 
     use Symfony\AI\Agent\Agent;
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
     use Symfony\AI\Agent\Toolbox\Toolbox;
 
     // Platform instantiation
@@ -86,9 +83,8 @@ Tool calling can be enabled by registering the processors in the agent::
     $yourTool = new YourTool();
 
     $toolbox = new Toolbox([$yourTool]);
-    $toolProcessor = new AgentProcessor($toolbox);
 
-    $agent = new Agent($platform, $model, inputProcessors: [$toolProcessor], outputProcessors: [$toolProcessor]);
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
 
 Custom tools can basically be any class, but must configure by the :class:`Symfony\\AI\\Agent\\Toolbox\\Attribute\\AsTool` attribute::
 
@@ -447,15 +443,13 @@ To gracefully handle errors that occur during tool calling, e.g. wrong tool name
 to the LLM::
 
     use Symfony\AI\Agent\Agent;
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
     use Symfony\AI\Agent\Toolbox\FaultTolerantToolbox;
 
     // Platform, LLM & Toolbox instantiation
 
     $toolbox = new FaultTolerantToolbox($innerToolbox);
-    $toolProcessor = new AgentProcessor($toolbox);
 
-    $agent = new Agent($platform, $model, inputProcessors: [$toolProcessor], outputProcessors: [$toolProcessor]);
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
 
 If you want to expose the underlying error to the LLM, you can throw a custom exception that implements :class:`Symfony\\AI\\Agent\\Toolbox\\Exception\\ToolExecutionExceptionInterface`::
 
@@ -499,13 +493,14 @@ Tool Sources
 ~~~~~~~~~~~~
 
 Some tools bring in data to the agent from external sources, like search engines or APIs. Those sources can be exposed
-by enabling `includeSources` as argument of the :class:`Symfony\\AI\\Agent\\Toolbox\\AgentProcessor`::
+by enabling `includeSources` as argument of the :class:`Symfony\\AI\\Agent\\Agent`::
 
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
+    use Symfony\AI\Agent\Agent;
     use Symfony\AI\Agent\Toolbox\Toolbox;
 
     $toolbox = new Toolbox([new MyTool()]);
-    $toolProcessor = new AgentProcessor($toolbox, includeSources: true);
+
+    $agent = new Agent($platform, $model, toolbox: $toolbox, includeSources: true);
 
 In the tool implementation sources can be added by implementing the
 :class:`Symfony\\AI\\Agent\\Toolbox\\Source\\HasSourcesInterface` in combination with the trait
@@ -611,10 +606,10 @@ Excluding Tool Messages from MessageBag
 ---------------------------------------
 
 Sometimes you might wish to exclude the tool messages (:class:`Symfony\\AI\\Platform\\Message\\AssistantMessage` containing :class:`Symfony\\AI\\Platform\\Result\\ToolCall` parts and :class:`Symfony\\AI\\Platform\\Message\\ToolCallMessage`
-containing the result) in the context. Enable the ``excludeToolMessages`` flag of the toolbox' :class:`Symfony\\AI\\Agent\\Toolbox\\AgentProcessor`
+containing the result) in the context. Enable the ``excludeToolMessages`` flag of the :class:`Symfony\\AI\\Agent\\Agent`
 to ensure those messages will be removed from your :class:`Symfony\\AI\\Platform\\Message\\MessageBag`::
 
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
+    use Symfony\AI\Agent\Agent;
     use Symfony\AI\Agent\Toolbox\Toolbox;
 
     // Platform instantiation
@@ -630,9 +625,8 @@ to ensure those messages will be removed from your :class:`Symfony\\AI\\Platform
     $tool = new MyTool();
 
     $toolbox = new Toolbox([$tool]);
-    $toolProcessor = new AgentProcessor($toolbox, excludeToolMessages: true);
 
-    $agent = new Agent($platform, $model, inputProcessors: [$toolProcessor], outputProcessors: [$toolProcessor]);
+    $agent = new Agent($platform, $model, toolbox: $toolbox, excludeToolMessages: true);
     $result = $agent->call($messages);
     // $messages will now exclude the tool messages
 
@@ -661,7 +655,6 @@ more accurate and context-aware results. Therefore, the component provides a bui
 
     use Symfony\AI\Agent\Agent;
     use Symfony\AI\Agent\Bridge\SimilaritySearch\SimilaritySearch;
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
     use Symfony\AI\Agent\Toolbox\Toolbox;
     use Symfony\AI\Platform\Message\Message;
     use Symfony\AI\Platform\Message\MessageBag;
@@ -672,8 +665,7 @@ more accurate and context-aware results. Therefore, the component provides a bui
     $retriever = new Retriever($store, $vectorizer);
     $similaritySearch = new SimilaritySearch($retriever);
     $toolbox = new Toolbox([$similaritySearch]);
-    $processor = new AgentProcessor($toolbox);
-    $agent = new Agent($platform, $model, [$processor], [$processor]);
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
 
     $messages = new MessageBag(
         Message::forSystem(<<<PROMPT

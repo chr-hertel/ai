@@ -12,7 +12,6 @@
 use Codewithkyrian\ChromaDB\Factory as ChromaDbFactory;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\SimilaritySearch\SimilaritySearch;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Fixtures\Movies;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
@@ -58,8 +57,7 @@ $indexer->index($documents);
 $retriever = new Retriever($store, $vectorizer);
 $similaritySearch = new SimilaritySearch($retriever);
 $toolbox = new Toolbox([$similaritySearch], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gpt-5-mini', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox);
 
 $messages = new MessageBag(
     Message::forSystem('Please answer all user questions only using SimilaritySearch function.'),

@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Ollama\Ollama;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\Ollama\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -23,8 +22,7 @@ $platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), httpClient: http_cli
 
 $ollama = new Ollama(http_client(), env('OLLAMA_API_KEY'));
 $toolbox = new Toolbox([$ollama], logger: logger());
-$processor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, env('OLLAMA_LLM'), [$processor], [$processor]);
+$agent = new Agent($platform, env('OLLAMA_LLM'), toolbox: $toolbox);
 
 $result = $agent->call(new MessageBag(Message::ofUser('Retrieve the content of the ollama.com homepage')));
 

@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Clock\Clock;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\VertexAi\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -29,8 +28,7 @@ $platform = Factory::createPlatform(env('GOOGLE_CLOUD_LOCATION'), env('GOOGLE_CL
 
 $clock = new Clock(new SymfonyClock());
 $toolbox = new Toolbox([$clock], logger: logger());
-$toolProcessor = new AgentProcessor($toolbox);
-$agent = new Agent($platform, 'gemini-2.5-pro', [$toolProcessor], [$toolProcessor]);
+$agent = new Agent($platform, 'gemini-2.5-pro', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('What date and time is it?'));
 $result = $agent->call($messages, ['response_format' => [

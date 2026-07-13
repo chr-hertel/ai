@@ -12,7 +12,6 @@
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Clock\Clock;
 use Symfony\AI\Agent\Bridge\Tavily\Tavily;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Platform\Message\Message;
@@ -26,8 +25,7 @@ $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $clock = new Clock(new SymfonyClock());
 $tavily = new Tavily(http_client(), env('TAVILY_API_KEY'));
 $toolbox = new Toolbox([$clock, $tavily], logger: logger());
-$processor = new AgentProcessor($toolbox, includeSources: true);
-$agent = new Agent($platform, 'gpt-5.2', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-5.2', toolbox: $toolbox, includeSources: true);
 
 $prompt = <<<PROMPT
     Summarize the latest game of the Dallas Cowboys. When and where was it? Who was the opponent, what was the result,

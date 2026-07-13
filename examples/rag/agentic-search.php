@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Fixtures\AgenticSearch\AgenticSearchTools;
@@ -134,7 +133,6 @@ $dispatcher->addListener(ToolCallSucceeded::class, static function (ToolCallSucc
 });
 
 $toolbox = new Toolbox([$tools], logger: logger(), eventDispatcher: $dispatcher);
-$processor = new AgentProcessor($toolbox, eventDispatcher: $dispatcher);
 
 $systemPrompt = <<<'PROMPT'
 You are a thorough search research agent. Your job is to find ALL relevant documents in a corpus to answer a research question completely.
@@ -160,8 +158,9 @@ PROMPT;
 $agent = new Agent(
     $platform,
     'gpt-4.1',
-    [new SystemPromptInputProcessor($systemPrompt), $processor],
-    [$processor],
+    [new SystemPromptInputProcessor($systemPrompt)],
+    toolbox: $toolbox,
+    eventDispatcher: $dispatcher,
 );
 
 // 4. Ask a multi-hop question that requires iterative search

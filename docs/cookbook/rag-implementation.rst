@@ -101,14 +101,12 @@ Step 4: Configure Similarity Search Tool
 Create a tool that performs semantic search on your vector store::
 
     use Symfony\AI\Agent\Bridge\SimilaritySearch\SimilaritySearch;
-    use Symfony\AI\Agent\Toolbox\AgentProcessor;
     use Symfony\AI\Agent\Toolbox\Toolbox;
     use Symfony\AI\Store\Retriever;
 
     $retriever = new Retriever($store, $vectorizer);
     $similaritySearch = new SimilaritySearch($retriever);
     $toolbox = new Toolbox([$similaritySearch]);
-    $processor = new AgentProcessor($toolbox);
 
 The :class:`Symfony\\AI\\Agent\\Bridge\\SimilaritySearch\\SimilaritySearch` tool:
 

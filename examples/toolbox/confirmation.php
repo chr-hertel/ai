@@ -11,7 +11,6 @@
 
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Bridge\Filesystem\Filesystem;
-use Symfony\AI\Agent\Toolbox\AgentProcessor;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
@@ -34,8 +33,7 @@ $eventDispatcher->addListener(ToolCallRequested::class, static function (ToolCal
 });
 
 $toolbox = new Toolbox([new Filesystem(new SymfonyFilesystem(), __DIR__)], logger: logger(), eventDispatcher: $eventDispatcher);
-$processor = new AgentProcessor($toolbox, eventDispatcher: $eventDispatcher);
-$agent = new Agent($platform, 'gpt-4o-mini', [$processor], [$processor]);
+$agent = new Agent($platform, 'gpt-4o-mini', toolbox: $toolbox, eventDispatcher: $eventDispatcher);
 
 $messages = new MessageBag(Message::ofUser('First, list the files in this folder. Then delete the file confirmation.php'));
 

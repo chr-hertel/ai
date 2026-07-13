@@ -1,3 +1,23 @@
+UPGRADE FROM 0.12 to 0.13
+=========================
+
+Agent
+-----
+
+ * `Toolbox\AgentProcessor` has been removed. Tool calling is no longer wired as an input/output processor pair;
+   the `Agent` drives the tool-calling loop itself. Pass the toolbox and its settings to the `Agent` instead:
+
+   ```diff
+   -$processor = new AgentProcessor($toolbox, includeSources: true, maxToolCalls: 75);
+   -$agent = new Agent($platform, $model, [$processor], [$processor]);
+   +$agent = new Agent($platform, $model, toolbox: $toolbox, maxToolCalls: 75, includeSources: true);
+   ```
+
+   The `excludeToolMessages`, `includeSources`, `maxToolCalls` and `eventDispatcher` settings moved from the
+   processor to the `Agent` constructor unchanged. Which tool calls get executed is now delegated to the new
+   `Toolbox\ToolExecutorInterface` (default: `SequentialToolExecutor`), so a custom execution strategy can be
+   plugged in via the `toolExecutor` argument.
+
 UPGRADE FROM 0.11 to 0.12
 =========================
 
