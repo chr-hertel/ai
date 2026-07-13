@@ -18,6 +18,38 @@ Agent
    `Toolbox\ToolExecutorInterface` (default: `SequentialToolExecutor`), so a custom execution strategy can be
    plugged in via the `toolExecutor` argument.
 
+ * `AgentInterface` gained a `run()` method returning a lazy `Execution`. Custom implementations have to implement
+   it; decorators can simply forward it, and implementations that have nothing to report can wrap their result:
+
+   ```php
+   public function run(string|MessageBag|UserMessage $input, array $options = []): Execution
+   {
+       return new Execution(function (): \Generator {
+           yield new Result($this->call($input, $options));
+       });
+   }
+   ```
+
+ * `Toolbox\StreamListener` has been removed. Streamed rounds are consumed by the agent itself, which reports each
+   delta as a `Progress` update of the `delta` stage on the `Execution`. `$agent->call($messages, ['stream' => true])`
+   keeps returning a `StreamResult`, so consumers iterating `$result->getContent()` are unaffected:
+
+   ```php
+   // still works, the StreamResult is now backed by the Execution
+   $result = $agent->call($messages, ['stream' => true]);
+   foreach ($result->getContent() as $delta) { /* ... */ }
+
+   // or observe the whole execution instead
+   foreach ($agent->run($messages, ['stream' => true]) as $update) { /* ... */ }
+   ```
+
+   Two behavioural consequences: output processors now see the final, fully streamed result instead of the
+   not-yet-consumed `StreamResult`, and the tool-calling loop no longer recurses through `AgentInterface::call()`,
+   so input processors run once per agent call instead of once per tool-calling round.
+
+ * The `maxToolCalls` cap is now enforced across the whole agent call. Previously the counter was reset on every
+   round of the tool-calling recursion, so the cap effectively only bounded a single round.
+
 AI Bundle
 ---------
 

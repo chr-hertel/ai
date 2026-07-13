@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Agent;
 
+use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -61,6 +63,16 @@ final class SpeechAgent implements AgentInterface
         $speechResult->getMetadata()->add('text', $result->getContent());
 
         return $speechResult->getResult();
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    public function run(string|MessageBag|UserMessage $input, array $options = []): Execution
+    {
+        return new Execution(function () use ($input, $options): \Generator {
+            yield new ResultUpdate($this->call($input, $options));
+        });
     }
 
     public function getName(): string
