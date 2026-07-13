@@ -33,6 +33,30 @@ Agent
  * An optional `MessageStoreInterface` can be passed via the `store:` argument to make
    the agent stateful: it loads, appends and persists the conversation across calls.
 
+ * Human-in-the-loop: a tool can pause the execution by throwing
+   `Toolbox\Exception\ToolInteractionException`, and tools listed in the
+   `toolsRequiringApproval` argument of `SequentialToolExecutor` pause before executing.
+   Consumers either answer inline via `run()` with an `onInteraction()` handler, or let
+   `call()`/`await()` throw an `InteractionRequiredException` and resume later — the
+   `Interaction` carries the pending tool call and a full conversation snapshot:
+
+   ```php
+   // inline
+   $result = $agent->run('...')
+       ->onInteraction(fn (Interaction $i) => new InteractionResponse($this->askUser($i->getPrompt())))
+       ->await();
+
+   // persist and resume in another process
+   try {
+       $result = $agent->call('...');
+   } catch (InteractionRequiredException $e) {
+       $interaction = $e->getInteraction();
+       // persist $interaction->getMessages() and $interaction->getToolCall(), collect the
+       // answer, then: $messages = new MessageBag(...persisted)->with(Message::ofToolCall($toolCall, $answer));
+       // and $agent->call($messages) to continue.
+   }
+   ```
+
  * The input/output processor system was removed in favor of the context processor
    one. Classes removed: `InputProcessorInterface`, `OutputProcessorInterface`,
    `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `Attribute\AsInputProcessor`,
