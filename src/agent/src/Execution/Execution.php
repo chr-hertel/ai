@@ -12,6 +12,7 @@
 namespace Symfony\AI\Agent\Execution;
 
 use Symfony\AI\Agent\Exception\InteractionRequiredException;
+use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Update\Interaction;
 use Symfony\AI\Agent\Execution\Update\Progress;
@@ -47,6 +48,8 @@ final class Execution implements \IteratorAggregate
      */
     private array $resultCallbacks = [];
 
+    private bool $consumed = false;
+
     /**
      * @param \Closure(): \Generator<int, UpdateInterface, mixed, void> $factory
      */
@@ -60,7 +63,7 @@ final class Execution implements \IteratorAggregate
      */
     public function getIterator(): \Generator
     {
-        return ($this->factory)();
+        return $this->consume();
     }
 
     /**
@@ -101,7 +104,7 @@ final class Execution implements \IteratorAggregate
      */
     public function await(): ResultInterface
     {
-        $generator = ($this->factory)();
+        $generator = $this->consume();
         $result = null;
 
         while ($generator->valid()) {
@@ -144,5 +147,22 @@ final class Execution implements \IteratorAggregate
         }
 
         return $result;
+    }
+
+    /**
+     * An execution runs the agent, including its side effects — consuming it
+     * twice would silently run the agent twice.
+     *
+     * @return \Generator<int, UpdateInterface, mixed, void>
+     */
+    private function consume(): \Generator
+    {
+        if ($this->consumed) {
+            throw new LogicException('The execution was already consumed. Call Agent::run() again for a new execution.');
+        }
+
+        $this->consumed = true;
+
+        return ($this->factory)();
     }
 }
