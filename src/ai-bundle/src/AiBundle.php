@@ -17,15 +17,9 @@ use Google\Auth\FetchAuthTokenInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
-use Symfony\AI\Agent\Attribute\AsInputProcessor;
-use Symfony\AI\Agent\Attribute\AsOutputProcessor;
-use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
-use Symfony\AI\Agent\InputProcessorInterface;
-use Symfony\AI\Agent\Memory\MemoryInputProcessor;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
+use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
-use Symfony\AI\Agent\OutputProcessorInterface;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
@@ -337,24 +331,8 @@ final class AiBundle extends AbstractBundle
                 ]);
             });
 
-            $builder->registerAttributeForAutoconfiguration(AsInputProcessor::class, static function (ChildDefinition $definition, AsInputProcessor $attribute): void {
-                $definition->addTag('ai.agent.input_processor', [
-                    'agent' => $attribute->agent,
-                    'priority' => $attribute->priority,
-                ]);
-            });
-
-            $builder->registerAttributeForAutoconfiguration(AsOutputProcessor::class, static function (ChildDefinition $definition, AsOutputProcessor $attribute): void {
-                $definition->addTag('ai.agent.output_processor', [
-                    'agent' => $attribute->agent,
-                    'priority' => $attribute->priority,
-                ]);
-            });
-
-            $builder->registerForAutoconfiguration(InputProcessorInterface::class)
-                ->addTag('ai.agent.input_processor', ['tagged_by' => 'interface']);
-            $builder->registerForAutoconfiguration(OutputProcessorInterface::class)
-                ->addTag('ai.agent.output_processor', ['tagged_by' => 'interface']);
+            $builder->registerForAutoconfiguration(ContextProcessorInterface::class)
+                ->addTag('ai.agent.context_processor', ['tagged_by' => 'interface']);
         }
 
         $builder->registerForAutoconfiguration(ModelClientInterface::class)
@@ -1243,8 +1221,12 @@ final class AiBundle extends AbstractBundle
         $agentId = 'ai.agent.'.$name;
         $agentDefinition = (new Definition(Agent::class))
             ->addTag('ai.agent', ['name' => $name])
-            ->setArgument(0, new Reference($config['platform']))
-            ->setArgument(1, $config['model']);
+            ->setArgument('$platform', new Reference($config['platform']))
+            ->setArgument('$name', $name)
+            ->setArgument('$model', $config['model'])
+            ->setArgument('$maxToolCalls', $config['max_tool_calls'])
+            // Placeholder replaced by ProcessorCompilerPass with the tagged context processors.
+            ->setArgument('$contextProcessors', []);
 
         // TOOLBOX
         if ($config['tools']['enabled']) {
@@ -1269,15 +1251,9 @@ final class AiBundle extends AbstractBundle
                     ->setDecoratedService('ai.toolbox.'.$name, priority: -1024);
             }
 
-            $toolProcessorDefinition = (new ChildDefinition('ai.tool.agent_processor.abstract'))
-                ->replaceArgument(0, new Reference('ai.toolbox.'.$name))
-                ->replaceArgument(3, $config['keep_tool_messages'])
-                ->replaceArgument(4, $config['include_sources'])
-                ->replaceArgument(5, $config['max_tool_calls']);
-
-            $container->setDefinition('ai.tool.agent_processor.'.$name, $toolProcessorDefinition)
-                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -10])
-                ->addTag('ai.agent.output_processor', ['agent' => $agentId, 'priority' => -10]);
+            // The reworked Agent builds its own ToolProcessor and SequentialToolExecutor
+            // from the toolbox passed as the sole ToolboxInterface entry of $tools.
+            $agentDefinition->setArgument('$tools', [new Reference('ai.toolbox.'.$name)]);
 
             // Define specific list of tools if are explicitly defined
             if ([] !== $config['tools']['services']) {
@@ -1304,12 +1280,10 @@ final class AiBundle extends AbstractBundle
             }
         }
 
-        // SYSTEM PROMPT
+        // SYSTEM PROMPT (agent instruction)
         if (isset($config['prompt'])) {
-            $includeTools = isset($config['prompt']['include_tools']) && $config['prompt']['include_tools'];
-
-            if ($includeTools && !$config['tools']['enabled']) {
-                throw new InvalidArgumentException(\sprintf('Agent "%s" has "prompt.include_tools" enabled, but no tools are configured. Enable tools with "tools: true" or configure an explicit list of tools.', $name));
+            if (isset($config['prompt']['include_tools']) && $config['prompt']['include_tools']) {
+                throw new InvalidArgumentException(\sprintf('Agent "%s" configures "prompt.include_tools", which is no longer supported after the Agent rework. The system prompt no longer embeds tool definitions; remove the option.', $name));
             }
 
             // Create prompt from file if configured, otherwise use text
@@ -1341,16 +1315,8 @@ final class AiBundle extends AbstractBundle
                 $prompt = '';
             }
 
-            $systemPromptInputProcessorDefinition = (new Definition(SystemPromptInputProcessor::class))
-                ->setArguments([
-                    $prompt,
-                    $includeTools ? new Reference('ai.toolbox.'.$name) : null,
-                    new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
-                ])
-                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -30]);
-
-            $container->setDefinition('ai.agent.'.$name.'.system_prompt_processor', $systemPromptInputProcessorDefinition);
+            // The Agent turns the instruction into an InstructionProcessor internally.
+            $agentDefinition->setArgument('$instruction', $prompt);
         }
 
         // MEMORY PROVIDER
@@ -1370,19 +1336,13 @@ final class AiBundle extends AbstractBundle
                 $memoryProviderReference = new Reference($staticMemoryServiceId);
             }
 
-            $memoryInputProcessorDefinition = (new Definition(MemoryInputProcessor::class))
+            // Memory is now a context processor collected into the agent's $contextProcessors.
+            $memoryProcessorDefinition = (new Definition(MemoryProcessor::class))
                 ->setArguments([[$memoryProviderReference]])
-                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -40]);
+                ->addTag('ai.agent.context_processor', ['agent' => $agentId, 'priority' => -40]);
 
-            $container->setDefinition('ai.agent.'.$name.'.memory_input_processor', $memoryInputProcessorDefinition);
+            $container->setDefinition('ai.agent.'.$name.'.memory_processor', $memoryProcessorDefinition);
         }
-
-        $agentDefinition
-            ->setArgument(2, []) // placeholder until ProcessorCompilerPass process.
-            ->setArgument(3, []) // placeholder until ProcessorCompilerPass process.
-            ->setArgument(4, $name)
-            ->setArgument(5, new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE))
-        ;
 
         $container->setDefinition($agentId, $agentDefinition);
         $container->registerAliasForArgument($agentId, AgentInterface::class, (new Target($name))->getParsedName());
@@ -2638,44 +2598,7 @@ final class AiBundle extends AbstractBundle
      */
     private function processMultiAgentConfig(string $name, array $config, ContainerBuilder $container): void
     {
-        $orchestratorServiceId = self::normalizeAgentServiceId($config['orchestrator']);
-
-        $handoffReferences = [];
-
-        foreach ($config['handoffs'] as $agentName => $whenConditions) {
-            // Create handoff definitions directly (not as separate services)
-            // The container will inline simple value objects like Handoff
-            $handoffReferences[] = new Definition(Handoff::class, [
-                new Reference(self::normalizeAgentServiceId($agentName)),
-                $whenConditions,
-            ]);
-        }
-
-        $multiAgentId = 'ai.multi_agent.'.$name;
-        $multiAgentDefinition = new Definition(MultiAgent::class, [
-            new Reference($orchestratorServiceId),
-            $handoffReferences,
-            new Reference(self::normalizeAgentServiceId($config['fallback'])),
-            $name,
-        ]);
-
-        $multiAgentDefinition->addTag('ai.multi_agent', ['name' => $name]);
-        $multiAgentDefinition->addTag('ai.agent', ['name' => $name]);
-
-        $container->setDefinition($multiAgentId, $multiAgentDefinition);
-        $container->registerAliasForArgument($multiAgentId, AgentInterface::class, (new Target($name))->getParsedName());
-    }
-
-    /**
-     * Ensures an agent name has the 'ai.agent.' prefix for service resolution.
-     *
-     * @param non-empty-string $agentName
-     *
-     * @return non-empty-string
-     */
-    private static function normalizeAgentServiceId(string $agentName): string
-    {
-        return str_starts_with($agentName, 'ai.agent.') ? $agentName : 'ai.agent.'.$agentName;
+        throw new InvalidArgumentException(\sprintf('The "multi_agent" configuration (agent "%s") is no longer supported after the Agent rework. The dedicated MultiAgent orchestrator and its "fallback" concept were removed; handoffs now live on the agent itself via the Handoff API. Bundle-level wiring for this will be reintroduced once the design is settled.', $name));
     }
 
     /**

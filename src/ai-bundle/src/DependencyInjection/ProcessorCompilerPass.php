@@ -11,29 +11,32 @@
 
 namespace Symfony\AI\AiBundle\DependencyInjection;
 
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
+use Symfony\AI\Agent\Agent;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
+/**
+ * Collects the services tagged "ai.agent.context_processor" into the
+ * "$contextProcessors" argument of every agent definition, honoring the
+ * optional per-agent "agent" tag attribute and the "priority" ordering.
+ */
 class ProcessorCompilerPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container): void
     {
-        $inputProcessors = $container->findTaggedServiceIds('ai.agent.input_processor');
-        $outputProcessors = $container->findTaggedServiceIds('ai.agent.output_processor');
+        $contextProcessors = $container->findTaggedServiceIds('ai.agent.context_processor');
 
         foreach ($container->findTaggedServiceIds('ai.agent') as $serviceId => $tags) {
             $agentDefinition = $container->getDefinition($serviceId);
 
-            // Skip MultiAgent services - they have a different constructor signature
-            if (MultiAgent::class === $agentDefinition->getClass()) {
+            // Only plain agents accept a $contextProcessors argument.
+            if (Agent::class !== $agentDefinition->getClass()) {
                 continue;
             }
 
-            $agentInputProcessors = [];
-            $agentOutputProcessors = [];
-            foreach ($inputProcessors as $processorId => $processorTags) {
+            $agentContextProcessors = [];
+            foreach ($contextProcessors as $processorId => $processorTags) {
                 foreach ($processorTags as $tag) {
                     if ('interface' === ($tag['tagged_by'] ?? null) && \count($processorTags) > 1) {
                         continue;
@@ -42,32 +45,15 @@ class ProcessorCompilerPass implements CompilerPassInterface
                     $agent = $tag['agent'] ?? null;
                     if (null === $agent || $agent === $serviceId) {
                         $priority = $tag['priority'] ?? 0;
-                        $agentInputProcessors[] = [$priority, new Reference($processorId)];
-                    }
-                }
-            }
-
-            foreach ($outputProcessors as $processorId => $processorTags) {
-                foreach ($processorTags as $tag) {
-                    if ('interface' === ($tag['tagged_by'] ?? null) && \count($processorTags) > 1) {
-                        continue;
-                    }
-
-                    $agent = $tag['agent'] ?? null;
-                    if (null === $agent || $agent === $serviceId) {
-                        $priority = $tag['priority'] ?? 0;
-                        $agentOutputProcessors[] = [$priority, new Reference($processorId)];
+                        $agentContextProcessors[] = [$priority, new Reference($processorId)];
                     }
                 }
             }
 
             $sortCb = static fn (array $a, array $b): int => $b[0] <=> $a[0];
-            usort($agentInputProcessors, $sortCb);
-            usort($agentOutputProcessors, $sortCb);
+            usort($agentContextProcessors, $sortCb);
 
-            $agentDefinition
-                ->setArgument(2, array_column($agentInputProcessors, 1))
-                ->setArgument(3, array_column($agentOutputProcessors, 1));
+            $agentDefinition->setArgument('$contextProcessors', array_column($agentContextProcessors, 1));
         }
     }
 }

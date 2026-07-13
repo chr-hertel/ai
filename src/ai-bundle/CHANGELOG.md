@@ -4,6 +4,21 @@ CHANGELOG
 0.11
 ----
 
+ * [BC BREAK] Adapt the bundle to the reworked Agent component. Agents are now wired through the new
+   `Agent` constructor using named arguments: the system prompt is passed as `$instruction`, the toolbox
+   as the sole `ToolboxInterface` entry of `$tools`, and `max_tool_calls` as `$maxToolCalls`. The former
+   `SystemPromptInputProcessor`, `MemoryInputProcessor`, and `Toolbox\AgentProcessor` wiring
+   (`ai.agent.*.system_prompt_processor`, `ai.agent.*.memory_input_processor`, `ai.tool.agent_processor.*`)
+   was removed
+ * [BC BREAK] Replace the `ai.agent.input_processor` / `ai.agent.output_processor` tags and the
+   `AsInputProcessor` / `AsOutputProcessor` autoconfiguration with a single `ai.agent.context_processor`
+   tag collected into the agent's `$contextProcessors` argument. Services implementing
+   `Context\ContextProcessorInterface` are autoconfigured with that tag. Memory is now wired as a
+   `Context\Processor\MemoryProcessor` (service `ai.agent.*.memory_processor`)
+ * [BC BREAK] Remove the `prompt.include_tools` option (throws when set), the `keep_tool_messages` and
+   `include_sources` agent options (no equivalent after the rework)
+ * [BC BREAK] The `multi_agent` configuration is no longer supported after the rework (the dedicated
+   `MultiAgent` orchestrator and its `fallback` concept were removed); configuring it now throws
  * Add `AiAssertionsTrait` for functional tests based on Profiler data
  * Add `minimax` platform configuration for the MiniMax bridge
  * Autoconfigure `SchemaProviderInterface` implementations so they can be referenced from `#[Schema(provider: ...)]`, and validate those references on tools at container build time

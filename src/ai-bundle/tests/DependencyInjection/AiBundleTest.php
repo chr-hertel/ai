@@ -22,11 +22,10 @@ use PHPUnit\Framework\TestCase;
 use Probots\Pinecone\Client as PineconeClient;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
-use Symfony\AI\Agent\Memory\MemoryInputProcessor;
+use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\AiBundle\AiBundle;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
@@ -399,11 +398,9 @@ class AiBundleTest extends TestCase
         $this->assertTrue($container->hasDefinition('ai.agent.my_custom_agent'));
 
         $agentDefinition = $container->getDefinition('ai.agent.my_custom_agent');
-        $arguments = $agentDefinition->getArguments();
 
-        // The 5th argument (index 4) should be the config key as agent name
-        $this->assertArrayHasKey(4, $arguments, 'Agent definition should have argument at index 4 for name');
-        $this->assertSame('my_custom_agent', $arguments[4]);
+        // The name is passed as the keyed $name constructor argument.
+        $this->assertSame('my_custom_agent', $agentDefinition->getArgument('$name'));
 
         // Check that the tag uses the config key as name
         $tags = $agentDefinition->getTag('ai.agent');
@@ -4482,10 +4479,11 @@ class AiBundleTest extends TestCase
     }
 
     /**
-     * Tests that processor tags use the full agent ID (ai.agent.my_agent) instead of just the agent name (my_agent).
-     * This regression test prevents issues where processors would not be correctly associated with their agents.
+     * The reworked Agent receives its toolbox as the sole entry of the $tools argument
+     * and its system prompt as the $instruction argument, instead of dedicated
+     * input/output processor services.
      */
-    #[TestDox('Processor tags use the full agent ID instead of just the agent name')]
+    #[TestDox('Agent wires the toolbox into $tools and the prompt into $instruction')]
     public function testProcessorTagsUseFullAgentId()
     {
         $container = $this->buildContainer([
@@ -4502,26 +4500,56 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $agentId = 'ai.agent.test_agent';
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
 
-        // Test tool processor tags
-        $toolProcessorDefinition = $container->getDefinition('ai.tool.agent_processor.test_agent');
-        $toolProcessorTags = $toolProcessorDefinition->getTag('ai.agent.input_processor');
-        $this->assertNotEmpty($toolProcessorTags, 'Tool processor should have input processor tags');
-        $this->assertSame($agentId, $toolProcessorTags[0]['agent'], 'Tool input processor tag should use full agent ID');
+        $this->assertEquals([new Reference('ai.toolbox.test_agent')], $agentDefinition->getArgument('$tools'));
+        $this->assertSame('You are a test assistant.', $agentDefinition->getArgument('$instruction'));
 
-        $outputTags = $toolProcessorDefinition->getTag('ai.agent.output_processor');
-        $this->assertNotEmpty($outputTags, 'Tool processor should have output processor tags');
-        $this->assertSame($agentId, $outputTags[0]['agent'], 'Tool output processor tag should use full agent ID');
-
-        // Test system prompt processor tags
-        $systemPromptDefinition = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
-        $systemPromptTags = $systemPromptDefinition->getTag('ai.agent.input_processor');
-        $this->assertNotEmpty($systemPromptTags, 'System prompt processor should have input processor tags');
-        $this->assertSame($agentId, $systemPromptTags[0]['agent'], 'System prompt processor tag should use full agent ID');
+        // Legacy processor services are gone.
+        $this->assertFalse($container->hasDefinition('ai.tool.agent_processor.test_agent'));
+        $this->assertFalse($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
     }
 
-    #[TestDox('Processors work correctly with multiple agents')]
+    #[TestDox('Agent definition only uses argument keys that exist on the reworked constructor')]
+    public function testAgentDefinitionArgumentsMatchConstructor()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'test_agent' => [
+                        'model' => 'gpt-4',
+                        'memory' => 'Some static memory',
+                        'tools' => true,
+                        'prompt' => 'You are a test assistant.',
+                        'max_tool_calls' => 7,
+                    ],
+                ],
+            ],
+        ]);
+
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
+        $this->assertSame(Agent::class, $agentDefinition->getClass());
+
+        $constructorParameters = array_map(
+            static fn (\ReflectionParameter $parameter): string => '$'.$parameter->getName(),
+            (new \ReflectionMethod(Agent::class, '__construct'))->getParameters(),
+        );
+
+        foreach (array_keys($agentDefinition->getArguments()) as $argumentKey) {
+            $this->assertIsString($argumentKey, 'Agent arguments must be keyed by constructor parameter name, not positionally.');
+            $this->assertContains($argumentKey, $constructorParameters, \sprintf('Agent definition passes unknown constructor argument "%s".', $argumentKey));
+        }
+
+        // The values the bundle wires for this agent.
+        $this->assertSame('gpt-4', $agentDefinition->getArgument('$model'));
+        $this->assertSame('test_agent', $agentDefinition->getArgument('$name'));
+        $this->assertSame(7, $agentDefinition->getArgument('$maxToolCalls'));
+        $this->assertSame('You are a test assistant.', $agentDefinition->getArgument('$instruction'));
+        $this->assertEquals([new Reference('ai.toolbox.test_agent')], $agentDefinition->getArgument('$tools'));
+        $this->assertInstanceOf(Reference::class, $agentDefinition->getArgument('$platform'));
+    }
+
+    #[TestDox('Multiple agents each wire their own toolbox and instruction')]
     public function testMultipleAgentsWithProcessors()
     {
         $container = $this->buildContainer([
@@ -4545,31 +4573,13 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        // Check that each agent has its own properly tagged processors
-        $firstAgentId = 'ai.agent.first_agent';
-        $secondAgentId = 'ai.agent.second_agent';
+        $firstAgent = $container->getDefinition('ai.agent.first_agent');
+        $this->assertEquals([new Reference('ai.toolbox.first_agent')], $firstAgent->getArgument('$tools'));
+        $this->assertSame('First agent prompt', $firstAgent->getArgument('$instruction'));
 
-        // First agent tool processor
-        $firstToolProcessor = $container->getDefinition('ai.tool.agent_processor.first_agent');
-        $firstToolTags = $firstToolProcessor->getTag('ai.agent.input_processor');
-        $this->assertSame($firstAgentId, $firstToolTags[0]['agent']);
-
-        // Second agent tool processor
-        $secondToolProcessor = $container->getDefinition('ai.tool.agent_processor.second_agent');
-        $secondToolTags = $secondToolProcessor->getTag('ai.agent.input_processor');
-        $this->assertSame($secondAgentId, $secondToolTags[0]['agent']);
-
-        // First agent system prompt processor
-        $firstSystemPrompt = $container->getDefinition('ai.agent.first_agent.system_prompt_processor');
-        $firstSystemTags = $firstSystemPrompt->getTag('ai.agent.input_processor');
-        $this->assertSame($firstAgentId, $firstSystemTags[0]['agent']);
-        $this->assertCount(3, array_filter($firstSystemPrompt->getArguments()));
-
-        // Second agent system prompt processor
-        $secondSystemPrompt = $container->getDefinition('ai.agent.second_agent.system_prompt_processor');
-        $secondSystemTags = $secondSystemPrompt->getTag('ai.agent.input_processor');
-        $this->assertSame($secondAgentId, $secondSystemTags[0]['agent']);
-        $this->assertCount(3, array_filter($secondSystemPrompt->getArguments()));
+        $secondAgent = $container->getDefinition('ai.agent.second_agent');
+        $this->assertEquals([new Reference('ai.toolbox.second_agent')], $secondAgent->getArgument('$tools'));
+        $this->assertSame('Second agent prompt', $secondAgent->getArgument('$instruction'));
     }
 
     public function testMaxToolCallsDefaultsToFifty()
@@ -4585,9 +4595,9 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $toolProcessor = $container->getDefinition('ai.tool.agent_processor.test_agent');
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
 
-        $this->assertSame(50, $toolProcessor->getArguments()['index_5']);
+        $this->assertSame(50, $agentDefinition->getArgument('$maxToolCalls'));
     }
 
     /**
@@ -4614,12 +4624,12 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $toolProcessor = $container->getDefinition('ai.tool.agent_processor.test_agent');
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
 
-        $this->assertSame($maxToolCalls, $toolProcessor->getArguments()['index_5']);
+        $this->assertSame($maxToolCalls, $agentDefinition->getArgument('$maxToolCalls'));
     }
 
-    #[TestDox('Processors work correctly when using the default toolbox')]
+    #[TestDox('Agent references the default toolbox when tools are enabled without an explicit list')]
     public function testToolboxWithoutExplicitToolsDefined()
     {
         $container = $this->buildContainer([
@@ -4633,33 +4643,10 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $agentId = 'ai.agent.agent_with_tools';
+        $this->assertTrue($container->hasDefinition('ai.toolbox.agent_with_tools'));
 
-        // When using default toolbox, the ai.tool.agent_processor service gets the tags
-        $defaultToolProcessor = $container->getDefinition('ai.tool.agent_processor.agent_with_tools');
-        $inputTags = $defaultToolProcessor->getTag('ai.agent.input_processor');
-        $outputTags = $defaultToolProcessor->getTag('ai.agent.output_processor');
-
-        // Find tags for our specific agent
-        $foundInput = false;
-        $foundOutput = false;
-
-        foreach ($inputTags as $tag) {
-            if (($tag['agent'] ?? '') === $agentId) {
-                $foundInput = true;
-                break;
-            }
-        }
-
-        foreach ($outputTags as $tag) {
-            if (($tag['agent'] ?? '') === $agentId) {
-                $foundOutput = true;
-                break;
-            }
-        }
-
-        $this->assertTrue($foundInput, 'Default tool processor should have input tag with full agent ID');
-        $this->assertTrue($foundOutput, 'Default tool processor should have output tag with full agent ID');
+        $agentDefinition = $container->getDefinition('ai.agent.agent_with_tools');
+        $this->assertEquals([new Reference('ai.toolbox.agent_with_tools')], $agentDefinition->getArgument('$tools'));
     }
 
     public function testAgentWithoutToolsConfigDoesNotRegisterToolbox()
@@ -4746,7 +4733,6 @@ class AiBundleTest extends TestCase
         ]);
 
         $this->assertTrue($container->hasDefinition('ai.toolbox.my_agent'));
-        $this->assertTrue($container->hasDefinition('ai.tool.agent_processor.my_agent'));
 
         $toolboxDefinition = $container->getDefinition('ai.toolbox.my_agent');
         $this->assertInstanceOf(ChildDefinition::class, $toolboxDefinition);
@@ -4792,16 +4778,17 @@ class AiBundleTest extends TestCase
         $this->assertEquals([new Reference('some_service')], $toolboxDefinition->getArgument(0));
     }
 
-    public function testIncludeToolsWithoutToolsThrowsException()
+    public function testIncludeToolsIsNoLongerSupported()
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Agent "my_agent" has "prompt.include_tools" enabled, but no tools are configured.');
+        $this->expectExceptionMessage('Agent "my_agent" configures "prompt.include_tools", which is no longer supported after the Agent rework.');
 
         $this->buildContainer([
             'ai' => [
                 'agent' => [
                     'my_agent' => [
                         'model' => 'gpt-4',
+                        'tools' => true,
                         'prompt' => [
                             'text' => 'You are a helpful assistant.',
                             'include_tools' => true,
@@ -5291,44 +5278,12 @@ class AiBundleTest extends TestCase
         $this->assertEquals([], $arguments[1]);
         $this->assertEquals('prompts', $arguments[2]);
 
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
-        $definition = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
-        $arguments = $definition->getArguments();
-
-        $this->assertEquals(new Reference('ai.agent.prompt.test_agent'), $arguments[0]);
-        $this->assertNull($arguments[1]); // include_tools is false, so null reference
+        // The translatable prompt is passed as the agent instruction.
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
+        $this->assertEquals(new Reference('ai.agent.prompt.test_agent'), $agentDefinition->getArgument('$instruction'));
     }
 
-    #[TestDox('System prompt with include_tools enabled works correctly')]
-    public function testSystemPromptWithIncludeToolsEnabled()
-    {
-        $container = $this->buildContainer([
-            'ai' => [
-                'agent' => [
-                    'test_agent' => [
-                        'model' => 'gpt-4',
-                        'prompt' => [
-                            'text' => 'You are a helpful assistant.',
-                            'include_tools' => true,
-                        ],
-                        'tools' => [
-                            ['service' => 'some_tool', 'description' => 'Test tool'],
-                        ],
-                    ],
-                ],
-            ],
-        ]);
-
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
-        $definition = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
-        $arguments = $definition->getArguments();
-
-        $this->assertSame('You are a helpful assistant.', $arguments[0]);
-        $this->assertInstanceOf(Reference::class, $arguments[1]);
-        $this->assertSame('ai.toolbox.test_agent', (string) $arguments[1]);
-    }
-
-    #[TestDox('System prompt with only text key defaults include_tools to false')]
+    #[TestDox('System prompt with only text key becomes the agent instruction')]
     public function testSystemPromptWithOnlyTextKey()
     {
         $container = $this->buildContainer([
@@ -5347,15 +5302,12 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
-        $definition = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
-        $arguments = $definition->getArguments();
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
 
-        $this->assertSame('You are a helpful assistant.', $arguments[0]);
-        $this->assertNull($arguments[1]); // include_tools defaults to false
+        $this->assertSame('You are a helpful assistant.', $agentDefinition->getArgument('$instruction'));
     }
 
-    #[TestDox('Agent without system prompt does not create processor')]
+    #[TestDox('Agent without system prompt has no instruction argument')]
     public function testAgentWithoutSystemPrompt()
     {
         $container = $this->buildContainer([
@@ -5369,36 +5321,7 @@ class AiBundleTest extends TestCase
         ]);
 
         $this->assertFalse($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
-    }
-
-    #[TestDox('Valid system prompt creates processor correctly')]
-    public function testValidSystemPromptCreatesProcessor()
-    {
-        // This test verifies that valid system prompts work correctly with new structure
-        $container = $this->buildContainer([
-            'ai' => [
-                'agent' => [
-                    'test_agent' => [
-                        'model' => 'gpt-4',
-                        'prompt' => [
-                            'text' => 'Valid prompt',
-                            'include_tools' => true,
-                        ],
-                        'tools' => [
-                            ['service' => 'some_tool', 'description' => 'Test tool'],
-                        ],
-                    ],
-                ],
-            ],
-        ]);
-
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
-        $definition = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
-        $arguments = $definition->getArguments();
-
-        $this->assertSame('Valid prompt', $arguments[0]);
-        $this->assertInstanceOf(Reference::class, $arguments[1]);
-        $this->assertSame('ai.toolbox.test_agent', (string) $arguments[1]);
+        $this->assertArrayNotHasKey('$instruction', $container->getDefinition('ai.agent.test_agent')->getArguments());
     }
 
     #[TestDox('Empty text in array structure throws configuration exception')]
@@ -5476,12 +5399,9 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
-        $definition = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
-        $arguments = $definition->getArguments();
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
 
-        $this->assertSame('You are a helpful assistant.', $arguments[0]);
-        $this->assertNull($arguments[1]); // include_tools not enabled with string format
+        $this->assertSame('You are a helpful assistant.', $agentDefinition->getArgument('$instruction'));
     }
 
     #[TestDox('Memory provider configuration creates memory input processor')]
@@ -5502,18 +5422,18 @@ class AiBundleTest extends TestCase
         ]);
 
         // Should create StaticMemoryProvider for non-existing service name
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_processor'));
         $this->assertTrue($container->hasDefinition('ai.agent.test_agent.static_memory_provider'));
 
-        $definition = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
+        $definition = $container->getDefinition('ai.agent.test_agent.memory_processor');
         $arguments = $definition->getArguments();
 
         // Check that the memory processor references the static memory provider
         $this->assertInstanceOf(Reference::class, $arguments[0][0]);
         $this->assertSame('ai.agent.test_agent.static_memory_provider', (string) $arguments[0][0]);
 
-        // Check that the processor has the correct tags with proper priority
-        $tags = $definition->getTag('ai.agent.input_processor');
+        // Check that the processor has the correct context processor tag with proper priority
+        $tags = $definition->getTag('ai.agent.context_processor');
         $this->assertNotEmpty($tags);
         $this->assertSame('ai.agent.test_agent', $tags[0]['agent']);
         $this->assertSame(-40, $tags[0]['priority']);
@@ -5535,7 +5455,7 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $this->assertFalse($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertFalse($container->hasDefinition('ai.agent.test_agent.memory_processor'));
     }
 
     #[TestDox('Memory with null value does not create memory processor')]
@@ -5555,7 +5475,7 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $this->assertFalse($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertFalse($container->hasDefinition('ai.agent.test_agent.memory_processor'));
     }
 
     #[TestDox('Memory configuration works with system prompt and tools')]
@@ -5569,7 +5489,6 @@ class AiBundleTest extends TestCase
                         'memory' => 'conversation_memory_service',
                         'prompt' => [
                             'text' => 'You are a helpful assistant.',
-                            'include_tools' => true,
                         ],
                         'tools' => [
                             ['service' => 'test_tool', 'description' => 'Test tool'],
@@ -5579,26 +5498,23 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        // Check that all processors are created
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
-        $this->assertTrue($container->hasDefinition('ai.tool.agent_processor.test_agent'));
+        // The memory processor is created and the prompt/tools land on the agent definition.
+        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_processor'));
+
+        $agentDefinition = $container->getDefinition('ai.agent.test_agent');
+        $this->assertSame('You are a helpful assistant.', $agentDefinition->getArgument('$instruction'));
+        $this->assertEquals([new Reference('ai.toolbox.test_agent')], $agentDefinition->getArgument('$tools'));
 
         // Verify memory processor configuration (static memory since service doesn't exist)
         $this->assertTrue($container->hasDefinition('ai.agent.test_agent.static_memory_provider'));
-        $memoryDefinition = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
+        $memoryDefinition = $container->getDefinition('ai.agent.test_agent.memory_processor');
         $memoryArguments = $memoryDefinition->getArguments();
         $this->assertInstanceOf(Reference::class, $memoryArguments[0][0]);
         $this->assertSame('ai.agent.test_agent.static_memory_provider', (string) $memoryArguments[0][0]);
 
-        // Verify memory processor has highest priority (runs first)
-        $memoryTags = $memoryDefinition->getTag('ai.agent.input_processor');
+        // Verify memory processor is tagged as a context processor with its priority.
+        $memoryTags = $memoryDefinition->getTag('ai.agent.context_processor');
         $this->assertSame(-40, $memoryTags[0]['priority']);
-
-        // Verify system prompt processor has correct priority (runs after memory)
-        $systemPromptDefinition = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
-        $systemPromptTags = $systemPromptDefinition->getTag('ai.agent.input_processor');
-        $this->assertSame(-30, $systemPromptTags[0]['priority']);
     }
 
     #[TestDox('Memory configuration works with string prompt format')]
@@ -5617,10 +5533,10 @@ class AiBundleTest extends TestCase
         ]);
 
         // Memory processor should not be created with string prompt format
-        $this->assertFalse($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertFalse($container->hasDefinition('ai.agent.test_agent.memory_processor'));
 
-        // But system prompt processor should still be created
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.system_prompt_processor'));
+        // But the prompt should still land on the agent instruction.
+        $this->assertSame('You are a helpful assistant.', $container->getDefinition('ai.agent.test_agent')->getArgument('$instruction'));
     }
 
     #[TestDox('Multiple agents can have different memory configurations')]
@@ -5654,31 +5570,31 @@ class AiBundleTest extends TestCase
         ]);
 
         // First agent should have memory processor (static since service doesn't exist)
-        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_memory.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_memory.memory_processor'));
         $this->assertTrue($container->hasDefinition('ai.agent.agent_with_memory.static_memory_provider'));
-        $firstMemoryDef = $container->getDefinition('ai.agent.agent_with_memory.memory_input_processor');
+        $firstMemoryDef = $container->getDefinition('ai.agent.agent_with_memory.memory_processor');
         $firstMemoryArgs = $firstMemoryDef->getArguments();
         $this->assertSame('ai.agent.agent_with_memory.static_memory_provider', (string) $firstMemoryArgs[0][0]);
 
         // Second agent should not have memory processor
-        $this->assertFalse($container->hasDefinition('ai.agent.agent_without_memory.memory_input_processor'));
+        $this->assertFalse($container->hasDefinition('ai.agent.agent_without_memory.memory_processor'));
 
         // Third agent should have memory processor (static since service doesn't exist)
-        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_different_memory.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_different_memory.memory_processor'));
         $this->assertTrue($container->hasDefinition('ai.agent.agent_with_different_memory.static_memory_provider'));
-        $thirdMemoryDef = $container->getDefinition('ai.agent.agent_with_different_memory.memory_input_processor');
+        $thirdMemoryDef = $container->getDefinition('ai.agent.agent_with_different_memory.memory_processor');
         $thirdMemoryArgs = $thirdMemoryDef->getArguments();
         $this->assertSame('ai.agent.agent_with_different_memory.static_memory_provider', (string) $thirdMemoryArgs[0][0]);
 
         // Verify that each memory processor is tagged for the correct agent
-        $firstTags = $firstMemoryDef->getTag('ai.agent.input_processor');
+        $firstTags = $firstMemoryDef->getTag('ai.agent.context_processor');
         $this->assertSame('ai.agent.agent_with_memory', $firstTags[0]['agent']);
 
-        $thirdTags = $thirdMemoryDef->getTag('ai.agent.input_processor');
+        $thirdTags = $thirdMemoryDef->getTag('ai.agent.context_processor');
         $this->assertSame('ai.agent.agent_with_different_memory', $thirdTags[0]['agent']);
     }
 
-    #[TestDox('Memory processor uses MemoryInputProcessor class')]
+    #[TestDox('Memory processor uses MemoryProcessor class')]
     public function testMemoryProcessorUsesCorrectClass()
     {
         $container = $this->buildContainer([
@@ -5695,8 +5611,8 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $definition = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
-        $this->assertSame(MemoryInputProcessor::class, $definition->getClass());
+        $definition = $container->getDefinition('ai.agent.test_agent.memory_processor');
+        $this->assertSame(MemoryProcessor::class, $definition->getClass());
     }
 
     #[TestDox('Memory configuration is included in full config example')]
@@ -5794,10 +5710,10 @@ class AiBundleTest extends TestCase
         ]);
 
         // Should use the service directly, not create a StaticMemoryProvider
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_processor'));
         $this->assertFalse($container->hasDefinition('ai.agent.test_agent.static_memory_provider'));
 
-        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
+        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_processor');
         $arguments = $memoryProcessor->getArguments();
         $this->assertInstanceOf(Reference::class, $arguments[0][0]);
         $this->assertSame('my_custom_memory_service', (string) $arguments[0][0]);
@@ -5820,19 +5736,16 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $memoryDef = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
-        $systemDef = $container->getDefinition('ai.agent.test_agent.system_prompt_processor');
+        $memoryDef = $container->getDefinition('ai.agent.test_agent.memory_processor');
 
-        // Memory processor should have higher priority (more negative number)
-        $memoryTags = $memoryDef->getTag('ai.agent.input_processor');
-        $systemTags = $systemDef->getTag('ai.agent.input_processor');
+        // Memory processor is tagged as a context processor with the expected priority.
+        $memoryTags = $memoryDef->getTag('ai.agent.context_processor');
 
         $this->assertSame(-40, $memoryTags[0]['priority']);
-        $this->assertSame(-30, $systemTags[0]['priority']);
-        $this->assertLessThan($systemTags[0]['priority'], $memoryTags[0]['priority']);
+        $this->assertSame('ai.agent.test_agent', $memoryTags[0]['agent']);
     }
 
-    #[TestDox('Memory processor uses correct MemoryInputProcessor class and service reference')]
+    #[TestDox('Memory processor uses correct MemoryProcessor class and service reference')]
     public function testMemoryProcessorIntegration()
     {
         $container = $this->buildContainer([
@@ -5849,11 +5762,11 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
-        $definition = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
+        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_processor'));
+        $definition = $container->getDefinition('ai.agent.test_agent.memory_processor');
 
         // Check correct class
-        $this->assertSame(MemoryInputProcessor::class, $definition->getClass());
+        $this->assertSame(MemoryProcessor::class, $definition->getClass());
 
         // Check service reference argument (static memory since service doesn't exist)
         $this->assertTrue($container->hasDefinition('ai.agent.test_agent.static_memory_provider'));
@@ -5863,7 +5776,7 @@ class AiBundleTest extends TestCase
         $this->assertSame('ai.agent.test_agent.static_memory_provider', (string) $arguments[0][0]);
 
         // Check proper tagging
-        $tags = $definition->getTag('ai.agent.input_processor');
+        $tags = $definition->getTag('ai.agent.context_processor');
         $this->assertNotEmpty($tags);
         $this->assertSame('ai.agent.test_agent', $tags[0]['agent']);
         $this->assertSame(-40, $tags[0]['priority']);
@@ -5879,7 +5792,7 @@ class AiBundleTest extends TestCase
         $container->setParameter('kernel.build_dir', 'test');
 
         // Register a memory service
-        $container->register('existing_memory_service', MemoryInputProcessor::class);
+        $container->register('existing_memory_service', MemoryProcessor::class);
 
         $extension = (new AiBundle())->getContainerExtension();
         $extension->load([
@@ -5897,10 +5810,10 @@ class AiBundleTest extends TestCase
         ], $container);
 
         // Should use the existing service directly, not create a StaticMemoryProvider
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_processor'));
         $this->assertFalse($container->hasDefinition('ai.agent.test_agent.static_memory_provider'));
 
-        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
+        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_processor');
         $arguments = $memoryProcessor->getArguments();
         $this->assertInstanceOf(Reference::class, $arguments[0][0]);
         $this->assertSame('existing_memory_service', (string) $arguments[0][0]);
@@ -5924,7 +5837,7 @@ class AiBundleTest extends TestCase
         ]);
 
         // Should create a StaticMemoryProvider
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_processor'));
         $this->assertTrue($container->hasDefinition('ai.agent.test_agent.static_memory_provider'));
 
         // Check StaticMemoryProvider configuration
@@ -5934,7 +5847,7 @@ class AiBundleTest extends TestCase
         $this->assertSame('This is static memory content', $staticProviderArgs[0]);
 
         // Check that memory processor uses the StaticMemoryProvider
-        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
+        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_processor');
         $memoryProcessorArgs = $memoryProcessor->getArguments();
         $this->assertInstanceOf(Reference::class, $memoryProcessorArgs[0][0]);
         $this->assertSame('ai.agent.test_agent.static_memory_provider', (string) $memoryProcessorArgs[0][0]);
@@ -5950,7 +5863,7 @@ class AiBundleTest extends TestCase
         $container->setParameter('kernel.build_dir', 'test');
 
         // Register a service with an alias
-        $container->register('actual_memory_service', MemoryInputProcessor::class);
+        $container->register('actual_memory_service', MemoryProcessor::class);
         $container->setAlias('memory_alias', 'actual_memory_service');
 
         $extension = (new AiBundle())->getContainerExtension();
@@ -5969,10 +5882,10 @@ class AiBundleTest extends TestCase
         ], $container);
 
         // Should use the alias directly, not create a StaticMemoryProvider
-        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.test_agent.memory_processor'));
         $this->assertFalse($container->hasDefinition('ai.agent.test_agent.static_memory_provider'));
 
-        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_input_processor');
+        $memoryProcessor = $container->getDefinition('ai.agent.test_agent.memory_processor');
         $arguments = $memoryProcessor->getArguments();
         $this->assertInstanceOf(Reference::class, $arguments[0][0]);
         $this->assertSame('memory_alias', (string) $arguments[0][0]);
@@ -5987,7 +5900,7 @@ class AiBundleTest extends TestCase
         $container->setParameter('kernel.environment', 'test');
         $container->setParameter('kernel.build_dir', 'test');
 
-        $container->register('dynamic_memory_service', MemoryInputProcessor::class);
+        $container->register('dynamic_memory_service', MemoryProcessor::class);
 
         $extension = (new AiBundle())->getContainerExtension();
         $extension->load([
@@ -6012,16 +5925,16 @@ class AiBundleTest extends TestCase
         ], $container);
 
         // First agent uses service reference
-        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_service.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_service.memory_processor'));
         $this->assertFalse($container->hasDefinition('ai.agent.agent_with_service.static_memory_provider'));
 
-        $serviceMemoryProcessor = $container->getDefinition('ai.agent.agent_with_service.memory_input_processor');
+        $serviceMemoryProcessor = $container->getDefinition('ai.agent.agent_with_service.memory_processor');
         $serviceArgs = $serviceMemoryProcessor->getArguments();
         $this->assertInstanceOf(Reference::class, $serviceArgs[0][0]);
         $this->assertSame('dynamic_memory_service', (string) $serviceArgs[0][0]);
 
         // Second agent uses StaticMemoryProvider
-        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_static.memory_input_processor'));
+        $this->assertTrue($container->hasDefinition('ai.agent.agent_with_static.memory_processor'));
         $this->assertTrue($container->hasDefinition('ai.agent.agent_with_static.static_memory_provider'));
 
         $staticProvider = $container->getDefinition('ai.agent.agent_with_static.static_memory_provider');
@@ -6044,7 +5957,7 @@ class AiBundleTest extends TestCase
         ]);
 
         $agentDefinition = $container->getDefinition('ai.agent.test');
-        $this->assertSame('gpt-4o-mini?temperature=0.5&max_tokens=2000', $agentDefinition->getArgument(1));
+        $this->assertSame('gpt-4o-mini?temperature=0.5&max_tokens=2000', $agentDefinition->getArgument('$model'));
     }
 
     #[TestDox('Model configuration with separate options array works correctly')]
@@ -6067,7 +5980,7 @@ class AiBundleTest extends TestCase
         ]);
 
         $agentDefinition = $container->getDefinition('ai.agent.test');
-        $this->assertSame('gpt-4o-mini?temperature=0.7&max_tokens=1500', $agentDefinition->getArgument(1));
+        $this->assertSame('gpt-4o-mini?temperature=0.7&max_tokens=1500', $agentDefinition->getArgument('$model'));
     }
 
     #[TestDox('Model configuration throws exception when using both query parameters and options array')]
@@ -6109,7 +6022,7 @@ class AiBundleTest extends TestCase
 
         $agentDefinition = $container->getDefinition('ai.agent.test');
         // Query parameters are maintained as strings when parsed from URL
-        $this->assertSame('gpt-4o-mini?temperature=0.5&max_tokens=2000&stream=true&presence_penalty=0', $agentDefinition->getArgument(1));
+        $this->assertSame('gpt-4o-mini?temperature=0.5&max_tokens=2000&stream=true&presence_penalty=0', $agentDefinition->getArgument('$model'));
     }
 
     #[TestDox('Vectorizer model configuration with query parameters works correctly')]
@@ -6974,9 +6887,12 @@ class AiBundleTest extends TestCase
         $this->assertTrue($container->hasAlias(RetrieverInterface::class));
     }
 
-    public function testValidMultiAgentConfiguration()
+    public function testMultiAgentConfigurationIsNoLongerSupported()
     {
-        $container = $this->buildContainer([
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The "multi_agent" configuration (agent "support") is no longer supported after the Agent rework.');
+
+        $this->buildContainer([
             'ai' => [
                 'agent' => [
                     'dispatcher' => [
@@ -7000,57 +6916,14 @@ class AiBundleTest extends TestCase
                 ],
             ],
         ]);
-
-        // Verify the MultiAgent service is created
-        $this->assertTrue($container->hasDefinition('ai.multi_agent.support'));
-
-        $multiAgentDefinition = $container->getDefinition('ai.multi_agent.support');
-
-        // Verify the class is correct
-        $this->assertSame(MultiAgent::class, $multiAgentDefinition->getClass());
-
-        // Verify arguments
-        $arguments = $multiAgentDefinition->getArguments();
-        $this->assertCount(4, $arguments);
-
-        // First argument: orchestrator agent reference
-        $this->assertInstanceOf(Reference::class, $arguments[0]);
-        $this->assertSame('ai.agent.dispatcher', (string) $arguments[0]);
-
-        // Second argument: handoffs array
-        $handoffs = $arguments[1];
-        $this->assertIsArray($handoffs);
-        $this->assertCount(1, $handoffs);
-
-        // Verify handoff structure
-        $handoff = $handoffs[0];
-        $this->assertInstanceOf(Definition::class, $handoff);
-        $this->assertSame(Handoff::class, $handoff->getClass());
-        $handoffArgs = $handoff->getArguments();
-        $this->assertCount(2, $handoffArgs);
-        $this->assertInstanceOf(Reference::class, $handoffArgs[0]);
-        $this->assertSame('ai.agent.technical', (string) $handoffArgs[0]);
-        $this->assertSame(['code', 'debug', 'error'], $handoffArgs[1]);
-
-        // Third argument: fallback agent reference
-        $this->assertInstanceOf(Reference::class, $arguments[2]);
-        $this->assertSame('ai.agent.general', (string) $arguments[2]);
-
-        // Fourth argument: name
-        $this->assertSame('support', $arguments[3]);
-
-        // Verify the MultiAgent service has proper tags
-        $tags = $multiAgentDefinition->getTags();
-        $this->assertArrayHasKey('ai.agent', $tags);
-        $this->assertSame([['name' => 'support']], $tags['ai.agent']);
-
-        // Verify alias is created
-        $this->assertTrue($container->hasAlias(AgentInterface::class.' $support'));
     }
 
-    public function testMultiAgentWithMultipleHandoffs()
+    public function testMultiAgentWithMultipleHandoffsIsNoLongerSupported()
     {
-        $container = $this->buildContainer([
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('is no longer supported after the Agent rework');
+
+        $this->buildContainer([
             'ai' => [
                 'agent' => [
                     'orchestrator' => [
@@ -7078,36 +6951,6 @@ class AiBundleTest extends TestCase
                 ],
             ],
         ]);
-
-        $this->assertTrue($container->hasDefinition('ai.multi_agent.customer_service'));
-
-        $multiAgentDefinition = $container->getDefinition('ai.multi_agent.customer_service');
-        $handoffs = $multiAgentDefinition->getArgument(1);
-
-        $this->assertIsArray($handoffs);
-        $this->assertCount(2, $handoffs);
-
-        // Both handoffs should be Definition objects
-        foreach ($handoffs as $handoff) {
-            $this->assertInstanceOf(Definition::class, $handoff);
-            $this->assertSame(Handoff::class, $handoff->getClass());
-            $handoffArgs = $handoff->getArguments();
-            $this->assertCount(2, $handoffArgs);
-            $this->assertInstanceOf(Reference::class, $handoffArgs[0]);
-            $this->assertIsArray($handoffArgs[1]);
-        }
-
-        // Verify first handoff (code_expert)
-        $codeHandoff = $handoffs[0];
-        $codeHandoffArgs = $codeHandoff->getArguments();
-        $this->assertSame('ai.agent.code_expert', (string) $codeHandoffArgs[0]);
-        $this->assertSame(['bug', 'code', 'programming', 'technical'], $codeHandoffArgs[1]);
-
-        // Verify second handoff (billing_expert)
-        $billingHandoff = $handoffs[1];
-        $billingHandoffArgs = $billingHandoff->getArguments();
-        $this->assertSame('ai.agent.billing_expert', (string) $billingHandoffArgs[0]);
-        $this->assertSame(['payment', 'invoice', 'subscription', 'refund'], $billingHandoffArgs[1]);
     }
 
     public function testEmptyHandoffsThrowsException()
@@ -7252,7 +7095,7 @@ class AiBundleTest extends TestCase
         ]);
     }
 
-    #[TestDox('Comprehensive multi-agent configuration with all features works correctly')]
+    #[TestDox('Comprehensive multi-agent configuration builds every agent against the reworked constructor')]
     public function testComprehensiveMultiAgentHappyPath()
     {
         $container = $this->buildContainer([
@@ -7263,7 +7106,6 @@ class AiBundleTest extends TestCase
                         'model' => 'gpt-4o-mini',
                         'prompt' => [
                             'text' => 'You are a dispatcher that routes requests to specialized agents.',
-                            'include_tools' => true,
                         ],
                         'tools' => [
                             ['service' => 'routing_tool', 'description' => 'Routes requests to appropriate agents'],
@@ -7274,7 +7116,6 @@ class AiBundleTest extends TestCase
                         'model' => 'gpt-4',
                         'prompt' => [
                             'text' => 'You are a senior software engineer specialized in debugging and code optimization.',
-                            'include_tools' => true,
                         ],
                         'memory' => 'code_memory_service',
                         'tools' => [
@@ -7296,25 +7137,6 @@ class AiBundleTest extends TestCase
                         'memory' => 'general_memory_service',
                     ],
                 ],
-                'multi_agent' => [
-                    // Customer support multi-agent system
-                    'customer_support' => [
-                        'orchestrator' => 'orchestrator',
-                        'fallback' => 'general_support',
-                        'handoffs' => [
-                            'code_expert' => ['bug', 'error', 'code', 'debug', 'performance', 'optimization'],
-                            'docs_expert' => ['documentation', 'docs', 'readme', 'api', 'guide', 'tutorial'],
-                        ],
-                    ],
-                    // Development multi-agent system (can reuse agents)
-                    'development_assistant' => [
-                        'orchestrator' => 'orchestrator',
-                        'fallback' => 'code_expert',
-                        'handoffs' => [
-                            'docs_expert' => ['comment', 'docblock', 'documentation'],
-                        ],
-                    ],
-                ],
             ],
         ]);
 
@@ -7324,88 +7146,28 @@ class AiBundleTest extends TestCase
         $this->assertTrue($container->hasDefinition('ai.agent.docs_expert'));
         $this->assertTrue($container->hasDefinition('ai.agent.general_support'));
 
-        // Verify multi-agent services are created
-        $this->assertTrue($container->hasDefinition('ai.multi_agent.customer_support'));
-        $this->assertTrue($container->hasDefinition('ai.multi_agent.development_assistant'));
+        // Orchestrator: toolbox + instruction on the agent definition.
+        $orchestratorDef = $container->getDefinition('ai.agent.orchestrator');
+        $this->assertSame(Agent::class, $orchestratorDef->getClass());
+        $this->assertEquals([new Reference('ai.toolbox.orchestrator')], $orchestratorDef->getArgument('$tools'));
+        $this->assertSame('You are a dispatcher that routes requests to specialized agents.', $orchestratorDef->getArgument('$instruction'));
 
-        // Test customer_support multi-agent configuration
-        $customerSupportDef = $container->getDefinition('ai.multi_agent.customer_support');
-        $this->assertSame(MultiAgent::class, $customerSupportDef->getClass());
-
-        $csArguments = $customerSupportDef->getArguments();
-        $this->assertCount(4, $csArguments);
-
-        // Orchestrator reference
-        $this->assertInstanceOf(Reference::class, $csArguments[0]);
-        $this->assertSame('ai.agent.orchestrator', (string) $csArguments[0]);
-
-        // Handoffs
-        $csHandoffs = $csArguments[1];
-        $this->assertIsArray($csHandoffs);
-        $this->assertCount(2, $csHandoffs);
-
-        // Code expert handoff
-        $codeHandoff = $csHandoffs[0];
-        $this->assertInstanceOf(Definition::class, $codeHandoff);
-        $codeHandoffArgs = $codeHandoff->getArguments();
-        $this->assertSame('ai.agent.code_expert', (string) $codeHandoffArgs[0]);
-        $this->assertSame(['bug', 'error', 'code', 'debug', 'performance', 'optimization'], $codeHandoffArgs[1]);
-
-        // Docs expert handoff
-        $docsHandoff = $csHandoffs[1];
-        $this->assertInstanceOf(Definition::class, $docsHandoff);
-        $docsHandoffArgs = $docsHandoff->getArguments();
-        $this->assertSame('ai.agent.docs_expert', (string) $docsHandoffArgs[0]);
-        $this->assertSame(['documentation', 'docs', 'readme', 'api', 'guide', 'tutorial'], $docsHandoffArgs[1]);
-
-        // Fallback
-        $this->assertInstanceOf(Reference::class, $csArguments[2]);
-        $this->assertSame('ai.agent.general_support', (string) $csArguments[2]);
-
-        // Name
-        $this->assertSame('customer_support', $csArguments[3]);
-
-        // Verify tags and aliases
-        $csTags = $customerSupportDef->getTags();
-        $this->assertArrayHasKey('ai.agent', $csTags);
-        $this->assertSame([['name' => 'customer_support']], $csTags['ai.agent']);
-
-        $this->assertTrue($container->hasAlias(AgentInterface::class.' $customerSupport'));
-        $this->assertTrue($container->hasAlias(AgentInterface::class.' $developmentAssistant'));
-
-        // Test development_assistant multi-agent configuration
-        $devAssistantDef = $container->getDefinition('ai.multi_agent.development_assistant');
-        $daArguments = $devAssistantDef->getArguments();
-
-        // Verify it uses code_expert as fallback
-        $this->assertInstanceOf(Reference::class, $daArguments[2]);
-        $this->assertSame('ai.agent.code_expert', (string) $daArguments[2]);
-
-        // Verify it has only docs_expert handoff
-        $daHandoffs = $daArguments[1];
-        $this->assertCount(1, $daHandoffs);
-
-        // Verify agent components are properly configured
-
-        // Code expert should have memory processor
-        $this->assertTrue($container->hasDefinition('ai.agent.code_expert.memory_input_processor'));
+        // Code expert: memory context processor, toolbox and instruction.
+        $this->assertTrue($container->hasDefinition('ai.agent.code_expert.memory_processor'));
         $this->assertTrue($container->hasDefinition('ai.agent.code_expert.static_memory_provider'));
+        $codeExpertDef = $container->getDefinition('ai.agent.code_expert');
+        $this->assertEquals([new Reference('ai.toolbox.code_expert')], $codeExpertDef->getArgument('$tools'));
+        $this->assertSame('You are a senior software engineer specialized in debugging and code optimization.', $codeExpertDef->getArgument('$instruction'));
 
-        // Code expert should have tool processor
-        $this->assertTrue($container->hasDefinition('ai.tool.agent_processor.code_expert'));
+        // Docs expert: instruction only, no memory, no toolbox.
+        $this->assertFalse($container->hasDefinition('ai.agent.docs_expert.memory_processor'));
+        $docsExpertDef = $container->getDefinition('ai.agent.docs_expert');
+        $this->assertSame('You are a technical documentation specialist.', $docsExpertDef->getArgument('$instruction'));
+        $this->assertArrayNotHasKey('$tools', $docsExpertDef->getArguments());
 
-        // Code expert should have system prompt processor
-        $this->assertTrue($container->hasDefinition('ai.agent.code_expert.system_prompt_processor'));
-
-        // Docs expert should have only system prompt processor, no memory
-        $this->assertFalse($container->hasDefinition('ai.agent.docs_expert.memory_input_processor'));
-        $this->assertTrue($container->hasDefinition('ai.agent.docs_expert.system_prompt_processor'));
-
-        // General support should have memory processor
-        $this->assertTrue($container->hasDefinition('ai.agent.general_support.memory_input_processor'));
-
-        // Orchestrator should have tools processor
-        $this->assertTrue($container->hasDefinition('ai.tool.agent_processor.orchestrator'));
+        // General support: memory context processor, no toolbox.
+        $this->assertTrue($container->hasDefinition('ai.agent.general_support.memory_processor'));
+        $this->assertFalse($container->hasDefinition('ai.toolbox.general_support'));
     }
 
     #[TestDox('Agent model configuration preserves colon notation in model names (e.g., qwen3:0.6b)')]
@@ -7429,7 +7191,7 @@ class AiBundleTest extends TestCase
 
         $agentDefinition = $container->getDefinition('ai.agent.test');
 
-        $this->assertSame($model, $agentDefinition->getArgument(1));
+        $this->assertSame($model, $agentDefinition->getArgument('$model'));
     }
 
     #[TestDox('Vectorizer model configuration preserves colon notation in model names (e.g., bge-m3:1024)')]
@@ -7478,7 +7240,7 @@ class AiBundleTest extends TestCase
 
         $agentDefinition = $container->getDefinition('ai.agent.test');
 
-        $this->assertSame('qwen3?stream=false&think=true&nested%5Bbool%5D=false', $agentDefinition->getArgument(1));
+        $this->assertSame('qwen3?stream=false&think=true&nested%5Bbool%5D=false', $agentDefinition->getArgument('$model'));
     }
 
     public function testVectorizerModelBooleanOptionsArePreserved()
@@ -9045,7 +8807,6 @@ class AiBundleTest extends TestCase
                         ],
                         'prompt' => [
                             'text' => 'You are a helpful assistant.',
-                            'include_tools' => true,
                         ],
                         'tools' => [
                             'enabled' => true,

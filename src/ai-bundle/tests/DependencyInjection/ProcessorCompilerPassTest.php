@@ -13,15 +13,11 @@ namespace Symfony\AI\AiBundle\Tests\DependencyInjection;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Input;
-use Symfony\AI\Agent\InputProcessorInterface;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
-use Symfony\AI\Agent\Output;
-use Symfony\AI\Agent\OutputProcessorInterface;
+use Symfony\AI\Agent\Context\AgentContext;
+use Symfony\AI\Agent\Context\AgentRequest;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
 class ProcessorCompilerPassTest extends TestCase
@@ -36,157 +32,105 @@ class ProcessorCompilerPassTest extends TestCase
             ->register('agent2', Agent::class)
             ->addTag('ai.agent');
         $container
-            ->register(DummyInputProcessor1::class, DummyInputProcessor1::class)
-            ->addTag('ai.agent.input_processor', ['tagged_by' => 'interface']);
+            ->register(DummyContextProcessor1::class, DummyContextProcessor1::class)
+            ->addTag('ai.agent.context_processor', ['tagged_by' => 'interface']);
         $container
-            ->register(DummyInputProcessor2::class, DummyInputProcessor2::class)
-            ->addTag('ai.agent.input_processor', ['tagged_by' => 'interface']);
+            ->register(DummyContextProcessor2::class, DummyContextProcessor2::class)
+            ->addTag('ai.agent.context_processor', ['tagged_by' => 'interface']);
         $container
-            ->register(DummyInputProcessor3::class, DummyInputProcessor3::class)
-            ->addTag('ai.agent.input_processor', ['tagged_by' => 'interface']);
+            ->register(DummyContextProcessor3::class, DummyContextProcessor3::class)
+            ->addTag('ai.agent.context_processor', ['tagged_by' => 'interface']);
         $container
-            ->register(DummyOutputProcessor1::class, DummyOutputProcessor1::class)
-            ->addTag('ai.agent.output_processor', ['tagged_by' => 'interface']);
+            ->register(DummyContextProcessor1::class, DummyContextProcessor1::class)
+            ->addTag('ai.agent.context_processor', ['agent' => 'agent1', 'priority' => -100]);
         $container
-            ->register(DummyOutputProcessor2::class, DummyOutputProcessor2::class)
-            ->addTag('ai.agent.input_processor', ['tagged_by' => 'interface']);
+            ->register(DummyContextProcessor2::class, DummyContextProcessor2::class)
+            ->addTag('ai.agent.context_processor', ['agent' => 'agent2']);
         $container
-            ->register(DummyOutputProcessor3::class, DummyOutputProcessor3::class)
-            ->addTag('ai.agent.input_processor', ['tagged_by' => 'interface']);
-        $container
-            ->register(DummyInputProcessor1::class, DummyInputProcessor1::class)
-            ->addTag('ai.agent.input_processor', ['agent' => 'agent1', 'priority' => -100]);
-        $container
-            ->register(DummyInputProcessor2::class, DummyInputProcessor2::class)
-            ->addTag('ai.agent.input_processor', ['agent' => 'agent2']);
-        $container
-            ->register(DummyInputProcessor3::class, DummyInputProcessor2::class)
-            ->addTag('ai.agent.input_processor', ['priority' => 100]);
-        $container
-            ->register(DummyOutputProcessor1::class, DummyOutputProcessor1::class)
-            ->addTag('ai.agent.output_processor', ['agent' => 'agent1', 'priority' => -100]);
-        $container
-            ->register(DummyOutputProcessor2::class, DummyOutputProcessor2::class)
-            ->addTag('ai.agent.output_processor', ['agent' => 'agent2']);
-        $container
-            ->register(DummyOutputProcessor3::class, DummyOutputProcessor3::class)
-            ->addTag('ai.agent.output_processor', ['priority' => 100]);
+            ->register(DummyContextProcessor3::class, DummyContextProcessor3::class)
+            ->addTag('ai.agent.context_processor', ['priority' => 100]);
 
         (new ProcessorCompilerPass())->process($container);
 
+        // agent1: global processor 3 (priority 100) then the agent-specific processor 1 (priority -100).
         $this->assertEquals(
             [
-                new Reference(DummyInputProcessor3::class),
-                new Reference(DummyInputProcessor1::class),
+                new Reference(DummyContextProcessor3::class),
+                new Reference(DummyContextProcessor1::class),
             ],
-            $container->getDefinition('agent1')->getArgument(2)
+            $container->getDefinition('agent1')->getArgument('$contextProcessors')
         );
+        // agent2: global processor 3 (priority 100) then the agent-specific processor 2 (priority 0).
         $this->assertEquals(
             [
-                new Reference(DummyOutputProcessor3::class),
-                new Reference(DummyOutputProcessor1::class),
+                new Reference(DummyContextProcessor3::class),
+                new Reference(DummyContextProcessor2::class),
             ],
-            $container->getDefinition('agent1')->getArgument(3)
-        );
-        $this->assertEquals(
-            [
-                new Reference(DummyInputProcessor3::class),
-                new Reference(DummyInputProcessor2::class),
-            ],
-            $container->getDefinition('agent2')->getArgument(2)
-        );
-        $this->assertEquals(
-            [
-                new Reference(DummyOutputProcessor3::class),
-                new Reference(DummyOutputProcessor2::class),
-            ],
-            $container->getDefinition('agent2')->getArgument(3)
+            $container->getDefinition('agent2')->getArgument('$contextProcessors')
         );
     }
 
-    public function testProcessSkipsMultiAgent()
+    public function testProcessSkipsNonAgentDefinitions()
     {
         $container = new ContainerBuilder();
 
-        // Regular Agent service - should be processed
+        // Regular Agent service - should be processed.
         $container
             ->register('agent1', Agent::class)
-            ->setArguments([null, null, [], []])
             ->addTag('ai.agent');
 
-        // MultiAgent service - should NOT be processed
-        $orchestratorRef = new Reference('orchestrator');
-        $handoffs = [new Definition(Handoff::class)];
-        $fallbackRef = new Reference('fallback');
-        $name = 'support';
-
+        // A tagged service that is not an Agent - should be skipped.
         $container
-            ->register('multi_agent', MultiAgent::class)
-            ->setArguments([$orchestratorRef, $handoffs, $fallbackRef, $name])
+            ->register('decorated_agent', DummyContextProcessor1::class)
+            ->setArguments(['untouched'])
             ->addTag('ai.agent');
 
-        // Add processors
         $container
-            ->register(DummyInputProcessor1::class, DummyInputProcessor1::class)
-            ->addTag('ai.agent.input_processor');
-        $container
-            ->register(DummyOutputProcessor1::class, DummyOutputProcessor1::class)
-            ->addTag('ai.agent.output_processor');
+            ->register(DummyContextProcessor1::class, DummyContextProcessor1::class)
+            ->addTag('ai.agent.context_processor');
 
         (new ProcessorCompilerPass())->process($container);
 
-        // Regular agent should have processors injected
         $this->assertEquals(
-            [new Reference(DummyInputProcessor1::class)],
-            $container->getDefinition('agent1')->getArgument(2)
-        );
-        $this->assertEquals(
-            [new Reference(DummyOutputProcessor1::class)],
-            $container->getDefinition('agent1')->getArgument(3)
+            [new Reference(DummyContextProcessor1::class)],
+            $container->getDefinition('agent1')->getArgument('$contextProcessors')
         );
 
-        // MultiAgent arguments should remain unchanged
-        $multiAgentDef = $container->getDefinition('multi_agent');
-        $this->assertInstanceOf(Reference::class, $multiAgentDef->getArgument(0));
-        $this->assertIsArray($multiAgentDef->getArgument(1));
-        $this->assertInstanceOf(Reference::class, $multiAgentDef->getArgument(2));
-        $this->assertSame('support', $multiAgentDef->getArgument(3));
+        // The non-Agent definition keeps its original arguments.
+        $this->assertSame('untouched', $container->getDefinition('decorated_agent')->getArgument(0));
     }
 }
 
-class DummyInputProcessor1 implements InputProcessorInterface
+class DummyContextProcessor1 implements ContextProcessorInterface
 {
-    public function processInput(Input $input): void
+    public static function supportedTypes(): array
+    {
+        return [];
+    }
+
+    public function process(AgentRequest $request, AgentContext $context): void
     {
     }
 }
-class DummyInputProcessor2 implements InputProcessorInterface
+class DummyContextProcessor2 implements ContextProcessorInterface
 {
-    public function processInput(Input $input): void
+    public static function supportedTypes(): array
+    {
+        return [];
+    }
+
+    public function process(AgentRequest $request, AgentContext $context): void
     {
     }
 }
-class DummyInputProcessor3 implements InputProcessorInterface
+class DummyContextProcessor3 implements ContextProcessorInterface
 {
-    public function processInput(Input $input): void
+    public static function supportedTypes(): array
     {
+        return [];
     }
-}
-class DummyOutputProcessor1 implements OutputProcessorInterface
-{
-    public function processOutput(Output $output): void
-    {
-    }
-}
-class DummyOutputProcessor2 implements OutputProcessorInterface
-{
-    public function processOutput(Output $output): void
-    {
-    }
-}
-class DummyOutputProcessor3 implements OutputProcessorInterface
-{
-    public function processOutput(Output $output): void
+
+    public function process(AgentRequest $request, AgentContext $context): void
     {
     }
 }
