@@ -12,11 +12,14 @@
 namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\Processor\ToolProcessor;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Execution\UpdateInterface;
+use Symfony\AI\Agent\MockAgent;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Source\Source;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
@@ -528,8 +531,8 @@ final class RunnerTest extends TestCase
 
         // both runs are started before either one is consumed, so the tool calling loop of the
         // first one only begins once the second run was already created
-        $first = $runner->run('gpt-4', new MessageBag(), ['stream' => true]);
-        $second = $runner->run('gpt-4', new MessageBag(), ['stream' => true]);
+        $first = $runner->run(new MockAgent(), 'gpt-4', new MessageBag(), new Context(), ['stream' => true]);
+        $second = $runner->run(new MockAgent(), 'gpt-4', new MessageBag(), new Context(), ['stream' => true]);
 
         // each run has to spend a full budget of its own before it gets capped
         $expectedExecutions = 0;
@@ -701,7 +704,7 @@ final class RunnerTest extends TestCase
      */
     private function drive(Runner $runner, MessageBag $messages, array $options = []): ResultInterface
     {
-        foreach ($runner->run('gpt-4', $messages, $options) as $update) {
+        foreach ($runner->run(new MockAgent(), 'gpt-4', $messages, new Context(), $options) as $update) {
             if ($update instanceof ResultUpdate) {
                 return $update->getResult();
             }
@@ -717,7 +720,7 @@ final class RunnerTest extends TestCase
      */
     private function collectUpdates(Runner $runner, MessageBag $messages, array $options = []): array
     {
-        return iterator_to_array($runner->run('gpt-4', $messages, $options), false);
+        return iterator_to_array($runner->run(new MockAgent(), 'gpt-4', $messages, new Context(), $options), false);
     }
 
     private function createRunner(
@@ -729,7 +732,7 @@ final class RunnerTest extends TestCase
     ): Runner {
         return new Runner(
             $platform,
-            $toolbox,
+            [new ToolProcessor($toolbox)],
             new SequentialToolExecutor($toolbox),
             $maxToolCalls,
             $excludeToolMessages,

@@ -1,6 +1,17 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * [BC BREAK] Add a `Context` argument to `AgentInterface::call()`: a collection of data objects processed by per-type `Context\ContextProcessorInterface` strategies
+ * [BC BREAK] Remove `InputProcessorInterface`, `OutputProcessorInterface`, `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `SystemPromptInputProcessor`, `ModelOverrideInputProcessor`, `Memory\MemoryInputProcessor`, `Attribute\AsInputProcessor` and `Attribute\AsOutputProcessor`; the context processor system supersedes them
+ * [BC BREAK] Change `Memory\MemoryProviderInterface::load()` to take a `Context\AgentRequest` instead of the removed `Input`
+ * Add `Context\Instruction` (the former system prompt) and pass it to the `Agent` constructor as `instruction`, overridable per call through the context
+ * Add `Context\Processor\InstructionProcessor`, `AttachmentProcessor`, `ToolProcessor` and `MemoryProcessor`, plus `Attribute\AsContextProcessor` to register custom ones
+ * Add `Context\ResultAwareContextProcessorInterface` for processors that inspect or replace the result after the model answered
+ * Add support for overriding the agent's model per call through the `model` option
+
 0.13
 ----
 

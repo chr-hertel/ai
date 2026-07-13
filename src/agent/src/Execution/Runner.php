@@ -11,12 +11,18 @@
 
 namespace Symfony\AI\Agent\Execution;
 
+use Symfony\AI\Agent\AgentInterface;
+use Symfony\AI\Agent\Context\AgentContext;
+use Symfony\AI\Agent\Context\AgentRequest;
+use Symfony\AI\Agent\Context\AgentResult;
+use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
+use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
-use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Message\AssistantMessage;
@@ -36,7 +42,6 @@ use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ThinkingResult;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\AI\Platform\StructuredOutput\Streaming\PartialObjectStreamListener;
-use Symfony\AI\Platform\Tool\Tool;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -52,9 +57,12 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  */
 final class Runner
 {
+    /**
+     * @param list<ContextProcessorInterface> $contextProcessors
+     */
     public function __construct(
         private readonly PlatformInterface $platform,
-        private readonly ?ToolboxInterface $toolbox = null,
+        private readonly array $contextProcessors = [],
         private readonly ?ToolExecutorInterface $toolExecutor = null,
         private readonly ?int $maxToolCalls = 50,
         private readonly bool $excludeToolMessages = false,
@@ -65,14 +73,26 @@ final class Runner
     }
 
     /**
+     * @param non-empty-string     $model
      * @param array<string, mixed> $options
      *
      * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    public function run(string $model, MessageBag $messages, array $options): \Generator
+    public function run(AgentInterface $agent, string $model, MessageBag $messages, Context $context, array $options): \Generator
     {
-        $options = $this->exposeTools($options);
         $messages = $this->excludeToolMessages ? clone $messages : $messages;
+
+        $request = new AgentRequest($model, $messages, $options, $context);
+        $agentContext = new AgentContext($agent);
+
+        foreach ($this->applicableProcessors($context) as $processor) {
+            $processor->process($request, $agentContext);
+            yield from $agentContext->flushUpdates();
+        }
+
+        $model = $request->getModel();
+        $messages = $request->getMessageBag();
+        $options = $request->getOptions();
 
         $sources = new SourceCollection();
         $metadata = new Metadata();
@@ -128,7 +148,7 @@ final class Runner
             $result->getMetadata()->add('sources', $sources);
         }
 
-        yield new ResultUpdate($result);
+        yield from $this->complete($result, $request, $agentContext);
     }
 
     /**
@@ -217,37 +237,54 @@ final class Runner
     }
 
     /**
-     * @param array<string, mixed> $options
+     * Runs the result-aware processors and yields the final result.
      *
-     * @return array<string, mixed>
+     * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    private function exposeTools(array $options): array
+    private function complete(ResultInterface $result, AgentRequest $request, AgentContext $agentContext): \Generator
     {
-        if (!$this->toolbox instanceof ToolboxInterface) {
-            return $options;
+        $agentResult = new AgentResult($request->getModel(), $result, $request->getMessageBag(), $request->getOptions(), $request->getContext());
+
+        foreach ($this->applicableProcessors($request->getContext()) as $processor) {
+            if (!$processor instanceof ResultAwareContextProcessorInterface) {
+                continue;
+            }
+
+            $processor->processResult($agentResult, $agentContext);
+            yield from $agentContext->flushUpdates();
         }
 
-        $toolMap = $this->toolbox->getTools();
-        if ([] === $toolMap) {
-            return $options;
-        }
-
-        // only filter tool map if a list of strings is provided as option
-        if (isset($options['tools']) && \is_array($options['tools']) && $this->isFlatStringArray($options['tools'])) {
-            $toolMap = array_values(array_filter($toolMap, static fn (Tool $tool): bool => \in_array($tool->getName(), $options['tools'], true)));
-        }
-
-        $options['tools'] = $toolMap;
-
-        return $options;
+        yield new ResultUpdate($agentResult->getResult());
     }
 
     /**
-     * @param array<mixed> $tools
+     * A processor without supported types is global and always runs, otherwise it only runs when the context
+     * carries at least one item of a type it supports.
+     *
+     * @return list<ContextProcessorInterface>
      */
-    private function isFlatStringArray(array $tools): bool
+    private function applicableProcessors(Context $context): array
     {
-        return array_reduce($tools, static fn (bool $carry, mixed $item): bool => $carry && \is_string($item), true);
+        $applicable = [];
+
+        foreach ($this->contextProcessors as $processor) {
+            $types = $processor::supportedTypes();
+            if ([] === $types) {
+                $applicable[] = $processor;
+
+                continue;
+            }
+
+            foreach ($types as $type) {
+                if ($context->has($type)) {
+                    $applicable[] = $processor;
+
+                    continue 2;
+                }
+            }
+        }
+
+        return $applicable;
     }
 
     private function extractToolCallResult(ResultInterface $result): ?ToolCallResult
