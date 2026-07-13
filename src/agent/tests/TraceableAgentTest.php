@@ -12,6 +12,7 @@
 namespace Symfony\AI\Agent\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\MockAgent;
 use Symfony\AI\Agent\TraceableAgent;
 use Symfony\AI\Platform\Message\Message;
@@ -38,6 +39,7 @@ final class TraceableAgentTest extends TestCase
         $this->assertEquals([
             [
                 'input' => $messageBag,
+                'context' => new Context(),
                 'options' => [],
                 'called_at' => $clock->now(),
             ],
