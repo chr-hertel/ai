@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result;
+use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\MockAgent;
 use Symfony\AI\Agent\TraceableAgent;
 use Symfony\AI\Platform\Message\Message;
@@ -45,6 +46,7 @@ final class TraceableAgentTest extends TestCase
         $this->assertEquals([
             [
                 'input' => $messageBag,
+                'context' => new Context(),
                 'options' => [],
                 'called_at' => $clock->now(),
             ],
