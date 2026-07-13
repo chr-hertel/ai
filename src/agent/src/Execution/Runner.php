@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\AgentResult;
 use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
+use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
 use Symfony\AI\Agent\Event\AgentInvocationCompleted;
 use Symfony\AI\Agent\Event\AgentInvocationStarted;
@@ -25,6 +26,7 @@ use Symfony\AI\Agent\Event\HandoffRequested;
 use Symfony\AI\Agent\Event\ModelRequested;
 use Symfony\AI\Agent\Event\ModelResponded;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
+use Symfony\AI\Agent\Execution\Update\Interaction as InteractionUpdate;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
@@ -35,6 +37,7 @@ use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\MultiPartResult;
+use Symfony\AI\Platform\Result\ObjectResult;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ToolCallResult;
@@ -127,6 +130,8 @@ final class Runner
         $messages = $request->getMessageBag();
         if ($result instanceof TextResult) {
             $messages = $messages->with(Message::ofAssistant($result->getContent()));
+        } elseif ($result instanceof ObjectResult) {
+            $messages = $messages->with(Message::ofAssistant(json_encode($result->getContent(), \JSON_THROW_ON_ERROR)));
         }
 
         $this->store->save($messages);
@@ -155,11 +160,40 @@ final class Runner
                 throw new MaxIterationsExceededException($this->maxToolCalls);
             }
 
-            $toolMessages = yield from $this->toolExecutor->execute($toolCallResult, $agentContext);
+            $toolMessages = yield from $this->executeTools($toolCallResult, $request, $agentContext);
             foreach ($toolMessages as $message) {
                 $request->getMessageBag()->add($message);
             }
         }
+    }
+
+    /**
+     * Forwards the tool executor's updates, enriching Interaction updates with
+     * the full conversation so consumers get a complete, resumable snapshot.
+     *
+     * @return \Generator<int, UpdateInterface, mixed, list<\Symfony\AI\Platform\Message\MessageInterface>>
+     */
+    private function executeTools(ToolCallResult $toolCallResult, AgentRequest $request, AgentContext $agentContext): \Generator
+    {
+        \assert($this->toolExecutor instanceof ToolExecutorInterface);
+
+        $executor = $this->toolExecutor->execute($toolCallResult, $agentContext);
+
+        while ($executor->valid()) {
+            $update = $executor->current();
+
+            if ($update instanceof InteractionUpdate) {
+                $update = $update->withMessages([...$request->getMessageBag()->getMessages(), ...$update->getMessages()]);
+                $executor->send(yield $update);
+
+                continue;
+            }
+
+            yield $update;
+            $executor->next();
+        }
+
+        return $executor->getReturn();
     }
 
     /**
@@ -201,7 +235,7 @@ final class Runner
         yield new Progress('handoff', \sprintf('Delegating to agent "%s".', $target->getName()), $target->getName());
 
         $result = null;
-        foreach ($target->run($userMessage, new Context(), $request->getOptions()) as $update) {
+        foreach ($target->run($userMessage, $request->getContext()->without(Instruction::class), $request->getOptions()) as $update) {
             if ($update instanceof ResultUpdate) {
                 $result = $update->getResult();
 
