@@ -18,6 +18,10 @@ use Symfony\AI\Agent\Context\AgentResult;
 use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
+use Symfony\AI\Agent\Event\AgentInvocationCompleted;
+use Symfony\AI\Agent\Event\AgentInvocationStarted;
+use Symfony\AI\Agent\Event\ModelRequested;
+use Symfony\AI\Agent\Event\ModelResponded;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
@@ -85,6 +89,14 @@ final class Runner
         $request = new AgentRequest($model, $messages, $options, $context);
         $agentContext = new AgentContext($agent);
 
+        $started = new AgentInvocationStarted($agent, $request);
+        $this->eventDispatcher?->dispatch($started);
+        if ($started->hasResult()) {
+            yield new ResultUpdate($started->getResult());
+
+            return;
+        }
+
         foreach ($this->applicableProcessors($context) as $processor) {
             $processor->process($request, $agentContext);
             yield from $agentContext->flushUpdates();
@@ -99,6 +111,7 @@ final class Runner
         $iterations = 0;
 
         while (true) {
+            $this->eventDispatcher?->dispatch(new ModelRequested($agent, $request));
             yield new Progress('model_request', 'Invoking model.', $model);
 
             $deferredResult = $this->platform->invoke($model, $messages, $options);
@@ -127,6 +140,8 @@ final class Runner
             if ($cancellation?->isRequested()) {
                 return;
             }
+
+            $this->eventDispatcher?->dispatch(new ModelResponded($agent, $result));
 
             $toolCallResult = $this->extractToolCallResult($result);
             if (null === $toolCallResult || null === $this->toolExecutor) {
@@ -168,7 +183,7 @@ final class Runner
             $result->getMetadata()->add('sources', $sources);
         }
 
-        yield from $this->complete($result, $request, $agentContext);
+        yield from $this->complete($agent, $result, $request, $agentContext);
     }
 
     /**
@@ -269,7 +284,7 @@ final class Runner
      *
      * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    private function complete(ResultInterface $result, AgentRequest $request, AgentContext $agentContext): \Generator
+    private function complete(AgentInterface $agent, ResultInterface $result, AgentRequest $request, AgentContext $agentContext): \Generator
     {
         $agentResult = new AgentResult($request->getModel(), $result, $request->getMessageBag(), $request->getOptions(), $request->getContext());
 
@@ -281,6 +296,8 @@ final class Runner
             $processor->processResult($agentResult, $agentContext);
             yield from $agentContext->flushUpdates();
         }
+
+        $this->eventDispatcher?->dispatch(new AgentInvocationCompleted($agent, $agentResult));
 
         yield new ResultUpdate($agentResult->getResult());
     }
