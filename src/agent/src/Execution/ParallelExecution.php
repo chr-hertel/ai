@@ -1,0 +1,78 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Symfony\AI\Agent\Execution;
+
+use Symfony\AI\Platform\Result\ResultInterface;
+
+/**
+ * Fans out several agent {@see Execution}s and exposes their merged update
+ * stream. Updates and results are keyed by the execution key.
+ *
+ * The executions are interleaved cooperatively in round-robin fashion, not run
+ * concurrently: each step — including the blocking model call behind it —
+ * completes before the next execution advances. Wall-clock time is the sum of
+ * all executions.
+ *
+ * @author Christopher Hertel <mail@christopher-hertel.de>
+ *
+ * @implements \IteratorAggregate<int|string, UpdateInterface>
+ */
+final class ParallelExecution implements \IteratorAggregate
+{
+    /**
+     * @param array<int|string, Execution> $executions
+     */
+    public function __construct(
+        private readonly array $executions,
+    ) {
+    }
+
+    /**
+     * @return \Generator<int|string, UpdateInterface>
+     */
+    public function getIterator(): \Generator
+    {
+        $generators = [];
+        foreach ($this->executions as $key => $execution) {
+            $generators[$key] = $execution->getIterator();
+        }
+
+        while ([] !== $generators) {
+            foreach ($generators as $key => $generator) {
+                if (!$generator->valid()) {
+                    unset($generators[$key]);
+
+                    continue;
+                }
+
+                yield $key => $generator->current();
+                $generator->next();
+            }
+        }
+    }
+
+    /**
+     * Drives every execution to completion and returns the results, keyed by
+     * the execution key.
+     *
+     * @return array<int|string, ResultInterface>
+     */
+    public function await(): array
+    {
+        $results = [];
+        foreach ($this->executions as $key => $execution) {
+            $results[$key] = $execution->await();
+        }
+
+        return $results;
+    }
+}

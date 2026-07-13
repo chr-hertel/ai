@@ -11,10 +11,14 @@
 
 namespace Symfony\AI\Agent;
 
+use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\OutOfBoundsException;
 use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\ResultInterface;
@@ -33,9 +37,9 @@ use Symfony\AI\Platform\Result\StreamResult;
 final class MockAgent implements AgentInterface
 {
     /**
-     * @var array<string, string|MockResponse|\Closure>
+     * @var array<string, string|MockResponse|StreamResult|\Closure>
      */
-    private array $responses = [];
+    private array $responses;
 
     private int $callCount = 0;
 
@@ -54,21 +58,10 @@ final class MockAgent implements AgentInterface
         $this->responses = $responses;
     }
 
-    /**
-     * @param array<string, mixed> $options
-     */
-    public function call(MessageBag $messages, array $options = []): ResultInterface
+    public function call(string|MessageBag|UserMessage $input, Context $context = new Context(), array $options = []): ResultInterface
     {
-        $lastMessage = $messages->getMessages()[\count($messages->getMessages()) - 1];
-        $content = '';
-
-        if ($lastMessage instanceof UserMessage) {
-            foreach ($lastMessage->getContent() as $messageContent) {
-                if ($messageContent instanceof Text) {
-                    $content .= $messageContent->getText();
-                }
-            }
-        }
+        $messages = $this->normalizeInput($input);
+        $content = $this->extractText($messages);
 
         if (!isset($this->responses[$content])) {
             throw new RuntimeException(\sprintf('No response configured for input "%s".', $content));
@@ -90,9 +83,8 @@ final class MockAgent implements AgentInterface
 
         $responseText = $response instanceof MockResponse
             ? $response->getContent()
-            : $response;
+            : (\is_string($response) ? $response : '');
 
-        // Track the call
         ++$this->callCount;
         $this->calls[] = [
             'messages' => $messages,
@@ -102,6 +94,13 @@ final class MockAgent implements AgentInterface
         ];
 
         return $result;
+    }
+
+    public function run(string|MessageBag|UserMessage $input, Context $context = new Context(), array $options = []): Execution
+    {
+        return new Execution(function () use ($input, $context, $options): \Generator {
+            yield new ResultUpdate($this->call($input, $context, $options));
+        });
     }
 
     /**
@@ -127,7 +126,7 @@ final class MockAgent implements AgentInterface
     /**
      * Get all configured responses.
      *
-     * @return array<string, string|MockResponse|\Closure>
+     * @return array<string, string|MockResponse|StreamResult|\Closure>
      */
     public function getResponses(): array
     {
@@ -157,7 +156,7 @@ final class MockAgent implements AgentInterface
      *
      * @return array{messages: MessageBag, options: array<string, mixed>, input: string, response: string}
      *
-     * @throws \OutOfBoundsException If the call index doesn't exist
+     * @throws OutOfBoundsException If the call index doesn't exist
      */
     public function getCall(int $index): array
     {
@@ -173,7 +172,7 @@ final class MockAgent implements AgentInterface
      *
      * @return array{messages: MessageBag, options: array<string, mixed>, input: string, response: string}
      *
-     * @throws \LogicException If no calls have been made
+     * @throws LogicException If no calls have been made
      */
     public function getLastCall(): array
     {
@@ -250,5 +249,35 @@ final class MockAgent implements AgentInterface
     public function getName(): string
     {
         return $this->name;
+    }
+
+    private function normalizeInput(string|MessageBag|UserMessage $input): MessageBag
+    {
+        if ($input instanceof MessageBag) {
+            return $input;
+        }
+
+        if ($input instanceof UserMessage) {
+            return new MessageBag($input);
+        }
+
+        return new MessageBag(Message::ofUser($input));
+    }
+
+    private function extractText(MessageBag $messages): string
+    {
+        $allMessages = $messages->getMessages();
+        $lastMessage = [] === $allMessages ? null : $allMessages[\count($allMessages) - 1];
+
+        $content = '';
+        if ($lastMessage instanceof UserMessage) {
+            foreach ($lastMessage->getContent() as $messageContent) {
+                if ($messageContent instanceof Text) {
+                    $content .= $messageContent->getText();
+                }
+            }
+        }
+
+        return $content;
     }
 }

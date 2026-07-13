@@ -1,6 +1,103 @@
 UPGRADE FROM 0.10 to 0.11
 =========================
 
+Agent
+-----
+
+ * `AgentInterface::call()` now takes the input as `string|MessageBag|UserMessage`, an
+   optional `Context` and an options array, instead of `(MessageBag $messages, array $options)`:
+
+   ```diff
+   -$result = $agent->call($messageBag, ['temperature' => 0.5]);
+   +$result = $agent->call($messageBag, options: ['temperature' => 0.5]);
+   +$result = $agent->call('A plain string input works too.');
+   ```
+
+ * `AgentInterface` gained `run()`, which returns a lazy, iterable `Execution` yielding
+   `Progress`, `Interaction` and `Result` updates for progress reporting and human-in-the-loop.
+
+ * `AgentInterface::getModel()` was removed. The model is configured on the `Agent`
+   constructor and overridable per call via the `model` option.
+
+ * The `Agent` constructor changed to first-class named arguments:
+
+   ```diff
+   -$agent = new Agent($platform, 'gpt-4o', $inputProcessors, $outputProcessors, 'research');
+   +$agent = new Agent($platform, name: 'research', instruction: '...', tools: [...], model: 'gpt-4o');
+   ```
+
+ * Tools are passed directly via the `tools:` argument (local tools, subagents or a
+   pre-built `ToolboxInterface`) and routing via the `handoffs:` argument, instead of
+   being wired through `Toolbox\AgentProcessor` and `MultiAgent\MultiAgent`.
+
+ * An optional `MessageStoreInterface` can be passed via the `store:` argument to make
+   the agent stateful: it loads, appends and persists the conversation across calls.
+
+ * Human-in-the-loop: a tool can pause the execution by throwing
+   `Toolbox\Exception\ToolInteractionException`, and tools listed in the
+   `toolsRequiringApproval` argument of `SequentialToolExecutor` pause before executing.
+   Consumers either answer inline via `run()` with an `onInteraction()` handler, or let
+   `call()`/`await()` throw an `InteractionRequiredException` and resume later — the
+   `Interaction` carries the pending tool call and a full conversation snapshot:
+
+   ```php
+   // inline
+   $result = $agent->run('...')
+       ->onInteraction(fn (Interaction $i) => new InteractionResponse($this->askUser($i->getPrompt())))
+       ->await();
+
+   // persist and resume in another process
+   try {
+       $result = $agent->call('...');
+   } catch (InteractionRequiredException $e) {
+       $interaction = $e->getInteraction();
+       // persist $interaction->getMessages() and $interaction->getToolCall(), collect the
+       // answer, then: $messages = new MessageBag(...persisted)->with(Message::ofToolCall($toolCall, $answer));
+       // and $agent->call($messages) to continue.
+   }
+   ```
+
+ * The input/output processor system was removed in favor of the context processor
+   one. Classes removed: `InputProcessorInterface`, `OutputProcessorInterface`,
+   `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `Attribute\AsInputProcessor`,
+   `Attribute\AsOutputProcessor`, `InputProcessor\SystemPromptInputProcessor`,
+   `InputProcessor\ModelOverrideInputProcessor`, `Memory\MemoryInputProcessor`,
+   `Toolbox\AgentProcessor`, `Toolbox\StreamListener` and the entire `MultiAgent`
+   namespace. Implement `Context\ContextProcessorInterface` instead and pass instances
+   via the `contextProcessors` argument:
+
+   ```diff
+   -class MyProcessor implements InputProcessorInterface
+   -{
+   -    public function processInput(Input $input): void { /* ... */ }
+   -}
+   +class MyProcessor implements ContextProcessorInterface
+   +{
+   +    public static function supportedTypes(): array { return []; }
+   +    public function process(AgentRequest $request, AgentContext $context): void { /* ... */ }
+   +}
+   ```
+
+ * `MultiAgent\MultiAgent` was removed. Configure handoffs directly on the `Agent`:
+
+   ```diff
+   -$multi = new MultiAgent(
+   -    orchestrator: $orchestrator,
+   -    handoffs: [new MultiAgent\Handoff(to: $technical, when: ['bug', 'error'])],
+   -    fallback: $fallback,
+   -);
+   +$orchestrator = new Agent($platform,
+   +    name: 'orchestrator',
+   +    instruction: '...',
+   +    handoffs: [new Handoff\Handoff(to: $technical, description: 'bugs, errors')],
+   +    model: 'gpt-4o',
+   +);
+   ```
+
+ * `MemoryProviderInterface::load()` now takes a `Context\AgentRequest` instead of the
+   removed `Input`. Update custom providers and replace `MemoryInputProcessor` with
+   `Context\Processor\MemoryProcessor`.
+
 Platform
 --------
 
