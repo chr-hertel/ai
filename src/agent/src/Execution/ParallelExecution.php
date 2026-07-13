@@ -17,6 +17,11 @@ use Symfony\AI\Platform\Result\ResultInterface;
  * Fans out several agent {@see Execution}s and exposes their merged update
  * stream. Updates and results are keyed by the execution key.
  *
+ * The executions are interleaved cooperatively in round-robin fashion, not run
+ * concurrently: each step — including the blocking model call behind it —
+ * completes before the next execution advances. Wall-clock time is the sum of
+ * all executions.
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  *
  * @implements \IteratorAggregate<int|string, UpdateInterface>
@@ -36,9 +41,21 @@ final class ParallelExecution implements \IteratorAggregate
      */
     public function getIterator(): \Generator
     {
+        $generators = [];
         foreach ($this->executions as $key => $execution) {
-            foreach ($execution as $update) {
-                yield $key => $update;
+            $generators[$key] = $execution->getIterator();
+        }
+
+        while ([] !== $generators) {
+            foreach ($generators as $key => $generator) {
+                if (!$generator->valid()) {
+                    unset($generators[$key]);
+
+                    continue;
+                }
+
+                yield $key => $generator->current();
+                $generator->next();
             }
         }
     }

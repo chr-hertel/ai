@@ -44,6 +44,14 @@ final class Context implements \Countable, \IteratorAggregate
     }
 
     /**
+     * @param class-string $type
+     */
+    public function without(string $type): self
+    {
+        return new self(...array_filter($this->items, static fn (object $item): bool => !$item instanceof $type));
+    }
+
+    /**
      * @param class-string|null $type
      *
      * @return list<object>
