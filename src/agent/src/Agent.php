@@ -16,6 +16,7 @@ use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Context\Processor\AttachmentProcessor;
+use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
 use Symfony\AI\Agent\Context\Processor\InstructionProcessor;
 use Symfony\AI\Agent\Context\Processor\ToolProcessor;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
@@ -93,6 +94,8 @@ final class Agent implements AgentInterface
         if (!$this->contains($processors, InstructionProcessor::class)) {
             array_unshift($processors, new InstructionProcessor($translator, $includeToolsInInstruction ? $toolbox : null, $logger));
         }
+
+        array_unshift($processors, new HandoffProcessor($platform, $eventDispatcher));
 
         // last by default, so the tools option a processor sets is exposed and enforced
         if ($toolbox instanceof ToolboxInterface && !$this->contains($processors, ToolProcessor::class)) {

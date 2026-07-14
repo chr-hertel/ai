@@ -37,8 +37,7 @@ final class Progress implements UpdateInterface
     public const STAGE_TOOL_CALL = 'tool_call';
 
     /**
-     * A {@see \Symfony\AI\Agent\MultiAgent\MultiAgent} routed the input to another agent; the payload is its
-     * {@see \Symfony\AI\Agent\MultiAgent\Handoff\Decision}.
+     * The agent handed the input off to another agent; the payload is the name of that agent.
      */
     public const STAGE_HANDOFF = 'handoff';
 

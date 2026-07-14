@@ -90,7 +90,7 @@ final class Runner
     public function run(AgentInterface $agent, string $model, MessageBag $messages, Context $context, array $options, ?Cancellation $cancellation = null): \Generator
     {
         $request = new AgentRequest($model, $messages, $options, $context);
-        $agentContext = new AgentContext($agent);
+        $agentContext = new AgentContext($agent, $cancellation);
 
         $started = new ExecutionStarted($agent, $request);
         $this->eventDispatcher?->dispatch($started);
@@ -102,6 +102,18 @@ final class Runner
 
         foreach ($this->applicableProcessors($context) as $processor) {
             $processor->process($request, $agentContext);
+            yield from $agentContext->flushUpdates();
+
+            if ($cancellation?->isRequested()) {
+                return;
+            }
+
+            $delegation = $agentContext->getDelegation();
+            if (null !== $delegation) {
+                yield from $cancellation?->forward($delegation) ?? $delegation;
+
+                return;
+            }
         }
 
         $model = $request->getModel();

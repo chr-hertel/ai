@@ -117,10 +117,37 @@ final class AgentInstantiationTest extends TestCase
         ], $processors);
     }
 
+    #[TestDox('A configured multi agent can actually be instantiated from the compiled container')]
+    public function testTheMultiAgentCanBeInstantiated()
+    {
+        $container = $this->compile([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'agent' => [
+                    'dispatcher' => ['model' => 'gpt-4o-mini'],
+                    'technical' => ['model' => 'gpt-4o-mini'],
+                    'general' => ['model' => 'gpt-4o-mini'],
+                ],
+                'multi_agent' => [
+                    'support' => [
+                        'orchestrator' => 'dispatcher',
+                        'fallback' => 'general',
+                        'handoffs' => ['technical' => ['code', 'debug', 'error']],
+                    ],
+                ],
+            ],
+        ], 'ai.multi_agent.support');
+
+        $agent = $container->get('ai.multi_agent.support');
+
+        $this->assertInstanceOf(Agent::class, $agent);
+        $this->assertSame('support', $agent->getName());
+    }
+
     /**
      * @param array<string, mixed> $configuration
      */
-    private function compile(array $configuration): ContainerBuilder
+    private function compile(array $configuration, string $serviceId = 'ai.agent.my_agent'): ContainerBuilder
     {
         $container = new ContainerBuilder();
         $container->setParameter('kernel.debug', false);
@@ -138,7 +165,7 @@ final class AgentInstantiationTest extends TestCase
         $bundle->getContainerExtension()->load($configuration, $container);
         $bundle->build($container);
 
-        $container->getDefinition('ai.agent.my_agent')->setPublic(true);
+        $container->getDefinition($serviceId)->setPublic(true);
         $container->compile();
 
         return $container;

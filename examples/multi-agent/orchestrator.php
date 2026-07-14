@@ -10,8 +10,8 @@
  */
 
 use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
+use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -23,13 +23,6 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $dispatcher = new EventDispatcher();
 $dispatcher->addSubscriber(new PlatformSubscriber());
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client(), eventDispatcher: $dispatcher);
-
-// Create orchestrator agent for routing decisions
-$orchestrator = new Agent(
-    $platform,
-    'gpt-5-mini',
-    instruction: 'You are an intelligent agent orchestrator that routes user questions to specialized agents.',
-);
 
 // Create technical agent for handling technical issues
 $technical = new Agent(
@@ -47,13 +40,16 @@ $fallback = new Agent(
     name: 'fallback',
 );
 
-$multiAgent = new MultiAgent(
-    orchestrator: $orchestrator,
-    handoffs: [
-        new Handoff(to: $technical, when: ['bug', 'problem', 'technical', 'error']),
-    ],
-    fallback: $fallback,
-    logger: logger()
+// The orchestrator delegates to one of its handoffs, or answers itself when none applies
+$multiAgent = new Agent(
+    $platform,
+    'gpt-5-mini',
+    instruction: 'You are an intelligent agent orchestrator that routes user questions to specialized agents.',
+    context: new Context(
+        new Handoff($technical, 'bugs, problems, technical questions and errors'),
+        new Handoff($fallback, 'general or otherwise unmatched requests'),
+    ),
+    logger: logger(),
 );
 
 echo "=== Technical Question ===\n";

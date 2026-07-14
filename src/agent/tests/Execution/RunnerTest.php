@@ -12,9 +12,14 @@
 namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Agent\Context\AgentContext;
+use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Processor\ToolProcessor;
+use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
+use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
@@ -901,6 +906,47 @@ final class RunnerTest extends TestCase
         $metadata = $result->getMetadata();
         $this->assertTrue($metadata->has('sources'));
         $this->assertCount(1, $metadata->get('sources'));
+    }
+
+    public function testAProcessorCanDelegateTheRunToAnotherExecution()
+    {
+        $platform = $this->createMock(PlatformInterface::class);
+        $platform->expects($this->never())->method('invoke');
+
+        $delegating = new class implements ContextProcessorInterface {
+            public static function supportedTypes(): array
+            {
+                return [];
+            }
+
+            public function process(AgentRequest $request, AgentContext $context): void
+            {
+                $context->delegate(new Execution(static function (): \Generator {
+                    yield new Progress('delegated', 'Working elsewhere.');
+                    yield new ResultUpdate(new TextResult('Delegated answer'));
+                }));
+            }
+        };
+
+        $skipped = new class implements ContextProcessorInterface {
+            public static function supportedTypes(): array
+            {
+                return [];
+            }
+
+            public function process(AgentRequest $request, AgentContext $context): void
+            {
+                throw new LogicException('A processor after the delegating one must not run.');
+            }
+        };
+
+        $updates = $this->collectUpdates(new Runner($platform, [$delegating, $skipped]), new MessageBag());
+
+        $this->assertCount(2, $updates);
+        $this->assertInstanceOf(Progress::class, $updates[0]);
+        $this->assertSame('delegated', $updates[0]->getStage());
+        $this->assertInstanceOf(ResultUpdate::class, $updates[1]);
+        $this->assertSame('Delegated answer', $updates[1]->getResult()->getContent());
     }
 
     public function testItYieldsProgressUpdatesForTheModelRequestAndEachToolCall()
