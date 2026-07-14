@@ -26,6 +26,7 @@ use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Store\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
@@ -78,6 +79,7 @@ final class Runner
         private readonly bool $excludeToolMessages = false,
         private readonly bool $includeSources = false,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?MessageStoreInterface $store = null,
         private readonly ToolResultConverter $resultConverter = new ToolResultConverter(),
     ) {
     }
@@ -92,6 +94,11 @@ final class Runner
     {
         $allowedTools = $this->allowedTools($options);
         $messages = $this->excludeToolMessages ? clone $messages : $messages;
+
+        if (null !== $this->store) {
+            // the stored conversation precedes the messages of this call
+            $messages = $this->store->load()->merge($messages);
+        }
 
         $request = new AgentRequest($model, $messages, $options, $context);
         $agentContext = new AgentContext($agent, $cancellation);
@@ -333,6 +340,8 @@ final class Runner
             yield from $agentContext->flushUpdates();
         }
 
+        $this->persist($request, $agentResult->getResult());
+
         $this->eventDispatcher?->dispatch(new ExecutionCompleted($agent, $agentResult));
 
         yield new ResultUpdate($agentResult->getResult());
@@ -371,6 +380,20 @@ final class Runner
         }
 
         return $result;
+    }
+
+    /**
+     * Appends the answer to the conversation and persists it, so the next call continues where this one left off.
+     */
+    private function persist(AgentRequest $request, ResultInterface $result): void
+    {
+        if (null === $this->store) {
+            return;
+        }
+
+        $answer = $result instanceof ObjectResult ? json_encode($result->getContent(), \JSON_THROW_ON_ERROR) : $result;
+
+        $this->store->save($request->getMessageBag()->with(Message::ofAssistant($answer)));
     }
 
     /**
