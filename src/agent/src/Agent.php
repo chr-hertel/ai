@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Context\Processor\AttachmentProcessor;
+use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
 use Symfony\AI\Agent\Context\Processor\InstructionProcessor;
 use Symfony\AI\Agent\Context\Processor\ToolProcessor;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
@@ -77,6 +78,7 @@ final class Agent implements AgentInterface
         }
 
         $processors = [
+            new HandoffProcessor($platform, $eventDispatcher),
             new InstructionProcessor($translator, $includeToolsInInstruction ? $toolbox : null, $logger ?? new NullLogger()),
             new AttachmentProcessor(),
         ];
