@@ -148,6 +148,25 @@ model-request and tool-call updates::
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
 
+Several Inputs at Once
+~~~~~~~~~~~~~~~~~~~~~~
+
+``callMany()`` drives several inputs through the same agent and returns a
+:class:`Symfony\\AI\\Agent\\Execution\\ParallelExecution` whose updates and results are keyed by the input key::
+
+    $results = $agent->callMany([
+        'berlin' => 'What is the capital of Germany?',
+        'paris' => 'What is the capital of France?',
+    ])->getResults();
+
+    echo $results['berlin']->getContent();
+
+.. note::
+
+    The executions are interleaved cooperatively, not run concurrently: each step - including the blocking model
+    call behind it - completes before the next execution advances, so the wall-clock time is the sum of all
+    executions.
+
 Human in the Loop
 -----------------
 

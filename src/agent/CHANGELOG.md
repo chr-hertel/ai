@@ -19,8 +19,9 @@ CHANGELOG
  * Add a `Store` namespace (`MessageStoreInterface`, `ManagedStoreInterface`, `InMemoryStore`): when a store is passed to the `Agent`, the runner loads the conversation before the call and persists it with the answer afterwards, making the agent stateful
  * Add a human-in-the-loop path: a tool can throw a `Toolbox\Exception\ToolInteractionException` to pause the execution with an `Interaction` update, and the `InteractionResponse` sent back by the consumer becomes the tool call's result
  * Add a `toolsRequiringApproval` argument to `SequentialToolExecutor`, gating the configured tools behind an `InteractionReason::ToolApproval` interaction; a denied tool call is not executed
- * Add `Execution::onInteraction()`; `await()` throws an `InteractionRequiredException` when an execution pauses and no handler is registered
+ * Add `Execution::onInteraction()`; reading the result throws an `InteractionRequiredException` when an execution pauses and no handler is registered
  * `Interaction` updates raised from tool calls carry the pending `ToolCall` and a full conversation snapshot, enabling persist-and-resume of paused executions across processes
+ * Add `Agent::callMany()` and `Execution\ParallelExecution`, driving several inputs through the same agent and keying their merged updates and results by the input key
 
 0.13
 ----
