@@ -12,9 +12,7 @@
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\Handoff\Decision;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
+use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -26,12 +24,6 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $dispatcher = new EventDispatcher();
 $dispatcher->addSubscriber(new PlatformSubscriber());
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client(), eventDispatcher: $dispatcher);
-
-$orchestrator = new Agent(
-    $platform,
-    'gpt-5-mini',
-    instruction: 'You are an intelligent agent orchestrator that routes user questions to specialized agents.',
-);
 
 $technical = new Agent(
     $platform,
@@ -47,30 +39,29 @@ $fallback = new Agent(
     name: 'fallback',
 );
 
-$multiAgent = new MultiAgent(
-    orchestrator: $orchestrator,
+// The orchestrator delegates to one of its handoffs, or answers itself when none applies
+$multiAgent = new Agent(
+    $platform,
+    'gpt-5-mini',
+    instruction: 'You are an intelligent agent orchestrator that routes user questions to specialized agents.',
     handoffs: [
-        new Handoff(to: $technical, when: ['bug', 'problem', 'technical', 'error']),
+        new Handoff($technical, 'bugs, problems, technical questions and errors'),
+        new Handoff($fallback, 'general or otherwise unmatched requests'),
     ],
-    fallback: $fallback,
 );
 
 $question = 'I get this error in my php code: "Call to undefined method App\Controller\UserController::getName()" - this is my line of code: $user->getName() where $user is an instance of User entity.';
 echo "Question: $question".\PHP_EOL.\PHP_EOL;
 
-// iterating the multi-agent reports the routing decision and the steps of the agent it delegates to
+// iterating the agent reports the handoff and the steps of the agent it delegates to
 foreach ($multiAgent->call(new MessageBag(Message::ofUser($question))) as $update) {
     if ($update instanceof Progress && 'handoff' === $update->getStage()) {
-        $decision = $update->getPayload();
-        assert($decision instanceof Decision);
-
-        echo '>> '.$update->getMessage().' Reason: '.$decision->getReasoning().\PHP_EOL;
+        echo '>> '.$update->getMessage().\PHP_EOL;
 
         continue;
     }
 
     if ($update instanceof Progress) {
-        // the orchestrator's routing round reports here as well, before the handoff
         echo '   '.$update->getMessage().\PHP_EOL;
     }
 

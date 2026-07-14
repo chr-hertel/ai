@@ -20,9 +20,8 @@ use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Attribute\AsContextProcessor;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
+use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
@@ -2628,25 +2627,29 @@ final class AiBundle extends AbstractBundle
     {
         $orchestratorServiceId = self::normalizeAgentServiceId($config['orchestrator']);
 
-        $handoffReferences = [];
+        // Handoffs live on the orchestrating agent itself, the container inlines these value objects
+        $handoffs = [];
 
         foreach ($config['handoffs'] as $agentName => $whenConditions) {
-            // Create handoff definitions directly (not as separate services)
-            // The container will inline simple value objects like Handoff
-            $handoffReferences[] = new Definition(Handoff::class, [
+            $handoffs[] = new Definition(Handoff::class, [
                 new Reference(self::normalizeAgentServiceId($agentName)),
-                $whenConditions,
+                implode(', ', $whenConditions),
             ]);
         }
 
-        $multiAgentId = 'ai.multi_agent.'.$name;
-        $multiAgentDefinition = new Definition(MultiAgent::class, [
-            new Reference($orchestratorServiceId),
-            $handoffReferences,
+        // The fallback agent takes everything the other handoffs do not match
+        $handoffs[] = new Definition(Handoff::class, [
             new Reference(self::normalizeAgentServiceId($config['fallback'])),
-            $name,
+            'general or otherwise unmatched requests',
         ]);
 
+        // The multi agent is the orchestrating agent - same platform, model, instruction and tools - carrying the
+        // handoffs. It is a service of its own, so several multi agents can share one orchestrator.
+        $multiAgentId = 'ai.multi_agent.'.$name;
+        $multiAgentDefinition = clone $container->getDefinition($orchestratorServiceId);
+        $multiAgentDefinition->clearTags();
+        $multiAgentDefinition->setArgument('$name', $name);
+        $multiAgentDefinition->setArgument('$handoffs', $handoffs);
         $multiAgentDefinition->addTag('ai.multi_agent', ['name' => $name]);
         $multiAgentDefinition->addTag('ai.agent', ['name' => $name]);
 

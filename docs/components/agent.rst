@@ -145,7 +145,7 @@ the stream without producing a final result::
         echo $delta->getText();
     }
 
-Cancellation is idempotent, propagates to the agents a ``MultiAgent`` or ``SpeechAgent`` delegates to, and makes
+Cancellation is idempotent, propagates to the agents an agent hands off to or a ``SpeechAgent`` delegates to, and makes
 ``getResult()`` throw a :class:`Symfony\\AI\\Agent\\Exception\\RuntimeException` instead of returning a partial
 answer. See the
 `execution-cancellation.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-cancellation.php>`_
