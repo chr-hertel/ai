@@ -26,6 +26,7 @@ use Symfony\AI\Agent\Event\HandoffRequested;
 use Symfony\AI\Agent\Event\ModelRequested;
 use Symfony\AI\Agent\Event\ModelResponded;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
+use Symfony\AI\Agent\Execution\Update\Interaction;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
@@ -36,6 +37,7 @@ use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
+use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -190,9 +192,10 @@ final class Runner
 
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
-            $toolResults = yield from $this->toolExecutor->execute($toolCalls);
+            $assistant = $assistantMessage ?? Message::ofAssistant($result);
+            $toolResults = yield from $this->executeTools($toolCalls, $messages, $assistant);
 
-            $messages->add($assistantMessage ?? Message::ofAssistant($result));
+            $messages->add($assistant);
             foreach ($toolResults as $i => $toolResult) {
                 $messages->add(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
 
@@ -295,6 +298,37 @@ final class Runner
         }
 
         return $result;
+    }
+
+    /**
+     * Drives the tool executor, completing the conversation snapshot an {@see Interaction} carries before it
+     * reaches the consumer, and handing the consumer's response back to the executor.
+     *
+     * @param ToolCall[] $toolCalls
+     *
+     * @return \Generator<int, UpdateInterface, mixed, ToolResult[]>
+     */
+    private function executeTools(array $toolCalls, MessageBag $messages, AssistantMessage $assistant): \Generator
+    {
+        \assert($this->toolExecutor instanceof ToolExecutorInterface);
+
+        $executor = $this->toolExecutor->execute($toolCalls);
+
+        while ($executor->valid()) {
+            $update = $executor->current();
+
+            if ($update instanceof Interaction) {
+                $update = $update->withMessages([...$messages->getMessages(), $assistant, ...$update->getMessages()]);
+                $executor->send(yield $update);
+
+                continue;
+            }
+
+            yield $update;
+            $executor->next();
+        }
+
+        return $executor->getReturn();
     }
 
     /**
