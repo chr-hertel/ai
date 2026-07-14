@@ -27,9 +27,8 @@ use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
+use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\AiBundle\AiBundle;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
@@ -7153,48 +7152,26 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        // Verify the MultiAgent service is created
+        // The multi agent is the orchestrating agent carrying the handoffs
         $this->assertTrue($container->hasDefinition('ai.multi_agent.support'));
 
         $multiAgentDefinition = $container->getDefinition('ai.multi_agent.support');
+        $this->assertSame('support', $multiAgentDefinition->getArgument('$name'));
+        $this->assertSame([['name' => 'support']], $multiAgentDefinition->getTag('ai.agent'));
 
-        // Verify the class is correct
-        $this->assertSame(MultiAgent::class, $multiAgentDefinition->getClass());
-
-        // Verify arguments
-        $arguments = $multiAgentDefinition->getArguments();
-        $this->assertCount(4, $arguments);
-
-        // First argument: orchestrator agent reference
-        $this->assertInstanceOf(Reference::class, $arguments[0]);
-        $this->assertSame('ai.agent.dispatcher', (string) $arguments[0]);
-
-        // Second argument: handoffs array
-        $handoffs = $arguments[1];
+        $handoffs = $multiAgentDefinition->getArgument('$handoffs');
         $this->assertIsArray($handoffs);
-        $this->assertCount(1, $handoffs);
+        $this->assertCount(2, $handoffs); // the configured handoff plus the fallback
 
-        // Verify handoff structure
-        $handoff = $handoffs[0];
-        $this->assertInstanceOf(Definition::class, $handoff);
-        $this->assertSame(Handoff::class, $handoff->getClass());
-        $handoffArgs = $handoff->getArguments();
-        $this->assertCount(2, $handoffArgs);
-        $this->assertInstanceOf(Reference::class, $handoffArgs[0]);
+        $handoffArgs = $handoffs[0]->getArguments();
+        $this->assertSame(Handoff::class, $handoffs[0]->getClass());
         $this->assertSame('ai.agent.technical', (string) $handoffArgs[0]);
-        $this->assertSame(['code', 'debug', 'error'], $handoffArgs[1]);
+        $this->assertSame('code, debug, error', $handoffArgs[1]);
 
-        // Third argument: fallback agent reference
-        $this->assertInstanceOf(Reference::class, $arguments[2]);
-        $this->assertSame('ai.agent.general', (string) $arguments[2]);
-
-        // Fourth argument: name
-        $this->assertSame('support', $arguments[3]);
-
-        // Verify the MultiAgent service has proper tags
-        $tags = $multiAgentDefinition->getTags();
-        $this->assertArrayHasKey('ai.agent', $tags);
-        $this->assertSame([['name' => 'support']], $tags['ai.agent']);
+        // The fallback agent handles everything the other handoffs do not match
+        $fallbackArgs = $handoffs[1]->getArguments();
+        $this->assertSame('ai.agent.general', (string) $fallbackArgs[0]);
+        $this->assertSame('general or otherwise unmatched requests', $fallbackArgs[1]);
 
         // Verify alias is created
         $this->assertTrue($container->hasAlias(AgentInterface::class.' $support'));
@@ -7233,33 +7210,30 @@ class AiBundleTest extends TestCase
 
         $this->assertTrue($container->hasDefinition('ai.multi_agent.customer_service'));
 
-        $multiAgentDefinition = $container->getDefinition('ai.multi_agent.customer_service');
-        $handoffs = $multiAgentDefinition->getArgument(1);
+        $handoffs = $container->getDefinition('ai.multi_agent.customer_service')->getArgument('$handoffs');
 
         $this->assertIsArray($handoffs);
-        $this->assertCount(2, $handoffs);
+        $this->assertCount(3, $handoffs); // two configured handoffs plus the fallback
 
-        // Both handoffs should be Definition objects
         foreach ($handoffs as $handoff) {
             $this->assertInstanceOf(Definition::class, $handoff);
             $this->assertSame(Handoff::class, $handoff->getClass());
             $handoffArgs = $handoff->getArguments();
             $this->assertCount(2, $handoffArgs);
             $this->assertInstanceOf(Reference::class, $handoffArgs[0]);
-            $this->assertIsArray($handoffArgs[1]);
+            $this->assertIsString($handoffArgs[1]);
         }
 
         // Verify first handoff (code_expert)
-        $codeHandoff = $handoffs[0];
-        $codeHandoffArgs = $codeHandoff->getArguments();
+        $codeHandoffArgs = $handoffs[0]->getArguments();
         $this->assertSame('ai.agent.code_expert', (string) $codeHandoffArgs[0]);
-        $this->assertSame(['bug', 'code', 'programming', 'technical'], $codeHandoffArgs[1]);
+        $this->assertSame('bug, code, programming, technical', $codeHandoffArgs[1]);
 
         // Verify second handoff (billing_expert)
         $billingHandoff = $handoffs[1];
         $billingHandoffArgs = $billingHandoff->getArguments();
         $this->assertSame('ai.agent.billing_expert', (string) $billingHandoffArgs[0]);
-        $this->assertSame(['payment', 'invoice', 'subscription', 'refund'], $billingHandoffArgs[1]);
+        $this->assertSame('payment, invoice, subscription, refund', $billingHandoffArgs[1]);
     }
 
     public function testEmptyHandoffsThrowsException()
@@ -7476,66 +7450,45 @@ class AiBundleTest extends TestCase
         $this->assertTrue($container->hasDefinition('ai.agent.docs_expert'));
         $this->assertTrue($container->hasDefinition('ai.agent.general_support'));
 
-        // Verify multi-agent services are created
+        // Verify multi-agent services are created; both reuse the same orchestrator
         $this->assertTrue($container->hasDefinition('ai.multi_agent.customer_support'));
         $this->assertTrue($container->hasDefinition('ai.multi_agent.development_assistant'));
 
-        // Test customer_support multi-agent configuration
-        $customerSupportDef = $container->getDefinition('ai.multi_agent.customer_support');
-        $this->assertSame(MultiAgent::class, $customerSupportDef->getClass());
-
-        $csArguments = $customerSupportDef->getArguments();
-        $this->assertCount(4, $csArguments);
-
-        // Orchestrator reference
-        $this->assertInstanceOf(Reference::class, $csArguments[0]);
-        $this->assertSame('ai.agent.orchestrator', (string) $csArguments[0]);
-
-        // Handoffs
-        $csHandoffs = $csArguments[1];
+        // Each multi agent carries its own handoffs, with the fallback as the last one
+        $csHandoffs = $container->getDefinition('ai.multi_agent.customer_support')->getArgument('$handoffs');
         $this->assertIsArray($csHandoffs);
-        $this->assertCount(2, $csHandoffs);
+        $this->assertCount(3, $csHandoffs);
 
-        // Code expert handoff
-        $codeHandoff = $csHandoffs[0];
-        $this->assertInstanceOf(Definition::class, $codeHandoff);
-        $codeHandoffArgs = $codeHandoff->getArguments();
+        $codeHandoffArgs = $csHandoffs[0]->getArguments();
         $this->assertSame('ai.agent.code_expert', (string) $codeHandoffArgs[0]);
-        $this->assertSame(['bug', 'error', 'code', 'debug', 'performance', 'optimization'], $codeHandoffArgs[1]);
+        $this->assertSame('bug, error, code, debug, performance, optimization', $codeHandoffArgs[1]);
 
-        // Docs expert handoff
-        $docsHandoff = $csHandoffs[1];
-        $this->assertInstanceOf(Definition::class, $docsHandoff);
-        $docsHandoffArgs = $docsHandoff->getArguments();
+        $docsHandoffArgs = $csHandoffs[1]->getArguments();
         $this->assertSame('ai.agent.docs_expert', (string) $docsHandoffArgs[0]);
-        $this->assertSame(['documentation', 'docs', 'readme', 'api', 'guide', 'tutorial'], $docsHandoffArgs[1]);
+        $this->assertSame('documentation, docs, readme, api, guide, tutorial', $docsHandoffArgs[1]);
 
-        // Fallback
-        $this->assertInstanceOf(Reference::class, $csArguments[2]);
-        $this->assertSame('ai.agent.general_support', (string) $csArguments[2]);
-
-        // Name
-        $this->assertSame('customer_support', $csArguments[3]);
+        $fallbackArgs = $csHandoffs[2]->getArguments();
+        $this->assertSame('ai.agent.general_support', (string) $fallbackArgs[0]);
+        $this->assertSame('general or otherwise unmatched requests', $fallbackArgs[1]);
 
         // Verify tags and aliases
-        $csTags = $customerSupportDef->getTags();
-        $this->assertArrayHasKey('ai.agent', $csTags);
-        $this->assertSame([['name' => 'customer_support']], $csTags['ai.agent']);
+        $customerSupportDef = $container->getDefinition('ai.multi_agent.customer_support');
+        $this->assertSame([['name' => 'customer_support']], $customerSupportDef->getTag('ai.agent'));
 
         $this->assertTrue($container->hasAlias(AgentInterface::class.' $customerSupport'));
         $this->assertTrue($container->hasAlias(AgentInterface::class.' $developmentAssistant'));
 
-        // Test development_assistant multi-agent configuration
-        $devAssistantDef = $container->getDefinition('ai.multi_agent.development_assistant');
-        $daArguments = $devAssistantDef->getArguments();
+        // Test development_assistant multi-agent configuration: it reuses the same orchestrator with its own handoffs
+        $daHandoffs = $container->getDefinition('ai.multi_agent.development_assistant')->getArgument('$handoffs');
+        $this->assertCount(2, $daHandoffs);
 
         // Verify it uses code_expert as fallback
-        $this->assertInstanceOf(Reference::class, $daArguments[2]);
-        $this->assertSame('ai.agent.code_expert', (string) $daArguments[2]);
+        $daFallbackArgs = $daHandoffs[1]->getArguments();
+        $this->assertSame('ai.agent.code_expert', (string) $daFallbackArgs[0]);
 
-        // Verify it has only docs_expert handoff
-        $daHandoffs = $daArguments[1];
-        $this->assertCount(1, $daHandoffs);
+        // Verify it has only the docs_expert handoff next to the fallback
+        $daDocsArgs = $daHandoffs[0]->getArguments();
+        $this->assertSame('ai.agent.docs_expert', (string) $daDocsArgs[0]);
 
         // Verify agent components are properly configured
 

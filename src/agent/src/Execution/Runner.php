@@ -17,14 +17,19 @@ use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\AgentResult;
 use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
+use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
 use Symfony\AI\Agent\Event\AgentInvocationCompleted;
 use Symfony\AI\Agent\Event\AgentInvocationStarted;
+use Symfony\AI\Agent\Event\HandoffCompleted;
+use Symfony\AI\Agent\Event\HandoffRequested;
 use Symfony\AI\Agent\Event\ModelRequested;
 use Symfony\AI\Agent\Event\ModelResponded;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Handoff\Decision;
+use Symfony\AI\Agent\Handoff\HandoffResolver;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
@@ -68,6 +73,7 @@ final class Runner
         private readonly PlatformInterface $platform,
         private readonly array $contextProcessors = [],
         private readonly ?ToolExecutorInterface $toolExecutor = null,
+        private readonly ?HandoffResolver $handoffResolver = null,
         private readonly ?int $maxToolCalls = 50,
         private readonly bool $excludeToolMessages = false,
         private readonly bool $includeSources = false,
@@ -105,6 +111,15 @@ final class Runner
         $model = $request->getModel();
         $messages = $request->getMessageBag();
         $options = $request->getOptions();
+
+        if (null !== $this->handoffResolver && [] !== $this->handoffResolver->getApplicableHandoffs()) {
+            $delegated = yield from $this->routeHandoff($agent, $request);
+            if ($delegated instanceof ResultInterface) {
+                yield new ResultUpdate($delegated);
+
+                return;
+            }
+        }
 
         $sources = new SourceCollection();
         $metadata = new Metadata();
@@ -164,6 +179,65 @@ final class Runner
         }
 
         yield from $this->complete($agent, $result, $request, $agentContext);
+    }
+
+    /**
+     * Asks the model which agent should handle the request, and delegates to it when one is picked.
+     *
+     * @return \Generator<int, UpdateInterface, mixed, ResultInterface|null>
+     */
+    private function routeHandoff(AgentInterface $agent, AgentRequest $request): \Generator
+    {
+        \assert($this->handoffResolver instanceof HandoffResolver);
+
+        $userMessage = $request->getMessageBag()->withoutSystemMessage()->getUserMessage();
+        if (null === $userMessage) {
+            return null;
+        }
+
+        $prompt = $this->handoffResolver->buildPrompt($userMessage->asText() ?? '');
+        $decision = $this->platform->invoke(
+            $request->getModel(),
+            new MessageBag(Message::ofUser($prompt)),
+            ['response_format' => Decision::class],
+        )->getResult()->getContent();
+
+        if (!$decision instanceof Decision || !$decision->hasAgent()) {
+            return null;
+        }
+
+        $handoff = $this->handoffResolver->findByName($decision->getAgentName());
+        if (null === $handoff) {
+            return null;
+        }
+
+        $event = new HandoffRequested($agent, $handoff->getTo(), $decision->getReasoning());
+        $this->eventDispatcher?->dispatch($event);
+
+        $target = $event->getTarget();
+        if (null === $target) {
+            return null;
+        }
+
+        yield new Progress('handoff', \sprintf('Delegating to agent "%s".', $target->getName()), $target->getName());
+
+        $result = null;
+        // the target agent brings its own instruction, the delegating one must not leak into it
+        foreach ($target->call($userMessage, $request->getContext()->without(Instruction::class), $request->getOptions()) as $update) {
+            if ($update instanceof ResultUpdate) {
+                $result = $update->getResult();
+
+                continue;
+            }
+
+            yield $update;
+        }
+
+        if ($result instanceof ResultInterface) {
+            $this->eventDispatcher?->dispatch(new HandoffCompleted($agent, $target, $result));
+        }
+
+        return $result;
     }
 
     /**

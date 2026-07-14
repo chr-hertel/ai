@@ -9,20 +9,21 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\Agent\MultiAgent\Handoff;
+namespace Symfony\AI\Agent\Handoff;
 
 /**
  * Represents the orchestrator's decision on which agent should handle a request.
  *
  * @author Oskar Stark <oskarstark@googlemail.com>
- *
- * @internal
  */
 final class Decision
 {
     /**
-     * @param string $agentName The name of the selected agent, or empty string if no specific agent is selected
-     * @param string $reasoning The reasoning behind the selection
+     * A default on $reasoning would make it optional in the generated JSON schema, which strict
+     * structured output modes reject.
+     *
+     * @param string $agentName the name of the selected agent, or empty string if no specific agent is selected
+     * @param string $reasoning the reasoning behind the selection
      */
     public function __construct(
         private readonly string $agentName,
@@ -30,9 +31,6 @@ final class Decision
     ) {
     }
 
-    /**
-     * Checks if a specific agent was selected.
-     */
     public function hasAgent(): bool
     {
         return '' !== $this->agentName;

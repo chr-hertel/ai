@@ -134,10 +134,9 @@ point:</p>
     Step 4: Configure Handoffs
     
 </h2>
-<p>A <a href="https://github.com/symfony/ai/blob/main/src/agent/src/MultiAgent/Handoff.php" class="reference external" title="Symfony\AI\Agent\MultiAgent\Handoff" rel="external noopener noreferrer" target="_blank">Handoff</a> defines when a question should be routed to a
-specific agent. The <code translate="no" class="notranslate">when</code> parameter accepts an array of keywords that trigger the routing.
-When the orchestrator detects these keywords in the user's question, it delegates to the matching
-agent:</p>
+<p>A <a href="https://github.com/symfony/ai/blob/main/src/agent/src/Handoff/Handoff.php" class="reference external" title="Symfony\AI\Agent\Handoff\Handoff" rel="external noopener noreferrer" target="_blank">Handoff</a> defines when a question should be routed to a specific agent. Its
+description is what the orchestrator's model reads to make its decision, so describe the agent's domain in natural
+language:</p>
 <div translate="no" class="highlight-php notranslate">
     <table class="highlighttable">
         <tbody>
@@ -150,28 +149,37 @@ agent:</p>
 4
 5
 6
-7
-8
-9
-10
-11
-12</pre>
+7</pre>
                     </div>
                 </td>
                 <td class="code">
                     <div class="highlight">
-                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">MultiAgent</span>\<span class="hljs-title">Handoff</span>;
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Handoff</span>\<span class="hljs-title">Handoff</span>;
 
 <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>handoffs</span> = [
-    <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(
-        <span class="hljs-attr">to</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>technical</span>,
-        <span class="hljs-attr">when</span>: [<span class="hljs-string">'bug'</span>, <span class="hljs-string">'error'</span>, <span class="hljs-string">'exception'</span>, <span class="hljs-string">'technical'</span>],
-    ),
-    <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(
-        <span class="hljs-attr">to</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>billing</span>,
-        <span class="hljs-attr">when</span>: [<span class="hljs-string">'invoice'</span>, <span class="hljs-string">'payment'</span>, <span class="hljs-string">'billing'</span>, <span class="hljs-string">'subscription'</span>],
-    ),
+    <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>technical</span>, <span class="hljs-string">'bugs, errors, exceptions and other technical problems'</span>),
+    <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>billing</span>, <span class="hljs-string">'invoices, payments, billing and subscriptions'</span>),
+    <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>fallback</span>, <span class="hljs-string">'general or otherwise unmatched requests'</span>),
 ];</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>A handoff can also carry a condition, so it is only offered when it applies:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>billing</span>, <span class="hljs-string">'invoices and payments'</span>, <span class="hljs-attr">condition</span>: <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-params">()</span> =&gt;</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>user</span>-&gt;<span class="hljs-title invoke__">hasSubscription</span>());</pre>
                     </div>
                 </td>
             </tr>
@@ -180,13 +188,12 @@ agent:</p>
 </div>
 </div>
 <div class="section">
-<h2 id="step-5-build-the-multiagent">
-    Step 5: Build the MultiAgent
+<h2 id="step-5-give-the-handoffs-to-the-orchestrator">
+    Step 5: Give the Handoffs to the Orchestrator
     
 </h2>
-<p>The <a href="https://github.com/symfony/ai/blob/main/src/agent/src/MultiAgent/MultiAgent.php" class="reference external" title="Symfony\AI\Agent\MultiAgent\MultiAgent" rel="external noopener noreferrer" target="_blank">MultiAgent</a> ties everything together. It takes the
-orchestrator, an array of handoffs, and a fallback agent that handles questions that do not match
-any specialist:</p>
+<p>Handoffs live on the orchestrating agent. Before it answers itself, it asks the model which of its handoffs should
+handle the request; when none is picked, it simply answers on its own:</p>
 <div translate="no" class="highlight-php notranslate">
     <table class="highlighttable">
         <tbody>
@@ -205,25 +212,23 @@ any specialist:</p>
 10
 11
 12
-13
-14</pre>
+13</pre>
                     </div>
                 </td>
                 <td class="code">
                     <div class="highlight">
-                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">MultiAgent</span>\<span class="hljs-title">MultiAgent</span>;
-
-<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>fallback</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Agent</span>(
+                        <pre class="hljs php"><span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>fallback</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Agent</span>(
     <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>platform</span>,
     <span class="hljs-string">'gpt-5-mini'</span>,
     <span class="hljs-attr">instruction</span>: <span class="hljs-string">'You are a general assistant. Help users with any non-specialized questions.'</span>,
     <span class="hljs-attr">name</span>: <span class="hljs-string">'fallback'</span>,
 );
 
-<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>multiAgent</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">MultiAgent</span>(
-    <span class="hljs-attr">orchestrator</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>orchestrator</span>,
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>multiAgent</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Agent</span>(
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>platform</span>,
+    <span class="hljs-string">'gpt-5-mini'</span>,
+    <span class="hljs-attr">instruction</span>: <span class="hljs-string">'You are an agent orchestrator that routes user questions to specialized agents.'</span>,
     <span class="hljs-attr">handoffs</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>handoffs</span>,
-    <span class="hljs-attr">fallback</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>fallback</span>,
 );</pre>
                     </div>
                 </td>
@@ -291,9 +296,10 @@ the question and routes it to the appropriate specialist automatically:</p>
     <p class="admonition-title">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
                 <span>Tip</span>
-    </p><p>You can add as many specialist agents as you need. Each handoff is evaluated independently,
-so the orchestrator can route to any number of domains. For debugging, pass a PSR-3 logger to
-the <code translate="no" class="notranslate">MultiAgent</code> constructor to see which agent handles each request.</p>
+    </p><p>You can add as many specialist agents as you need. To observe the routing, iterate the agent's execution with
+<code translate="no" class="notranslate">run()</code>: the handoff is reported as a <code translate="no" class="notranslate">Progress</code> update of the <code translate="no" class="notranslate">handoff</code> stage. The
+<code translate="no" class="notranslate">HandoffRequested</code> and <code translate="no" class="notranslate">HandoffCompleted</code> events carry the same information, and a listener on
+<code translate="no" class="notranslate">HandoffRequested</code> can override or cancel the target.</p>
 </div>
 </div>
 <div class="section">
