@@ -148,6 +148,28 @@ model-request and tool-call updates::
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
 
+Stateful Agents
+---------------
+
+By default an agent is stateless: every call starts from the messages it is given. Passing a
+:class:`Symfony\\AI\\Agent\\Store\\MessageStoreInterface` makes it stateful — the stored conversation precedes the
+messages of the call, and the answer is appended and persisted afterwards::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Store\InMemoryStore;
+
+    $store = new InMemoryStore();
+    $agent = new Agent($platform, $model, store: $store);
+
+    $agent->call('My name is Wilhelm Tell.')->getResult();
+    echo $agent->call('What is my name?')->getContent(); // "Your name is Wilhelm Tell."
+
+:class:`Symfony\\AI\\Agent\\Store\\InMemoryStore` keeps the conversation for the lifetime of the object, which is
+enough for a CLI script or a test. Implement ``MessageStoreInterface`` to persist it anywhere else - one store per
+conversation. A store whose backing storage has a lifecycle can additionally implement
+:class:`Symfony\\AI\\Agent\\Store\\ManagedStoreInterface` to expose ``setup()`` and ``drop()``; the agent never
+calls them, that is up to your application.
+
 Events
 ------
 
