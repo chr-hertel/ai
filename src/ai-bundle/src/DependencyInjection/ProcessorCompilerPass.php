@@ -11,7 +11,6 @@
 
 namespace Symfony\AI\AiBundle\DependencyInjection;
 
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
@@ -24,11 +23,6 @@ class ProcessorCompilerPass implements CompilerPassInterface
 
         foreach ($container->findTaggedServiceIds('ai.agent') as $serviceId => $tags) {
             $agentDefinition = $container->getDefinition($serviceId);
-
-            // Skip MultiAgent services - they have a different constructor signature
-            if (MultiAgent::class === $agentDefinition->getClass()) {
-                continue;
-            }
 
             $agentContextProcessors = [];
             foreach ($contextProcessors as $processorId => $processorTags) {

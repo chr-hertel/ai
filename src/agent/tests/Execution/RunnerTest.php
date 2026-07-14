@@ -1008,6 +1008,7 @@ final class RunnerTest extends TestCase
             $platform,
             [new ToolProcessor($toolbox)],
             new SequentialToolExecutor($toolbox),
+            null,
             $maxToolCalls,
             $excludeToolMessages,
             $includeSources,
