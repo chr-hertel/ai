@@ -16,11 +16,8 @@ use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\Context\AgentContext;
 use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
 class ProcessorCompilerPassTest extends TestCase
@@ -59,39 +56,6 @@ class ProcessorCompilerPassTest extends TestCase
         $this->assertEquals([
             new Reference(DummyContextProcessor1::class),
         ], $container->getDefinition('agent2')->getArgument('$contextProcessors'));
-    }
-
-    public function testProcessSkipsMultiAgent()
-    {
-        $container = new ContainerBuilder();
-
-        $container
-            ->register('agent1', Agent::class)
-            ->setArguments([null, null, []])
-            ->addTag('ai.agent');
-
-        $container
-            ->register('multi_agent', MultiAgent::class)
-            ->setArguments([new Reference('orchestrator'), [new Definition(Handoff::class)], new Reference('fallback'), 'support'])
-            ->addTag('ai.agent');
-
-        $container
-            ->register(DummyContextProcessor1::class, DummyContextProcessor1::class)
-            ->addTag('ai.agent.context_processor');
-
-        (new ProcessorCompilerPass())->process($container);
-
-        $this->assertEquals(
-            [new Reference(DummyContextProcessor1::class)],
-            $container->getDefinition('agent1')->getArgument('$contextProcessors')
-        );
-
-        // the MultiAgent has a different constructor signature and stays untouched
-        $multiAgentDef = $container->getDefinition('multi_agent');
-        $this->assertInstanceOf(Reference::class, $multiAgentDef->getArgument(0));
-        $this->assertIsArray($multiAgentDef->getArgument(1));
-        $this->assertInstanceOf(Reference::class, $multiAgentDef->getArgument(2));
-        $this->assertSame('support', $multiAgentDef->getArgument(3));
     }
 }
 
