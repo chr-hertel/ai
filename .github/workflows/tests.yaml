@@ -376,3 +376,38 @@ jobs:
             - name: Run command example
               working-directory: examples
               run: php commands/message-stores.php
+
+    examples-replay:
+        name: Integration / Examples (replay)
+        needs: demo
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  tools: flex
+                  extensions: "${{ env.REQUIRED_PHP_EXTENSIONS }}"
+
+            - name: Install root dependencies
+              uses: ramsey/composer-install@v4
+
+            - name: Build root packages
+              run: php .github/build-packages.php
+
+            - name: Install examples dependencies
+              uses: ramsey/composer-install@v4
+              with:
+                  working-directory: examples
+
+            - name: Link local components to examples
+              run: ./link examples
+
+            # Replays recorded cassettes through the real bridge pipeline with no
+            # API credentials, so a result-converter regression fails here.
+            - name: Run example replay tests
+              working-directory: examples
+              run: vendor/bin/phpunit

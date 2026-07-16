@@ -1,0 +1,30 @@
+{
+    "interactions": [
+        {
+            "request": {
+                "method": "POST",
+                "url": "https://api.openai.com/v1/responses",
+                "signature": "123a2ec14b8d91440695dcc58378f64b",
+                "headers": {
+                    "content-type": [
+                        "application/json"
+                    ],
+                    "authorization": [
+                        "[redacted]"
+                    ]
+                },
+                "body": "{\"model\":\"gpt-5-mini\",\"input\":[{\"role\":\"user\",\"content\":\"What is the weather in Paris?\"}]}"
+            },
+            "response": {
+                "status": 200,
+                "headers": {
+                    "content-type": [
+                        "application/json"
+                    ]
+                },
+                "body_format": "json",
+                "body": "{\"id\":\"resp_tool\",\"status\":\"completed\",\"output\":[{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}],\"usage\":{\"input_tokens\":14,\"output_tokens\":8,\"total_tokens\":22}}"
+            }
+        }
+    ]
+}

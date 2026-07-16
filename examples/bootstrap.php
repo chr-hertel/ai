@@ -17,6 +17,8 @@ use Symfony\AI\Platform\Exception\ExceptionInterface as PlatformException;
 use Symfony\AI\Platform\FinishReason\FinishReason;
 use Symfony\AI\Platform\FinishReason\FinishReasonCase;
 use Symfony\AI\Platform\Result\DeferredResult;
+use Symfony\AI\Platform\Test\Replay\CassetteHttpClient;
+use Symfony\AI\Platform\Test\Replay\HttpCassette;
 use Symfony\AI\Platform\TokenUsage\TokenUsageAggregation;
 use Symfony\AI\Platform\TokenUsage\TokenUsageInterface;
 use Symfony\AI\Store\Exception\ExceptionInterface as StoreException;
@@ -33,20 +35,79 @@ require_once __DIR__.'/vendor/autoload.php';
 
 function env(string $var): string
 {
-    if (!isset($_SERVER[$var]) || '' === $_SERVER[$var]) {
-        output()->writeln(sprintf('<error>Please set the "%s" environment variable to run this example.</error>', $var));
-        exit(1);
+    if (isset($_SERVER[$var]) && '' !== $_SERVER[$var]) {
+        return $_SERVER[$var];
     }
 
-    return $_SERVER[$var];
+    // The value never leaves the process in replay: requests are served from the
+    // cassette. It only has to survive construction - the strictest check being
+    // OpenAI's "sk-" key-prefix validation - so any string works. Embed the
+    // variable name so a placeholder surfacing anywhere stays traceable.
+    if (is_replay()) {
+        return 'sk-replay-'.strtolower($var);
+    }
+
+    output()->writeln(sprintf('<error>Please set the "%s" environment variable to run this example.</error>', $var));
+    exit(1);
+}
+
+/**
+ * Record/replay switch driven by the CASSETTE environment variable, set
+ * implicitly by `./runner --record` / `--replay` and the PHPUnit replay tests.
+ *
+ * Unset: examples call the real APIs (default). CASSETTE=record: every HTTP
+ * interaction is captured into a cassette next to the example. CASSETTE=replay:
+ * the example runs offline against its recorded cassette, turning the whole
+ * example corpus into deterministic, credential-free integration tests for the
+ * bridge pipeline.
+ */
+function is_replay(): bool
+{
+    return 'replay' === ($_SERVER['CASSETTE'] ?? getenv('CASSETTE'));
+}
+
+function is_record(): bool
+{
+    return 'record' === ($_SERVER['CASSETTE'] ?? getenv('CASSETTE'));
+}
+
+function cassette_path(): string
+{
+    $script = (string) ($_SERVER['SCRIPT_FILENAME'] ?? ($_SERVER['argv'][0] ?? ''));
+    $absolute = realpath($script) ?: $script;
+    $base = __DIR__.\DIRECTORY_SEPARATOR;
+    $relative = str_starts_with($absolute, $base) ? substr($absolute, strlen($base)) : basename($absolute);
+
+    return __DIR__.'/fixtures/'.preg_replace('/\.php$/', '', $relative).'.json';
 }
 
 function http_client(): HttpClientInterface
 {
+    // One client per script run: recording must append all interactions to a single
+    // cassette, and replay must consume it FIFO across repeated http_client() calls.
+    static $cassetteClient = null;
+
+    if (null !== $cassetteClient) {
+        return $cassetteClient;
+    }
+
+    if (is_replay()) {
+        return $cassetteClient = new CassetteHttpClient(new HttpCassette(cassette_path()), record: false);
+    }
+
     $httpClient = HttpClient::create();
 
     if ($httpClient instanceof LoggerAwareInterface) {
         $httpClient->setLogger(logger());
+    }
+
+    if (is_record()) {
+        // Re-recording replaces the previous take; HttpCassette appends otherwise.
+        if (is_file($path = cassette_path())) {
+            unlink($path);
+        }
+
+        return $cassetteClient = new CassetteHttpClient(new HttpCassette($path), $httpClient, record: true);
     }
 
     return $httpClient;

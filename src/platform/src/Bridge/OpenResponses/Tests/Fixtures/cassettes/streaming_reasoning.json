@@ -1,0 +1,30 @@
+{
+    "interactions": [
+        {
+            "request": {
+                "method": "POST",
+                "url": "https://api.openai.com/v1/responses",
+                "signature": "19565d87f38610e9f1fcf3cb1d0b7739",
+                "headers": {
+                    "content-type": [
+                        "application/json"
+                    ],
+                    "authorization": [
+                        "[redacted]"
+                    ]
+                },
+                "body": "{\"model\":\"gpt-5-mini\",\"input\":[{\"role\":\"user\",\"content\":\"Why do ants exist?\"}],\"stream\":true}"
+            },
+            "response": {
+                "status": 200,
+                "headers": {
+                    "content-type": [
+                        "text/event-stream"
+                    ]
+                },
+                "body_format": "sse",
+                "body": "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"delta\":\"Let me think\"}\n\nevent: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"delta\":\" about ants.\"}\n\nevent: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\"}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"Ants serve the colony.\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[]}}\n\n"
+            }
+        }
+    ]
+}

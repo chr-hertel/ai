@@ -7,3 +7,7 @@ parameters:
         - ./
     excludePaths:
         - vendor
+    ignoreErrors:
+        -
+            message: "#^Method .*::test.*\\(\\) has no return type specified\\.$#"
+            path: tests/*

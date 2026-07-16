@@ -92,7 +92,9 @@
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1",
-        "phpstan/phpstan-strict-rules": "^2.0"
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.5.53",
+        "symfony/process": "^7.4|^8.0"
     },
     "minimum-stability": "dev",
     "autoload": {
@@ -103,7 +105,8 @@
     "autoload-dev": {
         "psr-4": {
             "Symfony\\AI\\PHPStan\\": "../.phpstan/",
-            "Symfony\\AI\\Platform\\Tests\\": "../src/platform/tests/"
+            "Symfony\\AI\\Platform\\Tests\\": "../src/platform/tests/",
+            "Symfony\\AI\\Examples\\Tests\\": "tests/"
         }
     },
     "config": {

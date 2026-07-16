@@ -25,9 +25,23 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
     ->addOption('filter', 'f', InputOption::VALUE_REQUIRED, 'Filter examples by name, e.g. "audio" or "toolcall".')
     ->addOption('chunk', 'c', InputOption::VALUE_REQUIRED, 'Number of examples to run in parallel per chunk.', 30)
     ->addOption('report', 'r', InputOption::VALUE_OPTIONAL, 'Write a Markdown report of the results to the given file (failed examples include error output for Claude Code to investigate).', false)
+    ->addOption('record', null, InputOption::VALUE_NONE, 'Record every HTTP interaction into a cassette next to the example and refresh the replay goldens afterwards.')
+    ->addOption('replay', null, InputOption::VALUE_NONE, 'Run the examples offline against their recorded cassettes instead of the real APIs.')
     ->setCode(function (InputInterface $input, OutputInterface $output) {
         $io = new SymfonyStyle($input, $output);
         $io->title('Symfony AI Examples');
+
+        if ($input->getOption('record') && $input->getOption('replay')) {
+            $io->error('The --record and --replay options cannot be combined.');
+
+            return Command::FAILURE;
+        }
+
+        $cassetteEnv = match (true) {
+            $input->getOption('record') => ['CASSETTE' => 'record'],
+            $input->getOption('replay') => ['CASSETTE' => 'replay'],
+            default => null,
+        };
 
         $findIn = __DIR__;
 
@@ -73,7 +87,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
             foreach ($chunk as $example) {
                 $run = [
                     'example' => $example,
-                    'process' => $process = new Process(['php', $example->getRealPath()]),
+                    'process' => $process = new Process(['php', $example->getRealPath()], env: $cassetteEnv),
                 ];
                 $chunkRuns[] = $run;
                 $exampleRuns[] = $run;
@@ -160,6 +174,35 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
             $io->warning(sprintf('%d out of %d examples ran successfully.', $successCount, $totalCount));
         } else {
             $io->success(sprintf('All %d examples ran successfully!', $totalCount));
+        }
+
+        // A recording is only trustworthy if it replays: verify each fresh cassette
+        // offline and freeze its output as the golden the replay tests compare against.
+        if ($input->getOption('record')) {
+            $io->section('Refreshing replay goldens');
+
+            foreach ($exampleRuns as $run) {
+                // Relative to the examples directory, not the Finder root, which is the
+                // subdirectory itself when running e.g. "./runner --record openai".
+                $relative = preg_replace('/\.php$/', '', trim(str_replace(__DIR__, '', $run['example']->getRealPath()), '/'));
+                $cassette = sprintf('%s/fixtures/%s.json', __DIR__, $relative);
+
+                if (!$run['process']->isSuccessful() || !is_file($cassette)) {
+                    continue;
+                }
+
+                $replay = new Process(['php', $run['example']->getRealPath()], env: ['CASSETTE' => 'replay']);
+                $replay->run();
+
+                if (!$replay->isSuccessful()) {
+                    $io->warning(sprintf('Cassette of "%s" does not replay cleanly - no golden written.', $run['example']->getRelativePathname()));
+
+                    continue;
+                }
+
+                file_put_contents(sprintf('%s/fixtures/%s.out', __DIR__, $relative), $replay->getOutput());
+                $io->writeln(sprintf(' <info>✓</info> %s', $run['example']->getRelativePathname()));
+            }
         }
 
         if ($output->isVerbose()) {
@@ -301,7 +344,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
                 $run = $failedRuns[$runKey];
 
                 $io->section(sprintf('Re-running: %s', $run['example']->getRelativePathname()));
-                $process = new Process(['php', $run['example']->getRealPath()]);
+                $process = new Process(['php', $run['example']->getRealPath()], env: $cassetteEnv);
                 $process->run(function ($type, $buffer) use ($output) {
                     $output->write($buffer);
                 });

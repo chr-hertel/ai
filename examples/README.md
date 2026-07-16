@@ -87,3 +87,38 @@ If you only want to run a specific subset of examples, you can use a filter opti
 ```bash
 ./runner --filter=toolcall
 ```
+
+## Record & replay
+
+Examples don't only run against the live provider APIs — every HTTP interaction can be recorded into a *cassette*
+(a JSON file under `fixtures/`, next to the example's path) and replayed later without any API keys. Replaying drives
+the recorded bytes through the real bridge pipeline (`Platform → ModelClient → ResultConverter`), which turns the
+example corpus into deterministic, credential-free integration tests: CI replays every recorded example via PHPUnit
+and compares its output against a committed golden (`fixtures/<path>.out`), so a result-converter regression fails
+the build.
+
+The switch is the `CASSETTE` environment variable (`record` or `replay`), but you usually don't set it yourself —
+the runner and the test suite handle it:
+
+```bash
+# Record: run the examples live (API keys required), write cassettes with credentials
+# redacted, then verify each recording replays and refresh its golden.
+./runner --record openai
+
+# Replay: run the examples offline against their cassettes, no keys needed.
+./runner --replay openai
+
+# What CI runs: replay every recorded example and compare against its golden.
+vendor/bin/phpunit
+```
+
+Recording is a local maintainer task, since CI has no provider credentials — a good habit is recording alongside the
+live example run before tagging a release: it costs no extra API calls, and the cassette diff shows exactly what the
+providers changed since the last recording. Commit cassettes and goldens together.
+
+For a single example, the environment variable can also be set by hand:
+
+```bash
+CASSETTE=record php openai/chat.php
+CASSETTE=replay php openai/chat.php > fixtures/openai/chat.out
+```

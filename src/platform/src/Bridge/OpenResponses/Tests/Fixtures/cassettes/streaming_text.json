@@ -1,0 +1,30 @@
+{
+    "interactions": [
+        {
+            "request": {
+                "method": "POST",
+                "url": "https://api.openai.com/v1/responses",
+                "signature": "83dd5fbdcbab5f05490d3913ba0d3862",
+                "headers": {
+                    "content-type": [
+                        "application/json"
+                    ],
+                    "authorization": [
+                        "[redacted]"
+                    ]
+                },
+                "body": "{\"model\":\"gpt-5-mini\",\"input\":[{\"role\":\"user\",\"content\":\"Greet the world.\"}],\"stream\":true}"
+            },
+            "response": {
+                "status": 200,
+                "headers": {
+                    "content-type": [
+                        "text/event-stream"
+                    ]
+                },
+                "body_format": "sse",
+                "body": "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"Hello\"}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\" world\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[]}}\n\n"
+            }
+        }
+    ]
+}
