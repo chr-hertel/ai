@@ -8,6 +8,7 @@ CHANGELOG
  * [BC BREAK] Remove `Toolbox\AgentProcessor`; tool calling is now driven by the `Agent` itself, configured with the `toolbox`, `toolExecutor`, `maxToolCalls`, `excludeToolMessages`, `includeSources` and `eventDispatcher` constructor arguments
  * Add `Toolbox\ToolExecutorInterface` and its default `SequentialToolExecutor` implementation, making the execution of the requested tool calls replaceable
  * Split `Toolbox\ToolboxInterface` into `Toolbox\ToolCatalogInterface` (listing the available tools) and `Toolbox\ToolInvokerInterface` (invoking a single tool call); `ToolboxInterface` now extends both, so implementations and callers stay source-compatible, while consumers can depend on just the role they use
+ * Add `Toolbox\FiberToolExecutor` to run tool calls concurrently through PHP Fibers, together with a `Toolbox\SuspendableTrait` for cooperative tools
 
 0.12
 ----
