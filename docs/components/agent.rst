@@ -626,6 +626,101 @@ confirmation system using the ``ToolCallRequested`` event.
 
 * `Human-in-the-Loop Confirmation`_
 
+Customizing Tool Execution
+--------------------------
+
+By default, the agent runs the tool calls a model requested one after another. This behavior is
+provided by :class:`Symfony\\AI\\Agent\\Toolbox\\SequentialToolExecutor` and is used automatically
+whenever a toolbox is configured. You can replace it with any implementation of
+:class:`Symfony\\AI\\Agent\\Toolbox\\ToolExecutorInterface` by passing it as the ``toolExecutor``
+argument of the :class:`Symfony\\AI\\Agent\\Agent`::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
+    use Symfony\AI\Agent\Toolbox\Toolbox;
+
+    $toolbox = new Toolbox([$tool]);
+    $toolExecutor = new FiberToolExecutor($toolbox);
+
+    $agent = new Agent($platform, $model, toolbox: $toolbox, toolExecutor: $toolExecutor);
+
+Two executors are provided out of the box:
+
+:class:`Symfony\\AI\\Agent\\Toolbox\\SequentialToolExecutor`
+    Executes tool calls one after another in a simple loop. This is the default.
+
+:class:`Symfony\\AI\\Agent\\Toolbox\\FiberToolExecutor`
+    Starts all tool calls as PHP Fibers before collecting results. All fibers begin execution before
+    any result is awaited, enabling cooperative multitasking for I/O-bound tools that suspend via
+    ``Fiber::suspend()``. Results are returned in the same order as the tool calls, regardless of the
+    order in which the fibers terminate. This does not provide OS-level parallelism within a single
+    process.
+
+You can implement your own executor by implementing
+:class:`Symfony\\AI\\Agent\\Toolbox\\ToolExecutorInterface`::
+
+    use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+    use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
+    use Symfony\AI\Agent\Toolbox\ToolResult;
+    use Symfony\AI\Platform\Result\ToolCall;
+
+    final class MyCustomExecutor implements ToolExecutorInterface
+    {
+        public function __construct(
+            private readonly ToolboxInterface $toolbox,
+        ) {
+        }
+
+        /**
+         * @param ToolCall[]   $toolCalls
+         *
+         * @return ToolResult[]
+         */
+        public function execute(array $toolCalls): array
+        {
+            // your custom execution logic
+        }
+    }
+
+.. _agent-fiber-compatible-tools:
+
+Writing Fiber-Compatible Tools
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PHP Fibers use cooperative multitasking: a fiber only yields control when it explicitly calls
+``\Fiber::suspend()``. Standard blocking operations such as PDO queries or synchronous HTTP calls
+block the whole process regardless of any surrounding fiber context.
+
+Use the :class:`Symfony\\AI\\Agent\\Toolbox\\SuspendableTrait` to add yield points to a tool without
+coupling it to the fiber mechanism. The ``$this->suspend()`` method suspends when running inside a
+fiber and does nothing when called from sequential execution or tests::
+
+    use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
+    use Symfony\AI\Agent\Toolbox\SuspendableTrait;
+    use Symfony\Contracts\HttpClient\HttpClientInterface;
+
+    #[AsTool('weather', 'Fetches current weather for a city')]
+    final class WeatherTool
+    {
+        use SuspendableTrait;
+
+        public function __construct(private readonly HttpClientInterface $httpClient)
+        {
+        }
+
+        public function __invoke(string $city): string
+        {
+            $this->suspend();
+            $response = $this->httpClient->request('GET', 'https://api.example.com/weather/'.$city);
+
+            return $response->getContent();
+        }
+    }
+
+Calling ``$this->suspend()`` before a blocking call allows other fibers to complete their setup
+before any fiber begins blocking. The blocking operation itself still occupies the process for its
+full duration.
+
 Excluding Tool Messages from MessageBag
 ---------------------------------------
 
