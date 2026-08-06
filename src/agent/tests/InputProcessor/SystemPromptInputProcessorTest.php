@@ -16,14 +16,12 @@ use Symfony\AI\Agent\Input;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
 use Symfony\AI\Agent\Tests\Fixtures\Tool\ToolNoParams;
 use Symfony\AI\Agent\Tests\Fixtures\Tool\ToolRequiredParams;
-use Symfony\AI\Agent\Toolbox\ToolboxInterface;
-use Symfony\AI\Agent\Toolbox\ToolResult;
+use Symfony\AI\Agent\Toolbox\ToolCatalogInterface;
 use Symfony\AI\Platform\Message\Content\File;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\SystemMessage;
 use Symfony\AI\Platform\Message\UserMessage;
-use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
 use Symfony\Component\Translation\TranslatableMessage;
@@ -98,15 +96,10 @@ final class SystemPromptInputProcessorTest extends TestCase
     {
         $processor = new SystemPromptInputProcessor(
             'This is a system prompt',
-            new class implements ToolboxInterface {
+            new class implements ToolCatalogInterface {
                 public function getTools(): array
                 {
                     return [];
-                }
-
-                public function execute(ToolCall $toolCall): ToolResult
-                {
-                    return new ToolResult($toolCall, null);
                 }
             },
         );
@@ -125,7 +118,7 @@ final class SystemPromptInputProcessorTest extends TestCase
     {
         $processor = new SystemPromptInputProcessor(
             new TranslatableMessage('This is a'),
-            new class implements ToolboxInterface {
+            new class implements ToolCatalogInterface {
                 public function getTools(): array
                 {
                     return [
@@ -140,11 +133,6 @@ final class SystemPromptInputProcessorTest extends TestCase
                             null
                         ),
                     ];
-                }
-
-                public function execute(ToolCall $toolCall): ToolResult
-                {
-                    return new ToolResult($toolCall, null);
                 }
             },
             $this->getTranslator(),
@@ -177,17 +165,12 @@ final class SystemPromptInputProcessorTest extends TestCase
     {
         $processor = new SystemPromptInputProcessor(
             new SystemPromptService(),
-            new class implements ToolboxInterface {
+            new class implements ToolCatalogInterface {
                 public function getTools(): array
                 {
                     return [
                         new Tool(new ExecutionReference(ToolNoParams::class), 'tool_no_params', 'A tool without parameters', null),
                     ];
-                }
-
-                public function execute(ToolCall $toolCall): ToolResult
-                {
-                    return new ToolResult($toolCall, null);
                 }
             },
         );

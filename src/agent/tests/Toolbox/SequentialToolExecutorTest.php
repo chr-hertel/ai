@@ -13,7 +13,7 @@ namespace Symfony\AI\Agent\Tests\Toolbox;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
-use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Agent\Toolbox\ToolInvokerInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
 
@@ -25,8 +25,10 @@ final class SequentialToolExecutorTest extends TestCase
         $toolCall2 = new ToolCall('id2', 'tool2', ['arg2' => 'value2']);
 
         $executed = [];
-        $toolbox = $this->createMock(ToolboxInterface::class);
-        $toolbox
+        // The executor depends on the invoker role only - it never lists tools, so a bare
+        // ToolInvokerInterface is all it needs.
+        $invoker = $this->createMock(ToolInvokerInterface::class);
+        $invoker
             ->expects($this->exactly(2))
             ->method('execute')
             ->willReturnCallback(static function (ToolCall $toolCall) use (&$executed): ToolResult {
@@ -35,7 +37,7 @@ final class SequentialToolExecutorTest extends TestCase
                 return new ToolResult($toolCall, 'Result of '.$toolCall->getName());
             });
 
-        $executor = new SequentialToolExecutor($toolbox);
+        $executor = new SequentialToolExecutor($invoker);
         $results = $executor->execute([$toolCall1, $toolCall2]);
 
         $this->assertSame(['tool1', 'tool2'], $executed);
@@ -46,10 +48,10 @@ final class SequentialToolExecutorTest extends TestCase
 
     public function testItReturnsAnEmptyListWhenThereAreNoToolCalls()
     {
-        $toolbox = $this->createMock(ToolboxInterface::class);
-        $toolbox->expects($this->never())->method('execute');
+        $invoker = $this->createMock(ToolInvokerInterface::class);
+        $invoker->expects($this->never())->method('execute');
 
-        $executor = new SequentialToolExecutor($toolbox);
+        $executor = new SequentialToolExecutor($invoker);
 
         $this->assertSame([], $executor->execute([]));
     }
