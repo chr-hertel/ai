@@ -19,7 +19,6 @@ use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
-use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\StreamResult;
 
 /**
@@ -59,7 +58,7 @@ final class MockAgent implements AgentInterface
     /**
      * @param array<string, mixed> $options
      */
-    public function call(string|MessageBag|UserMessage $input, array $options = []): ResultInterface
+    public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
     {
         $messages = InputNormalizer::toMessageBag($input);
         $content = $this->extractText($messages);
@@ -95,16 +94,8 @@ final class MockAgent implements AgentInterface
             'response' => $responseText,
         ];
 
-        return $result;
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    public function run(string|MessageBag|UserMessage $input, array $options = []): Execution
-    {
-        return new Execution(function () use ($input, $options): \Generator {
-            yield new ResultUpdate($this->call($input, $options));
+        return new Execution(static function () use ($result): \Generator {
+            yield new ResultUpdate($result);
         });
     }
 

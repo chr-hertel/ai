@@ -61,15 +61,16 @@ behavior, for example available tools to execute, or are forwarded to the underl
 Execution
 ---------
 
-While :method:`Symfony\\AI\\Agent\\Agent::call` drives the agent to completion and hands you the final result,
-:method:`Symfony\\AI\\Agent\\Agent::run` returns a lazy :class:`Symfony\\AI\\Agent\\Execution\\Execution`
-instead. An execution reports every step the agent takes - each model request, each tool call, and each streamed
-delta - as an update, which is what you need to show progress to a user while the agent is still working::
+:method:`Symfony\\AI\\Agent\\Agent::call` returns a lazy :class:`Symfony\\AI\\Agent\\Execution\\Execution`. The
+execution *is* the result it produces, so the simplest usage reads the answer straight off it - the example at the
+top of this page does exactly that. Beyond that, the same object reports every step the agent takes - each model
+request, each tool call, and each streamed delta - as an update when you iterate it, which is what you need to show
+progress to a user while the agent is still working::
 
     use Symfony\AI\Agent\Execution\Update\Progress;
     use Symfony\AI\Agent\Execution\Update\Result;
 
-    foreach ($agent->run('What time is it?') as $update) {
+    foreach ($agent->call('What time is it?') as $update) {
         if ($update instanceof Progress) {
             echo $update->getMessage().\PHP_EOL; // "Invoking model.", 'Executing tool "clock".', ...
         }
@@ -82,12 +83,12 @@ delta - as an update, which is what you need to show progress to a user while th
 The same execution can be consumed with callbacks, and ``await()`` drives it to completion and returns the final
 result::
 
-    $result = $agent->run('What time is it?')
+    $result = $agent->call('What time is it?')
         ->onProgress(fn (Progress $progress) => $logger->info($progress->getMessage()))
         ->await();
 
-An execution runs the agent including its side effects, so it can only be consumed once. Call ``run()`` again for a
-new execution.
+Reading the result (``getContent()``, ``await()``, ...) is idempotent, but an execution runs the agent including
+its side effects, so it can only be *iterated* once. Call ``call()`` again for a new execution.
 
 .. note::
 
@@ -97,12 +98,21 @@ new execution.
 Streaming
 ~~~~~~~~~
 
-With the ``stream`` option, the model's answer arrives token by token. Each token is reported as a ``Progress``
-update of the ``delta`` stage, carrying the platform's delta as its payload::
+With the ``stream`` option, the model's answer arrives token by token. ``getContent()`` then yields the platform's
+deltas instead of the assembled answer::
 
     use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 
-    foreach ($agent->run('Tell me a story.', ['stream' => true]) as $update) {
+    $result = $agent->call('Tell me a story.', ['stream' => true]);
+
+    foreach ($result->getContent() as $delta) {
+        echo $delta->getText();
+    }
+
+Iterating the execution instead reports each delta as a ``Progress`` update of the ``delta`` stage, next to the
+model-request and tool-call updates::
+
+    foreach ($agent->call('Tell me a story.', ['stream' => true]) as $update) {
         if ($update instanceof Progress && 'delta' === $update->getStage() && $update->getPayload() instanceof TextDelta) {
             echo $update->getPayload()->getText();
         }
@@ -110,15 +120,6 @@ update of the ``delta`` stage, carrying the platform's delta as its payload::
 
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
-
-Alternatively, ``call()`` with the ``stream`` option keeps returning a
-:class:`Symfony\\AI\\Platform\\Result\\StreamResult`, which is backed by that same execution::
-
-    $result = $agent->call('Tell me a story.', ['stream' => true]);
-
-    foreach ($result->getContent() as $delta) {
-        echo $delta->getText();
-    }
 
 Tools
 -----

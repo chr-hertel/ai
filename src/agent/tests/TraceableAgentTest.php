@@ -39,7 +39,6 @@ final class TraceableAgentTest extends TestCase
             [
                 'input' => $messageBag,
                 'options' => [],
-                'mode' => 'call',
                 'called_at' => $clock->now(),
             ],
         ], $traceableAgent->getCalls());

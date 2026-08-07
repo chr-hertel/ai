@@ -18,34 +18,51 @@ Agent
    `Toolbox\ToolExecutorInterface` (default: `SequentialToolExecutor`), so a custom execution strategy can be
    plugged in via the `toolExecutor` argument.
 
- * `AgentInterface` gained a `run()` method returning a lazy `Execution`. Custom implementations have to implement
-   it; decorators can simply forward it, and implementations that have nothing to report can wrap their result:
+ * `AgentInterface::call()` now returns a lazy `Execution` instead of a `ResultInterface`. The execution *is* the
+   result it produces, so reading it eagerly is unchanged — `$agent->call($input)->getContent()` still works — but
+   the returned object is now also iterable and awaitable:
 
    ```php
-   public function run(string|MessageBag|UserMessage $input, array $options = []): Execution
+   // eager, unchanged
+   $text = $agent->call('Hello')->getContent();
+
+   // observe the run, or await explicitly
+   foreach ($agent->call('Hello') as $update) { /* Progress / Result updates */ }
+   $result = $agent->call('Hello')->onProgress($cb)->await();
+   ```
+
+   Custom `AgentInterface` implementations and decorators must change their `call()` return type to `Execution`
+   and wrap their result:
+
+   ```php
+   public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
    {
        return new Execution(function (): \Generator {
-           yield new Result($this->call($input, $options));
+           yield new Result($someResult);
        });
    }
    ```
 
- * `Toolbox\StreamListener` has been removed. Streamed rounds are consumed by the agent itself, which reports each
-   delta as a `Progress` update of the `delta` stage on the `Execution`. `$agent->call($messages, ['stream' => true])`
-   keeps returning a `StreamResult`, so consumers iterating `$result->getContent()` are unaffected:
+   Two consequences of the laziness: the agent no longer runs until the execution is consumed — side effects and
+   exceptions now surface on `getContent()`/`await()`/iteration rather than on the `call()` line — and code that
+   type-checks the result (`$agent->call(...) instanceof TextResult`) must `await()` first. Because the loop is
+   also no longer recursing through `call()`, output processors see the final, fully assembled result and input
+   processors run once per agent call instead of once per tool-calling round.
+
+ * `Toolbox\StreamListener` has been removed, and `call()` with the `stream` option no longer returns a
+   `StreamResult`. Iterating the returned execution's `getContent()` still yields the platform's deltas, so the
+   common streaming loop is unchanged:
 
    ```php
-   // still works, the StreamResult is now backed by the Execution
    $result = $agent->call($messages, ['stream' => true]);
-   foreach ($result->getContent() as $delta) { /* ... */ }
+   foreach ($result->getContent() as $delta) { /* ... */ } // unchanged
 
-   // or observe the whole execution instead
-   foreach ($agent->run($messages, ['stream' => true]) as $update) { /* ... */ }
+   // or observe the whole execution
+   foreach ($agent->call($messages, ['stream' => true]) as $update) { /* ... */ }
    ```
 
-   Two behavioural consequences: output processors now see the final, fully streamed result instead of the
-   not-yet-consumed `StreamResult`, and the tool-calling loop no longer recurses through `AgentInterface::call()`,
-   so input processors run once per agent call instead of once per tool-calling round.
+   Code relying on the `StreamResult` type specifically — `instanceof StreamResult`, `addListener()` — must be
+   reworked to consume the execution instead (as the `Chat` component's `stream()` now does).
 
  * The `maxToolCalls` cap is now enforced across the whole agent call. Previously the counter was reset on every
    round of the tool-calling recursion, so the cap effectively only bounded a single round.

@@ -43,7 +43,8 @@ $messages = new MessageBag(
 );
 
 try {
-    $result = $agent->call($messages);
+    // call() is lazy, awaiting the result is what actually runs the tool calling loop
+    $result = $agent->call($messages)->await();
 } catch (MaxIterationsExceededException $e) {
     echo $e->getMessage().\PHP_EOL;
 

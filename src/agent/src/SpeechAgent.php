@@ -21,7 +21,6 @@ use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\Role;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
-use Symfony\AI\Platform\Result\ResultInterface;
 
 /**
  * @author Guillaume Loulier <personal@guillaumeloulier.fr>
@@ -36,42 +35,32 @@ final class SpeechAgent implements AgentInterface
     ) {
     }
 
-    public function call(string|MessageBag|UserMessage $input, array $options = []): ResultInterface
-    {
-        $messages = InputNormalizer::toMessageBag($input);
-
-        if ($this->configuration->supportsSpeechToText() && $this->speechToTextPlatform instanceof PlatformInterface) {
-            $messages = $this->transcribe($messages, $options);
-        }
-
-        $result = $this->agent->call($messages, $options);
-
-        if (!$this->textToSpeechPlatform instanceof PlatformInterface) {
-            return $result;
-        }
-
-        if (!$this->configuration->supportsTextToSpeech()) {
-            return $result;
-        }
-
-        $speechResult = $this->textToSpeechPlatform->invoke(
-            $this->configuration->getTextToSpeechModel(),
-            $result->getContent(),
-            $this->configuration->getTextToSpeechOptions(),
-        );
-
-        $speechResult->getMetadata()->add('text', $result->getContent());
-
-        return $speechResult->getResult();
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    public function run(string|MessageBag|UserMessage $input, array $options = []): Execution
+    public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
     {
         return new Execution(function () use ($input, $options): \Generator {
-            yield new ResultUpdate($this->call($input, $options));
+            $messages = InputNormalizer::toMessageBag($input);
+
+            if ($this->configuration->supportsSpeechToText() && $this->speechToTextPlatform instanceof PlatformInterface) {
+                $messages = $this->transcribe($messages, $options);
+            }
+
+            $result = $this->agent->call($messages, $options)->await();
+
+            if (!$this->textToSpeechPlatform instanceof PlatformInterface || !$this->configuration->supportsTextToSpeech()) {
+                yield new ResultUpdate($result);
+
+                return;
+            }
+
+            $speechResult = $this->textToSpeechPlatform->invoke(
+                $this->configuration->getTextToSpeechModel(),
+                $result->getContent(),
+                $this->configuration->getTextToSpeechOptions(),
+            );
+
+            $speechResult->getMetadata()->add('text', $result->getContent());
+
+            yield new ResultUpdate($speechResult->getResult());
         });
     }
 

@@ -17,6 +17,8 @@ use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 use Symfony\AI\Platform\Result\TextResult;
 
 final class ExecutionTest extends TestCase
@@ -88,7 +90,23 @@ final class ExecutionTest extends TestCase
         $this->assertSame(1, $state['runs']);
     }
 
-    public function testItThrowsWhenConsumedTwice()
+    public function testAwaitIsIdempotentAndDoesNotRerunTheAgent()
+    {
+        $result = new TextResult('Done');
+        $state = new \ArrayObject(['runs' => 0]);
+
+        $execution = new Execution(static function () use ($result, $state): \Generator {
+            ++$state['runs'];
+
+            yield new ResultUpdate($result);
+        });
+
+        $this->assertSame($result, $execution->await());
+        $this->assertSame($result, $execution->await());
+        $this->assertSame(1, $state['runs']);
+    }
+
+    public function testItThrowsWhenIteratedAfterBeingConsumed()
     {
         $execution = new Execution(static function (): \Generator {
             yield new ResultUpdate(new TextResult('Done'));
@@ -97,9 +115,36 @@ final class ExecutionTest extends TestCase
         $execution->await();
 
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('The execution was already consumed. Call Agent::run() again for a new execution.');
+        $this->expectExceptionMessage('The execution was already consumed. Call the agent again for a new execution.');
 
-        $execution->await();
+        iterator_to_array($execution);
+    }
+
+    public function testItActsAsTheResultItProduces()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new Progress('model_request', 'Invoking model.');
+            yield new ResultUpdate(new TextResult('Hello world'));
+        });
+
+        $this->assertInstanceOf(ResultInterface::class, $execution);
+        $this->assertSame('Hello world', $execution->getContent());
+    }
+
+    public function testStreamedGetContentYieldsTheDeltas()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new Progress('delta', 'Received a streamed delta.', new TextDelta('Hello '));
+            yield new Progress('delta', 'Received a streamed delta.', new TextDelta('world'));
+            yield new ResultUpdate(new TextResult('Hello world'));
+        }, streamed: true);
+
+        $text = '';
+        foreach ($execution->getContent() as $delta) {
+            $text .= $delta->getText();
+        }
+
+        $this->assertSame('Hello world', $text);
     }
 
     public function testItThrowsWhenNoResultIsProduced()

@@ -149,7 +149,7 @@ final class AgentCallCommand extends Command
             $messages->add(Message::ofUser($userInput));
 
             try {
-                $result = $agent->call($messages);
+                $result = $agent->call($messages)->await();
 
                 if (!$systemPromptDisplayed && null !== ($systemMessage = $messages->getSystemMessage())) {
                     $io->section('System Prompt');
