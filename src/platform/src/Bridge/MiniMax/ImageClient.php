@@ -51,6 +51,8 @@ final class ImageClient extends AbstractMiniMaxClient
 
         $data = $result->getData();
 
+        $this->throwOnBusinessError($data);
+
         if ([] !== ($data['data']['image_base64'] ?? [])) {
             $results = array_map(
                 static fn (string $image): BinaryResult => new BinaryResult(base64_decode($image), 'image/jpeg'),

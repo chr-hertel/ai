@@ -16,8 +16,11 @@ use Symfony\AI\Platform\Event\ResultConvertedEvent;
 use Symfony\AI\Platform\Event\ResultErrorEvent;
 use Symfony\AI\Platform\Event\ResultEvent;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
+use Symfony\AI\Platform\Job\JobClientInterface;
+use Symfony\AI\Platform\Job\JobProviderInterface;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
+use Symfony\AI\Platform\Result\JobResult;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -26,7 +29,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class Provider implements ProviderInterface
+final class Provider implements ProviderInterface, JobProviderInterface
 {
     /**
      * Caches the most recently resolved model so supports() and invoke() in
@@ -37,6 +40,8 @@ final class Provider implements ProviderInterface
     /**
      * @param non-empty-string             $name
      * @param iterable<ApiClientInterface> $clients
+     * @param JobClientInterface|null      $jobClient resolves the asynchronous jobs this
+     *                                                provider hands out, when it has any
      */
     public function __construct(
         private readonly string $name,
@@ -44,6 +49,7 @@ final class Provider implements ProviderInterface
         private readonly ModelCatalogInterface $modelCatalog,
         private ?Contract $contract = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?JobClientInterface $jobClient = null,
     ) {
         $this->contract = $contract ?? Contract::create();
     }
@@ -114,6 +120,15 @@ final class Provider implements ProviderInterface
         // miss ResultConvertedEvent.
         $deferredResult = $resultEvent->getDeferredResult();
 
+        // Registered before the event listeners so they already see a handle that can be resolved.
+        $deferredResult->onConvert(function (ResultInterface $result): ResultInterface {
+            if ($result instanceof JobResult) {
+                $result->bindProvider($this->name);
+            }
+
+            return $result;
+        });
+
         if (null !== $this->eventDispatcher) {
             $deferredResult->onConvert(function (ResultInterface $result) use ($model, $options, $input): ResultInterface {
                 $event = new ResultConvertedEvent($model, $result, $options, $input, $this);
@@ -132,6 +147,11 @@ final class Provider implements ProviderInterface
     public function getModelCatalog(): ModelCatalogInterface
     {
         return $this->modelCatalog;
+    }
+
+    public function getJobClient(): ?JobClientInterface
+    {
+        return $this->jobClient;
     }
 
     private function resolveClient(Model $model): ApiClientInterface

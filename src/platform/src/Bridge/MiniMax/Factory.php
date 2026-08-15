@@ -53,6 +53,7 @@ final class Factory
             $modelCatalog,
             $contract ?? MiniMaxContract::create(),
             $eventDispatcher,
+            new MiniMaxJobClient($httpClient, $apiKey, $endpoint),
         );
     }
 

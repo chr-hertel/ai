@@ -50,6 +50,10 @@ final class MusicClient extends AbstractMiniMaxClient
     {
         $this->guardHttpStatus($result);
 
-        return new BinaryResult($this->decodeHexAudio($result->getData()), 'audio/mpeg');
+        $data = $result->getData();
+
+        $this->throwOnBusinessError($data);
+
+        return new BinaryResult($this->decodeHexAudio($data), 'audio/mpeg');
     }
 }

@@ -23,13 +23,6 @@ use Symfony\AI\Platform\Result\ResultInterface;
  */
 final class SpeechClient extends AbstractMiniMaxClient
 {
-    use AsyncTaskTrait;
-
-    /**
-     * Maximum number of polls before giving up on an asynchronous audio task (~2 minutes).
-     */
-    private const MAX_AUDIO_POLLS = 120;
-
     public function supports(Model $model): bool
     {
         return $model->supports(Capability::TEXT_TO_SPEECH);
@@ -58,8 +51,13 @@ final class SpeechClient extends AbstractMiniMaxClient
 
         $data = $result->getData();
 
+        $this->throwOnBusinessError($data);
+
         if ($options['async'] ?? false) {
-            return $this->handleAsyncTask($data, 'query/t2a_async_query_v2', 'audio/mpeg', self::MAX_AUDIO_POLLS);
+            // Unlike the synchronous endpoint, the asynchronous one delivers a tar bundling the audio
+            // with a `.titles` and an `.extra` file, so the job client has to unpack the mp3 to make
+            // both endpoints produce the same thing.
+            return $this->startJob($data, 'query/t2a_async_query_v2', 'audio/mpeg', 'mp3');
         }
 
         return new BinaryResult($this->decodeHexAudio($data), 'audio/mpeg');

@@ -22,14 +22,6 @@ use Symfony\AI\Platform\Result\ResultInterface;
  */
 final class VideoClient extends AbstractMiniMaxClient
 {
-    use AsyncTaskTrait;
-
-    /**
-     * Maximum number of polls before giving up on a video task; video generation is
-     * considerably slower than audio and routinely runs for several minutes (~10 minutes).
-     */
-    private const MAX_VIDEO_POLLS = 600;
-
     public function supports(Model $model): bool
     {
         return $model->supports(Capability::TEXT_TO_VIDEO)
@@ -50,6 +42,10 @@ final class VideoClient extends AbstractMiniMaxClient
     {
         $this->guardHttpStatus($result);
 
-        return $this->handleAsyncTask($result->getData(), 'query/video_generation', 'video/mp4', self::MAX_VIDEO_POLLS);
+        $data = $result->getData();
+
+        $this->throwOnBusinessError($data);
+
+        return $this->startJob($data, 'query/video_generation', 'video/mp4');
     }
 }
