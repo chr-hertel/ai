@@ -129,10 +129,11 @@ abstract class AbstractMiniMaxClient implements ApiClientInterface
      * to know about the endpoint the task came from.
      *
      * @param array<string, mixed> $data
+     * @param int                  $maxDuration   how long this endpoint may reasonably take, in seconds
      * @param string|null          $archiveMember file extension to unpack from the downloaded tar,
      *                                            or null when the download is the payload itself
      */
-    protected function startJob(array $data, string $queryPath, string $mimeType, ?string $archiveMember = null): JobResult
+    protected function startJob(array $data, string $queryPath, string $mimeType, int $maxDuration, ?string $archiveMember = null): JobResult
     {
         $taskId = $data['task_id'] ?? throw new RuntimeException('The MiniMax response does not contain a task identifier.');
 
@@ -141,6 +142,6 @@ abstract class AbstractMiniMaxClient implements ApiClientInterface
             'mime_type' => $mimeType,
             'archive_member' => $archiveMember,
             'file_id' => $data['file_id'] ?? null,
-        ]));
+        ], maxDuration: $maxDuration));
     }
 }

@@ -22,6 +22,12 @@ use Symfony\AI\Platform\Result\ResultInterface;
  */
 final class VideoClient extends AbstractMiniMaxClient
 {
+    /**
+     * How long MiniMax may reasonably take, carried in the job handle so a caller does not have to
+     * know that video generation runs an order of magnitude longer than speech synthesis.
+     */
+    private const MAX_DURATION = 600;
+
     public function supports(Model $model): bool
     {
         return $model->supports(Capability::TEXT_TO_VIDEO)
@@ -46,6 +52,6 @@ final class VideoClient extends AbstractMiniMaxClient
 
         $this->throwOnBusinessError($data);
 
-        return $this->startJob($data, 'query/video_generation', 'video/mp4');
+        return $this->startJob($data, 'query/video_generation', 'video/mp4', self::MAX_DURATION);
     }
 }

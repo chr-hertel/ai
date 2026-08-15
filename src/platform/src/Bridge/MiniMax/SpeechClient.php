@@ -23,6 +23,12 @@ use Symfony\AI\Platform\Result\ResultInterface;
  */
 final class SpeechClient extends AbstractMiniMaxClient
 {
+    /**
+     * How long MiniMax may reasonably take, carried in the job handle so a caller does not have to
+     * know that video generation runs an order of magnitude longer than speech synthesis.
+     */
+    private const MAX_DURATION = 120;
+
     public function supports(Model $model): bool
     {
         return $model->supports(Capability::TEXT_TO_SPEECH);
@@ -57,7 +63,7 @@ final class SpeechClient extends AbstractMiniMaxClient
             // Unlike the synchronous endpoint, the asynchronous one delivers a tar bundling the audio
             // with a `.titles` and an `.extra` file, so the job client has to unpack the mp3 to make
             // both endpoints produce the same thing.
-            return $this->startJob($data, 'query/t2a_async_query_v2', 'audio/mpeg', 'mp3');
+            return $this->startJob($data, 'query/t2a_async_query_v2', 'audio/mpeg', self::MAX_DURATION, 'mp3');
         }
 
         return new BinaryResult($this->decodeHexAudio($data), 'audio/mpeg');
