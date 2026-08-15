@@ -119,7 +119,7 @@ abstract class AbstractMiniMaxClient implements ApiClientInterface
             return;
         }
 
-        throw new RuntimeException(\sprintf('MiniMax rejected the request: %s (status code %s).', $data['base_resp']['status_msg'] ?? 'unknown error', $statusCode));
+        throw new RuntimeException(\sprintf('MiniMax rejected the request: "%s" (status code "%s").', $data['base_resp']['status_msg'] ?? 'unknown error', $statusCode));
     }
 
     /**

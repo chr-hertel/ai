@@ -242,7 +242,7 @@ final class MiniMaxResultConverterTest extends TestCase
                 'base_resp' => ['status_code' => 1008, 'status_msg' => 'insufficient balance'],
             ],
             ['async' => true],
-            'MiniMax rejected the request: insufficient balance (status code 1008).',
+            'MiniMax rejected the request: "insufficient balance" (status code "1008").',
         ];
 
         yield 'synchronous speech with an unknown voice' => [
@@ -250,7 +250,7 @@ final class MiniMaxResultConverterTest extends TestCase
             't2a_v2',
             ['base_resp' => ['status_code' => 2054, 'status_msg' => 'voice id not exist']],
             [],
-            'MiniMax rejected the request: voice id not exist (status code 2054).',
+            'MiniMax rejected the request: "voice id not exist" (status code "2054").',
         ];
 
         yield 'image generation with an unsupported model' => [
@@ -262,7 +262,7 @@ final class MiniMaxResultConverterTest extends TestCase
                 'base_resp' => ['status_code' => 2013, 'status_msg' => 'invalid params, unsupported model: nope-01'],
             ],
             [],
-            'MiniMax rejected the request: invalid params, unsupported model: nope-01 (status code 2013).',
+            'MiniMax rejected the request: "invalid params, unsupported model: nope-01" (status code "2013").',
         ];
     }
 
