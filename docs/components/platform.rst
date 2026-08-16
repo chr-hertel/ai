@@ -1079,8 +1079,15 @@ directly for a process that only resolves jobs and never invokes anything::
     $jobClient = MiniMaxFactory::createJobClient($apiKey);  // or straight from the bridge, in a worker
 
 :method:`Symfony\\AI\\Platform\\Job\\JobClientInterface::getStatus` performs exactly one request and
-never sleeps. To simply block until the job is done, hand it to a
-:class:`Symfony\\AI\\Platform\\Job\\JobRunner`, which owns the polling loop::
+never sleeps, so a job can be looked at from wherever suits the application — a message handler, a
+scheduled task, a webhook — with nothing held open in between. That is how a long-running job is
+usually finished in a Symfony application, and the
+:doc:`Background Jobs with Messenger </cookbook/background-jobs-with-messenger>` recipe walks
+through it end to end.
+
+Where blocking is acceptable — a console command, a fixture script, one of the ``examples/`` — a
+:class:`Symfony\\AI\\Platform\\Job\\JobRunner` owns the polling loop, and is the only place in the
+component that sleeps::
 
     use Symfony\AI\Platform\Job\JobRunner;
 
@@ -1097,10 +1104,11 @@ first is the provider's: a bridge that knows its timings (MiniMax video generati
 where speech synthesis takes seconds) states it on the handle, and the runner honours it, so a
 caller who knows nothing about the provider still waits the right amount.
 
-The second is yours, and it usually belongs to the call rather than to the runner: the same job may
-be given ten minutes in a worker and five seconds inside a web request. Say so per call, in seconds::
+The second is yours, and it usually belongs to the call rather than to the runner: a command running
+unattended can wait as long as the job needs, while one somebody is watching should rather give up
+and say so. Say it per call, in seconds::
 
-    $result = $runner->wait($jobClient, $handle, maxDuration: 5);
+    $result = $runner->wait($jobClient, $handle, maxDuration: 30);
 
 A budget passed to the runner's constructor applies to every job it waits for and sits between the
 two: it overrules what a job asks for, and a single call overrules it in turn.
@@ -1122,8 +1130,8 @@ running for minutes. Each job-capable platform also registers its client as
         // trust the job
         $this->jobRunner->wait($this->minimaxJobClient, $handle);
 
-        // or bound it to what a request can afford
-        $this->jobRunner->wait($this->minimaxJobClient, $handle, maxDuration: 5);
+        // or bound it to what the caller can afford
+        $this->jobRunner->wait($this->minimaxJobClient, $handle, maxDuration: 30);
     }
 
 An application holding handles of several providers picks the client by the name the handle carries,
@@ -1140,6 +1148,13 @@ from a locator over the ``ai.platform.job_client`` tag::
     {
         $this->jobRunner->wait($this->jobClients->get($handle->getProvider()), $handle);
     }
+
+.. caution::
+
+    Waiting blocks the process until the job finishes or the budget runs out, which for video
+    generation means minutes. Do not wait inside a web request: start the job there, hand the
+    handle to a worker, and let the request return. See
+    :doc:`Background Jobs with Messenger </cookbook/background-jobs-with-messenger>`.
 
 The runner throws a :class:`Symfony\\AI\\Platform\\Exception\\JobFailedException` when the provider
 ends the job without a result, and a :class:`Symfony\\AI\\Platform\\Exception\\JobTimeoutException`
