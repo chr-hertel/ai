@@ -22,3 +22,15 @@ mcp:
             resources: ['*']
             resource_templates: ['*']
             apps: ['*']
+
+    # Acting as an MCP client: "app:subway:clock" reaches this public, unauthenticated
+    # server for live NYC transit data.
+    clients:
+        nyc:
+            client_info:
+                name: symfony-ai-demo
+                version: 0.0.1
+            servers:
+                subway:
+                    transport: http
+                    url: 'https://subwayinfo.nyc/mcp'

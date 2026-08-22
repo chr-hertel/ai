@@ -185,6 +185,41 @@ npx @modelcontextprotocol/inspector php bin/console mcp:server
 
 Which opens a web UI to interactively test the MCP server.
 
+### MCP Client: NYC Subway Countdown Clock
+
+The bundle works in the other direction too: `mcp.clients` configures MCP clients this
+application uses to reach *remote* MCP servers. The demo ships one, pointing at the public
+and unauthenticated [subwayinfo.nyc](https://subwayinfo.nyc/mcp) server:
+
+```yaml
+# config/packages/mcp.yaml
+mcp:
+    clients:
+        nyc:
+            servers:
+                subway:
+                    transport: http
+                    url: 'https://subwayinfo.nyc/mcp'
+```
+
+That gives you a `Symfony\AI\McpBundle\Client\McpClientInterface $nycClient` to autowire,
+whose `get('subway')` connection is opened lazily on first use.
+
+```shell
+symfony console app:subway:clock
+```
+
+The command is a full-screen [Symfony TUI](https://symfony.com/components/Tui) app rebuilding
+a New York City subway platform countdown clock. Pick a station, and the board shows the next
+trains per platform with the official MTA line bullets, counting down every second and
+refetching from the MCP server every 20 seconds. Press `esc` to go back, `esc` again to quit.
+
+To see what the client reaches without opening the UI:
+
+```shell
+symfony console debug:mcp --client=nyc --server=subway
+```
+
 ## AI Mate - MCP Development Assistant
 
 [Symfony AI Mate](https://github.com/symfony/ai-mate) is an MCP (Model Context Protocol) server that provides AI
