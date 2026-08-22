@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\McpBundle\DependencyInjection;
 
+use Mcp\Capability\Attribute\CompletionProvider;
 use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpResourceTemplate;
@@ -141,6 +142,21 @@ final class McpPass implements CompilerPassInterface
 
                     $registered[$tag][$class][$method] = true;
 
+                    // A completion provider named by class is looked up in the same locator as the
+                    // handlers when a completion request comes in; one that is not a service falls
+                    // back to "new $provider()" at runtime, so only services are referenced here.
+                    if (\in_array($tag, ['mcp.prompt', 'mcp.resource_template'], true)) {
+                        foreach ($this->completionProviderClasses($class, $method) as $providerClass) {
+                            if (!$container->hasDefinition($providerClass) && !$container->hasAlias($providerClass)) {
+                                continue;
+                            }
+
+                            foreach ($targets as $server) {
+                                $serviceReferences[$server][$providerClass] ??= new Reference($providerClass);
+                            }
+                        }
+                    }
+
                     // Reflection and schema generation run once per element, no matter how many
                     // servers expose it; only the resulting method call is repeated.
                     $arguments = match ($tag) {
@@ -155,6 +171,13 @@ final class McpPass implements CompilerPassInterface
                     }
                 }
             }
+        }
+
+        // The "apps" kind is consumed by McpAppPass with a matcher of its own; replayed here only so
+        // a configured app pattern counts as used and the assert below stays about typos.
+        foreach (array_keys($container->findTaggedServiceIds('mcp.app')) as $serviceId) {
+            $class = $container->getParameterBag()->resolveValue($container->getDefinition($serviceId)->getClass() ?? $serviceId);
+            $matcher->match('apps', $serviceId, $class);
         }
 
         $this->assertPatternsAreUsed($matcher);
@@ -240,6 +263,30 @@ final class McpPass implements CompilerPassInterface
         }
 
         return $values;
+    }
+
+    /**
+     * The completion providers the element's parameters name by class-string, to be resolved
+     * from the handler locator at the point of use.
+     *
+     * @param class-string $class
+     *
+     * @return list<class-string>
+     */
+    private function completionProviderClasses(string $class, string $method): array
+    {
+        $classes = [];
+        foreach ((new \ReflectionMethod($class, $method))->getParameters() as $parameter) {
+            foreach ($parameter->getAttributes(CompletionProvider::class, \ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
+                $instance = $attribute->newInstance();
+                $provider = $instance->provider ?? $instance->providerClass;
+                if (\is_string($provider) && class_exists($provider)) {
+                    $classes[] = $provider;
+                }
+            }
+        }
+
+        return $classes;
     }
 
     /**
