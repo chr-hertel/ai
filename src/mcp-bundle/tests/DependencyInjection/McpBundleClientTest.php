@@ -40,7 +40,7 @@ final class McpBundleClientTest extends TestCase
         $container = $this->buildContainer([]);
 
         $this->assertFalse($container->hasDefinition('mcp.client.locator'));
-        $this->assertFalse($container->hasDefinition('mcp.client.debug_command'));
+        $this->assertFalse($container->hasDefinition('mcp.debug_command'));
     }
 
     public function testRegistersTheFullGraphPerConnection()
@@ -73,7 +73,7 @@ final class McpBundleClientTest extends TestCase
         $locator = $container->getDefinition('mcp.client.research.locator');
         $this->assertSame(['github', 'filesystem'], array_keys($locator->getArgument(0)));
 
-        $this->assertTrue($container->hasDefinition('mcp.client.debug_command'));
+        $this->assertTrue($container->hasDefinition('mcp.debug_command'));
     }
 
     public function testStdioTransportGoesThroughTheFactory()

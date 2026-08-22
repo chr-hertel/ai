@@ -120,7 +120,7 @@ class McpBundleTest extends TestCase
                 'mcp.server.command' => false,
                 'mcp.server.default.controller' => false,
                 'mcp.server.route_loader' => true,
-                'mcp.server.debug_command' => true,
+                'mcp.debug_command' => true,
             ],
         ];
 
@@ -129,7 +129,7 @@ class McpBundleTest extends TestCase
             'expectedServices' => [
                 'mcp.server.command' => true,
                 'mcp.server.default.controller' => false,
-                'mcp.server.debug_command' => true,
+                'mcp.debug_command' => true,
             ],
         ];
 

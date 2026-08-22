@@ -17,6 +17,9 @@ use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Server\Builder;
+use Symfony\AI\McpBundle\Client\McpClientInterface;
+use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
+use Symfony\AI\McpBundle\Exception\ExceptionInterface;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
@@ -25,24 +28,30 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 
 /**
- * Lists the MCP capabilities (tools, prompts, resources, resource templates) registered with the server.
+ * Shows both sides of the bundle: what the configured servers expose, and what the configured
+ * clients reach.
  *
  * Useful to verify that an attributed class was actually picked up: elements are registered from
- * container services, so a class that is not a registered (autoconfigured) service will not show up.
+ * container services and have to be listed by a server, so a class that is neither a registered
+ * (autoconfigured) service nor matched by a capability list will not show up.
+ *
+ * Only the client modes open a connection; everything else reads the compiled container.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-#[AsCommand('debug:mcp', 'Display the MCP capabilities registered with the configured servers')]
+#[AsCommand('debug:mcp', 'Display the configured MCP servers and clients')]
 final class DebugCommand
 {
     /**
-     * @param ServiceProviderInterface<Builder>           $builders
-     * @param ServiceProviderInterface<RegistryInterface> $registries
-     * @param array<string, list<string>>                 $unassigned kind => service ids no server exposes
+     * @param ServiceProviderInterface<Builder>            $builders
+     * @param ServiceProviderInterface<RegistryInterface>  $registries
+     * @param ServiceProviderInterface<McpClientInterface> $clients
+     * @param array<string, list<string>>                  $unassigned kind => service ids no server exposes
      */
     public function __construct(
         private readonly ServiceProviderInterface $builders,
         private readonly ServiceProviderInterface $registries,
+        private readonly ServiceProviderInterface $clients,
         private readonly array $unassigned = [],
     ) {
     }
@@ -51,9 +60,21 @@ final class DebugCommand
         SymfonyStyle $io,
         #[Argument(description: 'A tool/prompt name, resource URI, or resource template to show details for')]
         ?string $name = null,
-        #[Option(description: 'Restrict the output to one server (mcp.servers.<name>)', suggestedValues: [self::class, 'suggestServers'])]
+        #[Option(description: 'Restrict the output to one server. With --client, the remote server to connect to.', suggestedValues: [self::class, 'suggestServers'])]
         ?string $server = null,
+        #[Option(description: 'Connect a configured client (mcp.clients.<name>) and list what its server advertises', suggestedValues: [self::class, 'suggestClients'])]
+        ?string $client = null,
+        #[Option(description: 'List the configured clients and their servers without connecting to any')]
+        bool $clients = false,
     ): int {
+        if (null !== $client) {
+            return $this->describeConnection($io, $client, $server);
+        }
+
+        if ($clients) {
+            return $this->listClients($io);
+        }
+
         $names = $this->getServerNames();
 
         if (null !== $server) {
@@ -99,6 +120,7 @@ final class DebugCommand
 
         if (null === $name) {
             $this->reportUnassigned($io);
+            $this->summarizeClients($io);
         }
 
         return Command::SUCCESS;
@@ -115,9 +137,201 @@ final class DebugCommand
     /**
      * @return list<string>
      */
+    public function suggestClients(): array
+    {
+        return $this->getClientNames();
+    }
+
+    /**
+     * @return list<string>
+     */
     private function getServerNames(): array
     {
         return array_keys($this->registries->getProvidedServices());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getClientNames(): array
+    {
+        return array_keys($this->clients->getProvidedServices());
+    }
+
+    /**
+     * Container introspection only: answering "which clients do I have" must not spawn a stdio
+     * child process or open an HTTP session.
+     */
+    private function listClients(SymfonyStyle $io): int
+    {
+        $names = $this->getClientNames();
+
+        if ([] === $names) {
+            $io->warning('No MCP client is configured. Declare one under "mcp.clients" in config/packages/mcp.yaml.');
+
+            return Command::SUCCESS;
+        }
+
+        $io->title('Configured MCP clients');
+        $io->table(['Client', 'Servers'], array_map(
+            fn (string $name): array => [$name, implode(', ', $this->clients->get($name)->getServerNames())],
+            $names,
+        ));
+        $io->text('Run "debug:mcp --client=<client> --server=<server>" to connect and list what a server advertises.');
+
+        return Command::SUCCESS;
+    }
+
+    /**
+     * Mentioned after the server listing so one command still shows both sides of the bundle.
+     */
+    private function summarizeClients(SymfonyStyle $io): void
+    {
+        $names = $this->getClientNames();
+        if ([] === $names) {
+            return;
+        }
+
+        $io->section(\sprintf('Clients (%d)', \count($names)));
+        $io->table(['Client', 'Servers'], array_map(
+            fn (string $name): array => [$name, implode(', ', $this->clients->get($name)->getServerNames())],
+            $names,
+        ));
+        $io->text('Run "debug:mcp --client=<client>" to connect and list what a server advertises.');
+    }
+
+    private function describeConnection(SymfonyStyle $io, string $client, ?string $server): int
+    {
+        $names = $this->getClientNames();
+
+        if (!$this->clients->has($client)) {
+            $io->error(\sprintf('No MCP client named "%s" is configured.%s', $client, [] === $names ? '' : \sprintf(' Available: %s.', implode(', ', $names))));
+
+            return Command::INVALID;
+        }
+
+        $mcpClient = $this->clients->get($client);
+        $servers = $mcpClient->getServerNames();
+
+        if (null === $server) {
+            if (1 !== \count($servers)) {
+                $io->error(\sprintf('The MCP client "%s" connects to several servers, name the one to inspect with --server: %s.', $client, implode(', ', $servers)));
+
+                return Command::INVALID;
+            }
+
+            $server = $servers[0];
+        }
+
+        if (!$mcpClient->has($server)) {
+            $io->error(\sprintf('The MCP client "%s" has no server named "%s". Configured: %s.', $client, $server, implode(', ', $servers)));
+
+            return Command::INVALID;
+        }
+
+        return $this->describeRemote($io, $mcpClient->get($server));
+    }
+
+    private function describeRemote(SymfonyStyle $io, ServerConnectionInterface $connection): int
+    {
+        $io->title(\sprintf('MCP client "%s" → server "%s"', $connection->getClientName(), $connection->getName()));
+
+        try {
+            // The connection opens on this first call; there is no connect() to forget.
+            $info = $connection->getServerInfo();
+
+            if (null !== $info) {
+                $io->definitionList(
+                    ['Name' => $info->name],
+                    ['Version' => $info->version],
+                );
+            }
+
+            if (null !== ($instructions = $connection->getInstructions())) {
+                $io->section('Instructions');
+                $io->writeln($instructions);
+            }
+
+            $this->renderRemoteTools($io, $connection->getTools());
+            $this->renderRemotePrompts($io, $connection->getPrompts());
+            $this->renderRemoteResources($io, $connection->getResources(), $connection->getResourceTemplates());
+        } catch (ExceptionInterface $e) {
+            $io->error($e->getMessage());
+
+            return Command::FAILURE;
+        } finally {
+            // Always terminates a stdio child process, including on failure.
+            $connection->disconnect();
+        }
+
+        return Command::SUCCESS;
+    }
+
+    /**
+     * @param list<Tool> $tools
+     */
+    private function renderRemoteTools(SymfonyStyle $io, array $tools): void
+    {
+        $io->section(\sprintf('Tools (%d)', \count($tools)));
+
+        if ([] === $tools) {
+            $io->writeln('<comment>No tools advertised by the server.</comment>');
+
+            return;
+        }
+
+        $io->table(['Name', 'Description', 'Required arguments'], array_map(fn (Tool $tool): array => [
+            $tool->name,
+            $this->truncate($tool->description),
+            implode(', ', $tool->inputSchema['required'] ?? []),
+        ], $tools));
+    }
+
+    /**
+     * @param list<Prompt> $prompts
+     */
+    private function renderRemotePrompts(SymfonyStyle $io, array $prompts): void
+    {
+        if ([] === $prompts) {
+            return;
+        }
+
+        $io->section(\sprintf('Prompts (%d)', \count($prompts)));
+        $io->table(['Name', 'Description', 'Arguments'], array_map(fn (Prompt $prompt): array => [
+            $prompt->name,
+            $this->truncate($prompt->description),
+            implode(', ', array_map(
+                static fn ($argument): string => $argument->name.($argument->required ? '' : '?'),
+                $prompt->arguments ?? [],
+            )),
+        ], $prompts));
+    }
+
+    /**
+     * @param list<ResourceDefinition> $resources
+     * @param list<ResourceTemplate>   $templates
+     */
+    private function renderRemoteResources(SymfonyStyle $io, array $resources, array $templates): void
+    {
+        if ([] !== $resources) {
+            $io->section(\sprintf('Resources (%d)', \count($resources)));
+            $io->table(['URI', 'Name', 'MIME Type'], array_map(static fn (ResourceDefinition $resource): array => [
+                $resource->uri,
+                $resource->name,
+                $resource->mimeType ?? '',
+            ], $resources));
+        }
+
+        if ([] === $templates) {
+            return;
+        }
+
+        $io->section(\sprintf('Resource Templates (%d)', \count($templates)));
+        $io->table(['URI Template', 'Name', 'MIME Type'], array_map(static fn (ResourceTemplate $template): array => [
+            $template->uriTemplate,
+            $template->name,
+            $template->mimeType ?? '',
+        ], $templates));
     }
 
     private function reportUnassigned(SymfonyStyle $io): void

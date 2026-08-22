@@ -833,9 +833,11 @@ You can customize the logging level and destination according to your needs:
 Debug Command
 -------------
 
-The ``debug:mcp`` command lists the MCP capabilities each configured server exposes — useful to verify
-that an attributed class was actually picked up (it must be a registered, autoconfigured service *and*
-be matched by a server's capability list):
+``debug:mcp`` is the one debug command for the bundle: it covers both the servers this application
+exposes and the clients it uses. Without options it lists the MCP capabilities each configured server
+exposes — useful to verify that an attributed class was actually picked up (it must be a registered,
+autoconfigured service *and* be matched by a server's capability list) — followed by a summary of the
+configured clients:
 
 .. code-block:: terminal
 
@@ -851,17 +853,19 @@ be matched by a server's capability list):
 Its last section, *Not exposed by any server*, lists the services that carry an MCP attribute but that no
 server's capability list matches.
 
-``mcp:client:debug`` does the same for the client side. Without arguments it prints the configured
-clients and their servers straight from the container, without opening a single connection; naming a
-server connects to it and lists what it advertises:
+The same command covers the client side. Both listings read the compiled container and open no
+connection; only ``--client`` connects, and it always disconnects afterwards:
 
 .. code-block:: terminal
 
     # list the configured clients and their servers
-    $ php bin/console mcp:client:debug
+    $ php bin/console debug:mcp --clients
 
     # connect and show the remote server's info, instructions, tools, prompts and resources
-    $ php bin/console mcp:client:debug research github
+    $ php bin/console debug:mcp --client=research --server=github
+
+``--server`` names a configured server on its own, and the client's remote server when combined with
+``--client``. It can be omitted when the client reaches exactly one server.
 
 Profiler
 --------

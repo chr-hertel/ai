@@ -41,7 +41,6 @@ use Symfony\AI\McpBundle\Client\McpClientInterface;
 use Symfony\AI\McpBundle\Client\ServerConnection;
 use Symfony\AI\McpBundle\Client\ServerLogForwarder;
 use Symfony\AI\McpBundle\Client\TransportFactory;
-use Symfony\AI\McpBundle\Command\ClientDebugCommand;
 use Symfony\AI\McpBundle\Command\DebugCommand;
 use Symfony\AI\McpBundle\Command\McpCommand;
 use Symfony\AI\McpBundle\Controller\McpController;
@@ -105,6 +104,9 @@ final class McpBundle extends AbstractBundle
 
         $container->import('../config/services.php');
 
+        // Always defined: the debug command reads it even when only clients are configured.
+        $builder->setParameter('mcp.servers.unassigned', []);
+
         if ([] !== $config['servers']) {
             $this->configureServers($config['servers'], $builder);
         }
@@ -112,6 +114,8 @@ final class McpBundle extends AbstractBundle
         if ([] !== $config['clients']) {
             $this->configureClients($config['clients'], $builder);
         }
+
+        $this->configureDebugCommand($builder);
     }
 
     public function build(ContainerBuilder $container): void
@@ -175,10 +179,6 @@ final class McpBundle extends AbstractBundle
         $container->register('mcp.client.locator', ServiceLocator::class)
             ->setArguments([$clientReferences])
             ->addTag('container.service_locator');
-
-        $container->register('mcp.client.debug_command', ClientDebugCommand::class)
-            ->setArguments([new Reference('mcp.client.locator')])
-            ->addTag('console.command');
     }
 
     /**
@@ -297,8 +297,6 @@ final class McpBundle extends AbstractBundle
         // The compiler passes are registered in build(), before this extension is loaded, so a
         // container parameter is the only channel to hand them the per-server element lists.
         $container->setParameter('mcp.servers.elements', $elements);
-        // Overwritten by McpPass with the elements no server exposes.
-        $container->setParameter('mcp.servers.unassigned', []);
 
         $this->registerServerLocator('mcp.server_locator.builder', array_keys($servers), 'builder', $container);
         $this->registerServerLocator('mcp.server_locator.registry', array_keys($servers), 'registry', $container);
@@ -306,6 +304,31 @@ final class McpBundle extends AbstractBundle
         $this->configureRouting($servers, $container);
         $this->configureCommands($servers, $container);
         $this->configureProfiler($servers, $container);
+    }
+
+    /**
+     * One debug command covers the whole component, so it is registered once both sides have had
+     * their chance to create the locators it reads.
+     */
+    private function configureDebugCommand(ContainerBuilder $container): void
+    {
+        foreach (['mcp.server_locator.builder', 'mcp.server_locator.registry', 'mcp.client.locator'] as $locatorId) {
+            if (!$container->hasDefinition($locatorId)) {
+                $container->register($locatorId, ServiceLocator::class)
+                    ->setArguments([[]])
+                    ->addTag('container.service_locator');
+            }
+        }
+
+        $container->register('mcp.debug_command', DebugCommand::class)
+            ->setArguments([
+                new Reference('mcp.server_locator.builder'),
+                new Reference('mcp.server_locator.registry'),
+                new Reference('mcp.client.locator'),
+                // Filled by McpPass, which runs after this extension; the placeholder is resolved later.
+                '%mcp.servers.unassigned%',
+            ])
+            ->addTag('console.command');
     }
 
     /**
@@ -397,15 +420,6 @@ final class McpBundle extends AbstractBundle
      */
     private function configureCommands(array $servers, ContainerBuilder $container): void
     {
-        $container->register('mcp.server.debug_command', DebugCommand::class)
-            ->setArguments([
-                new Reference('mcp.server_locator.builder'),
-                new Reference('mcp.server_locator.registry'),
-                // Filled by McpPass, which runs after this extension; the placeholder is resolved later.
-                '%mcp.servers.unassigned%',
-            ])
-            ->addTag('console.command');
-
         $stdio = array_filter($servers, static fn (array $server): bool => $server['transports']['stdio']);
         if ([] === $stdio) {
             return;
