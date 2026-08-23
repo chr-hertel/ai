@@ -21,7 +21,7 @@ use Symfony\AI\Platform\Result\ToolCall;
 final class SequentialToolExecutor implements ToolExecutorInterface
 {
     public function __construct(
-        private readonly ToolboxInterface $toolbox,
+        private readonly ToolInvokerInterface $invoker,
     ) {
     }
 
@@ -34,7 +34,7 @@ final class SequentialToolExecutor implements ToolExecutorInterface
     {
         $results = [];
         foreach ($toolCalls as $toolCall) {
-            $results[] = $this->toolbox->execute($toolCall);
+            $results[] = $this->invoker->execute($toolCall);
         }
 
         return $results;

@@ -15,7 +15,7 @@ use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\StreamListener;
-use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Agent\Toolbox\ToolCatalogInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Message\AssistantMessage;
@@ -57,7 +57,7 @@ final class Runner
 
     public function __construct(
         private readonly PlatformInterface $platform,
-        private readonly ?ToolboxInterface $toolbox = null,
+        private readonly ?ToolCatalogInterface $toolCatalog = null,
         private readonly ?ToolExecutorInterface $toolExecutor = null,
         private readonly ?int $maxToolCalls = 50,
         private readonly bool $excludeToolMessages = false,
@@ -115,11 +115,11 @@ final class Runner
      */
     private function exposeTools(array $options): array
     {
-        if (!$this->toolbox instanceof ToolboxInterface) {
+        if (!$this->toolCatalog instanceof ToolCatalogInterface) {
             return $options;
         }
 
-        $toolMap = $this->toolbox->getTools();
+        $toolMap = $this->toolCatalog->getTools();
         if ([] === $toolMap) {
             return $options;
         }

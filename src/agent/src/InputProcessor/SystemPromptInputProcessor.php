@@ -16,7 +16,7 @@ use Psr\Log\NullLogger;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Input;
 use Symfony\AI\Agent\InputProcessorInterface;
-use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Agent\Toolbox\ToolCatalogInterface;
 use Symfony\AI\Platform\Message\Content\File;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Tool\Tool;
@@ -30,11 +30,11 @@ final class SystemPromptInputProcessor implements InputProcessorInterface
 {
     /**
      * @param \Stringable|TranslatableInterface|string|File $systemPrompt the system prompt to prepend to the input messages, or a File object to read from
-     * @param ToolboxInterface|null                         $toolbox      the tool box to be used to append the tool definitions to the system prompt
+     * @param ToolCatalogInterface|null                     $toolbox      the tool catalog whose definitions are appended to the system prompt
      */
     public function __construct(
         private readonly \Stringable|TranslatableInterface|string|File $systemPrompt,
-        private readonly ?ToolboxInterface $toolbox = null,
+        private readonly ?ToolCatalogInterface $toolbox = null,
         private readonly ?TranslatorInterface $translator = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
@@ -66,7 +66,7 @@ final class SystemPromptInputProcessor implements InputProcessorInterface
             $message = (string) $this->systemPrompt;
         }
 
-        if ($this->toolbox instanceof ToolboxInterface
+        if ($this->toolbox instanceof ToolCatalogInterface
             && [] !== $this->toolbox->getTools()
         ) {
             $this->logger->debug('Append tool definitions to system prompt.');
