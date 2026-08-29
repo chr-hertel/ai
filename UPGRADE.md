@@ -159,6 +159,55 @@ MCP Bundle
 
    A single configured client also answers a plain `McpClientInterface` type hint, unchanged.
 
+Store
+-----
+
+ * Stores are now typed against `Document\VectorDocumentInterface` rather than the final
+   `Document\VectorDocument` class, so that a store can hand back a document carrying more than an
+   id, a vector and metadata - the entity it was built from, for instance. `VectorDocument` implements
+   the new interface, so passing one is unchanged, but a custom store has to widen its signature:
+
+   ```diff
+   -public function add(VectorDocument|array $documents): void
+   +public function add(VectorDocumentInterface|array $documents): void
+    {
+   -    if ($documents instanceof VectorDocument) {
+   +    if ($documents instanceof VectorDocumentInterface) {
+            $documents = [$documents];
+        }
+        // ...
+    }
+   ```
+
+   The same applies to anything typed on the documents a store returns: `RetrieverInterface`,
+   `Reranker\RerankerInterface` and `VectorizerInterface` now speak in terms of the interface too.
+
+ * An embeddable document can decide which vector document it turns into, by implementing the new
+   `Document\VectorDocumentFactoryInterface`. Without it a `Vectorizer` pairs the document's id and
+   metadata with the computed vector in a plain `VectorDocument`, which drops everything else the
+   document carried - the behavior every existing document keeps:
+
+   ```php
+   final class EntityDocument implements VectorDocumentFactoryInterface
+   {
+       public function createVectorDocument(VectorInterface $vector): VectorDocumentInterface
+       {
+           return new EntityVectorDocument($this->entity, $this->id, $vector);
+       }
+   }
+   ```
+
+ * `Query\VectorQuery` and `Query\HybridQuery` accept and return `Platform\Vector\VectorInterface`
+   instead of the final `Platform\Vector\Vector` class. Passing a `Vector` is unchanged. This is what
+   makes a "more like this" query possible without a cast: the vector of a document returned by a store
+   can now be fed straight back into a query.
+
+ * `Indexer\SourceIndexer` passes its options on to the loader, not only to the document processor,
+   so that a source can be narrowed at runtime. A `Document\LoaderInterface` implementation that
+   previously only ever saw options passed to `load()` directly now also receives the indexing
+   options (`chunk_size`, `platform_options`, and whatever else the caller passed). Loaders ignoring
+   unknown options - which the interface asks for - are unaffected.
+
 Mate
 ----
 

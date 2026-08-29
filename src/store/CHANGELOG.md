@@ -1,6 +1,14 @@
 CHANGELOG
 =========
 
+0.13
+----
+
+ * [BC BREAK] Type stores, retrievers, rerankers and vectorizers against the new `Document\VectorDocumentInterface` instead of the final `Document\VectorDocument` class
+ * [BC BREAK] Accept and return `Platform\Vector\VectorInterface` in `Query\VectorQuery` and `Query\HybridQuery` instead of the final `Platform\Vector\Vector` class
+ * Add `Document\VectorDocumentFactoryInterface`, letting an embeddable document decide which vector document it turns into
+ * `Indexer\SourceIndexer` now passes its options to the loader as well as to the document processor
+
 0.11
 ----
 

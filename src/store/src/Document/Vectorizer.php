@@ -28,7 +28,7 @@ final class Vectorizer implements VectorizerInterface
     ) {
     }
 
-    public function vectorize(string|\Stringable|EmbeddableDocumentInterface|array $values, array $options = []): Vector|VectorDocument|array
+    public function vectorize(string|\Stringable|EmbeddableDocumentInterface|array $values, array $options = []): Vector|VectorDocumentInterface|array
     {
         if (\is_string($values) || $values instanceof \Stringable) {
             return $this->vectorizeString($values, $options);
@@ -99,7 +99,7 @@ final class Vectorizer implements VectorizerInterface
      *
      * @throws ExceptionInterface
      */
-    private function vectorizeEmbeddableDocument(EmbeddableDocumentInterface $document, array $options = []): VectorDocument
+    private function vectorizeEmbeddableDocument(EmbeddableDocumentInterface $document, array $options = []): VectorDocumentInterface
     {
         $this->logger->debug('Vectorizing embeddable document', ['document_id' => $document->getId()]);
         $result = $this->platform->invoke($this->model, $document->getContent(), $options);
@@ -109,14 +109,7 @@ final class Vectorizer implements VectorizerInterface
             throw new RuntimeException('No vector returned for vectorization.');
         }
 
-        // Preserve the original text in metadata so downstream consumers
-        // (e.g. text search, reranking) can access it via Metadata::getText().
-        $metadata = $document->getMetadata();
-        if ($this->includeText && !$metadata->hasText()) {
-            $metadata->setText($document->getContent());
-        }
-
-        return new VectorDocument($document->getId(), $vectors[0], $metadata);
+        return $this->createVectorDocument($document, $vectors[0]);
     }
 
     /**
@@ -145,7 +138,7 @@ final class Vectorizer implements VectorizerInterface
      * @param array<EmbeddableDocumentInterface> $documents
      * @param array<string, mixed>               $options
      *
-     * @return array<VectorDocument>
+     * @return array<VectorDocumentInterface>
      */
     private function vectorizeEmbeddableDocuments(array $documents, array $options = []): array
     {
@@ -157,14 +150,7 @@ final class Vectorizer implements VectorizerInterface
 
         $vectorDocuments = [];
         foreach ($documents as $i => $document) {
-            // Preserve the original text in metadata so downstream consumers
-            // (e.g. text search, reranking) can access it via Metadata::getText().
-            $metadata = $document->getMetadata();
-            if ($this->includeText && !$metadata->hasText()) {
-                $metadata->setText($document->getContent());
-            }
-
-            $vectorDocuments[] = new VectorDocument($document->getId(), $vectors[$i], $metadata);
+            $vectorDocuments[] = $this->createVectorDocument($document, $vectors[$i]);
         }
 
         $this->logger->info('Vectorization process completed', [
@@ -173,5 +159,24 @@ final class Vectorizer implements VectorizerInterface
         ]);
 
         return $vectorDocuments;
+    }
+
+    /**
+     * Pairs a document with its vector, letting the document decide the resulting type if it can.
+     */
+    private function createVectorDocument(EmbeddableDocumentInterface $document, Vector $vector): VectorDocumentInterface
+    {
+        // Preserve the original text in metadata so downstream consumers
+        // (e.g. text search, reranking) can access it via Metadata::getText().
+        $metadata = $document->getMetadata();
+        if ($this->includeText && !$metadata->hasText()) {
+            $metadata->setText($document->getContent());
+        }
+
+        if ($document instanceof VectorDocumentFactoryInterface) {
+            return $document->createVectorDocument($vector);
+        }
+
+        return new VectorDocument($document->getId(), $vector, $metadata);
     }
 }
