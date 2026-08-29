@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add support for template variables in file prompts
+ * Add a `doctrine` store, keeping vectors in a column of the table a Doctrine entity already lives in
  * Add an `embedding_function` option to the `chromadb` store, referencing a service implementing `Codewithkyrian\ChromaDB\Embeddings\EmbeddingFunction`, so a bundle-configured store can serve a `TextQuery`
 
 0.11

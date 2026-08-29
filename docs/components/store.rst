@@ -126,6 +126,7 @@ Supported Stores
 * `Chroma`_ (requires ``codewithkyrian/chromadb-php`` as additional dependency)
 * `ClickHouse`_
 * `Cloudflare`_
+* `Doctrine`_ (requires ``doctrine/orm`` as additional dependency)
 * `Elasticsearch`_
 * `InMemory`_
 * `Manticore Search`_
@@ -357,6 +358,7 @@ Its index is the storage directory itself, which is simply recreated.
 .. _`Manticore Search`: https://manticoresearch.com/
 .. _`MariaDB`: https://mariadb.org/projects/mariadb-vector/
 .. _`Pinecone`: https://www.pinecone.io/
+.. _`Doctrine`: https://github.com/symfony/ai/tree/main/src/store/src/Bridge/Doctrine
 .. _`Postgres`: https://www.postgresql.org/about/news/pgvector-070-released-2852/
 .. _`Meilisearch`: https://www.meilisearch.com/
 .. _`Milvus`: https://milvus.io/
