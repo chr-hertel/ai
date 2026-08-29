@@ -8,6 +8,8 @@ CHANGELOG
  * [BC BREAK] Accept and return `Platform\Vector\VectorInterface` in `Query\VectorQuery` and `Query\HybridQuery` instead of the final `Platform\Vector\Vector` class
  * [BC BREAK] Type stores, retrievers, rerankers and vectorizers against the new `Document\VectorDocumentInterface` instead of the final `Document\VectorDocument` class
  * Add `Document\VectorDocumentFactoryInterface`, letting an embeddable document decide which vector document it turns into
+ * Add `Bridge\Doctrine` store, keeping vectors in a column of the table a Doctrine entity already lives in and returning entities when queried, on PostgreSQL/pgvector, MariaDB, MySQL and SQLite/sqlite-vec
+
 
 
 
