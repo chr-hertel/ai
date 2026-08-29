@@ -193,6 +193,21 @@ Store
    The same applies to anything typed on the documents a store returns: `RetrieverInterface`,
    `Reranker\RerankerInterface` and `VectorizerInterface` now speak in terms of the interface too.
 
+ * An embeddable document can decide which vector document it turns into, by implementing the new
+   `Document\VectorDocumentFactoryInterface`. Without it a `Vectorizer` pairs the document's id and
+   metadata with the computed vector in a plain `VectorDocument`, which drops everything else the
+   document carried - the behavior every existing document keeps:
+
+   ```php
+   final class EntityDocument implements VectorDocumentFactoryInterface
+   {
+       public function createVectorDocument(VectorInterface $vector): VectorDocumentInterface
+       {
+           return new EntityVectorDocument($this->entity, $this->id, $vector);
+       }
+   }
+   ```
+
 Mate
 ----
 
