@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add a `doctrine` store, keeping vectors in a column of the table a Doctrine entity already lives in
+
 0.14
 ----
 
