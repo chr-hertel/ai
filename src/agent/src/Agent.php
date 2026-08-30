@@ -25,6 +25,7 @@ use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Handoff\HandoffResolver;
+use Symfony\AI\Agent\Store\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
@@ -64,6 +65,7 @@ final class Agent implements AgentInterface
         Context $context = new Context(),
         ?ToolboxInterface $toolbox = null,
         array $handoffs = [],
+        ?MessageStoreInterface $store = null,
         ?ToolExecutorInterface $toolExecutor = null,
         ?int $maxToolCalls = 50,
         bool $excludeToolMessages = false,
@@ -105,6 +107,7 @@ final class Agent implements AgentInterface
             $excludeToolMessages,
             $includeSources,
             $eventDispatcher,
+            $store,
         );
     }
 

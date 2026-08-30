@@ -16,6 +16,7 @@ CHANGELOG
  * Add `Handoff\Handoff` and `Handoff\HandoffResolver`: before answering, an agent with handoffs asks the model which of them should handle the request and delegates to it, falling back to answering itself
  * Add `HandoffRequested` and `HandoffCompleted` events; a listener on `HandoffRequested` can override or cancel the target agent
  * Handoffs are reported as a `Progress` update of the `handoff` stage, and the target agent receives the caller's context without the delegating agent's `Instruction`
+ * Add a `Store` namespace (`MessageStoreInterface`, `ManagedStoreInterface`, `InMemoryStore`): when a store is passed to the `Agent`, the runner loads the conversation before the call and persists it with the answer afterwards, making the agent stateful
 
 0.13
 ----
