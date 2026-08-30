@@ -22,6 +22,7 @@ use Symfony\AI\Agent\Context\Processor\ToolProcessor;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\ParallelExecution;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Handoff\HandoffResolver;
@@ -143,6 +144,22 @@ final class Agent implements AgentInterface
         $factory = fn (): \Generator => yield from $this->runner->run($this, $model, $messages, $mergedContext, $options);
 
         return new Execution($factory, true === ($options['stream'] ?? false));
+    }
+
+    /**
+     * Runs the agent for several inputs and exposes their merged execution.
+     *
+     * @param iterable<int|string, string|MessageBag|UserMessage> $inputs
+     * @param array<string, mixed>                                $options
+     */
+    public function callMany(iterable $inputs, Context $context = new Context(), array $options = []): ParallelExecution
+    {
+        $executions = [];
+        foreach ($inputs as $key => $input) {
+            $executions[$key] = $this->call($input, $context, $options);
+        }
+
+        return new ParallelExecution($executions);
     }
 
     /**
