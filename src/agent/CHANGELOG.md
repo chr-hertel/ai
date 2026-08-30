@@ -11,6 +11,7 @@ CHANGELOG
  * Add `Context\Processor\InstructionProcessor`, `AttachmentProcessor`, `ToolProcessor` and `MemoryProcessor`, plus `Attribute\AsContextProcessor` to register custom ones
  * Add `Context\ResultAwareContextProcessorInterface` for processors that inspect or replace the result after the model answered
  * Add support for overriding the agent's model per call through the `model` option
+ * Add agent lifecycle events (`AgentInvocationStarted`, `ModelRequested`, `ModelResponded`, `AgentInvocationCompleted`) dispatched when an event dispatcher is passed to the `Agent`; a listener on `AgentInvocationStarted` can short-circuit the invocation by providing a result
 
 0.13
 ----
