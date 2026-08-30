@@ -148,6 +148,71 @@ model-request and tool-call updates::
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
 
+Human in the Loop
+-----------------
+
+Some tools cannot answer on their own: they need a decision from a human. Throwing a
+:class:`Symfony\\AI\\Agent\\Toolbox\\Exception\\ToolInteractionException` pauses the execution and asks::
+
+    use Symfony\AI\Agent\Toolbox\Exception\ToolInteractionException;
+
+    #[AsTool('book_flight', 'Books a flight for the user')]
+    final class BookFlight
+    {
+        public function __invoke(string $destination): string
+        {
+            throw ToolInteractionException::choose('Which seat do you want?', ['window', 'aisle']);
+        }
+    }
+
+The execution yields an :class:`Symfony\\AI\\Agent\\Execution\\Update\\Interaction`, and only continues once an
+:class:`Symfony\\AI\\Agent\\Execution\\InteractionResponse` is sent back. Its value becomes the tool call's
+result::
+
+    use Symfony\AI\Agent\Execution\InteractionResponse;
+    use Symfony\AI\Agent\Execution\Update\Interaction;
+
+    $result = $agent->call('Book me a flight to Berlin.')
+        ->onInteraction(fn (Interaction $interaction) => new InteractionResponse(ask($interaction->getPrompt())))
+        ->getResult();
+
+Without a handler, reading the result throws an
+:class:`Symfony\\AI\\Agent\\Exception\\InteractionRequiredException` carrying the pending interaction, rather
+than silently continuing.
+
+Tool Approval
+~~~~~~~~~~~~~
+
+Destructive tools can be gated behind an explicit approval, without the tool knowing about it::
+
+    use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
+
+    $agent = new Agent($platform, $model,
+        toolbox: $toolbox,
+        toolExecutor: new SequentialToolExecutor($toolbox, toolsRequiringApproval: ['delete_everything']),
+    );
+
+    $agent->call('Delete everything.')
+        ->onInteraction(fn (Interaction $interaction) => confirm($interaction->getPrompt())
+            ? InteractionResponse::approve()
+            : InteractionResponse::deny())
+        ->getResult();
+
+A denied tool call is not executed; the model is told so and continues.
+
+.. tip::
+
+    An ``Interaction`` raised from a tool carries the pending ``ToolCall`` and a snapshot of the conversation, which
+    is everything needed to persist a paused execution and resume it later - even in another process.
+
+.. note::
+
+    This is the *blocking* way to gate a tool: the execution pauses and waits for an answer, which suits an
+    interactive consumer like a CLI or a chat UI. For an approval that was granted out of band - a listener that
+    checks an approval store and denies the call when it finds none - use `Tool Metadata`_ together with
+    :class:`Symfony\\AI\\Agent\\Toolbox\\Event\\ToolCallRequested`. Both can be combined: metadata declares
+    *which* tools need confirmation, the executor decides *how* it is obtained.
+
 Stateful Agents
 ---------------
 

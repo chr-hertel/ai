@@ -12,13 +12,14 @@
 namespace Symfony\AI\Agent\Execution;
 
 /**
- * Discriminator for the updates yielded by an agent {@see Execution}.
+ * Reason why an agent execution pauses for human interaction.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-enum UpdateType: string
+enum InteractionReason: string
 {
-    case Progress = 'progress';
-    case Interaction = 'interaction';
-    case Result = 'result';
+    case Confirmation = 'confirmation';
+    case Input = 'input';
+    case Choice = 'choice';
+    case ToolApproval = 'tool_approval';
 }
