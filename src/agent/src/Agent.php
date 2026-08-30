@@ -23,6 +23,8 @@ use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Runner;
+use Symfony\AI\Agent\Handoff\Handoff;
+use Symfony\AI\Agent\Handoff\HandoffResolver;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
@@ -48,6 +50,7 @@ final class Agent implements AgentInterface
      * @param non-empty-string                    $model
      * @param iterable<ContextProcessorInterface> $contextProcessors
      * @param non-empty-string                    $name
+     * @param Handoff[]                           $handoffs                  agents this agent can delegate the request to
      * @param bool                                $includeToolsInInstruction appends the tool definitions to the instruction
      * @param bool                                $excludeToolMessages       keeps the messages appended during tool calling out of the caller's message bag
      * @param bool                                $includeSources            exposes the sources collected during tool calling as `sources` result metadata
@@ -60,6 +63,7 @@ final class Agent implements AgentInterface
         string|\Stringable|TranslatableInterface|File|null $instruction = null,
         Context $context = new Context(),
         ?ToolboxInterface $toolbox = null,
+        array $handoffs = [],
         ?ToolExecutorInterface $toolExecutor = null,
         ?int $maxToolCalls = 50,
         bool $excludeToolMessages = false,
@@ -96,6 +100,7 @@ final class Agent implements AgentInterface
             $platform,
             $processors,
             $toolExecutor,
+            [] !== $handoffs ? new HandoffResolver($handoffs) : null,
             $maxToolCalls,
             $excludeToolMessages,
             $includeSources,

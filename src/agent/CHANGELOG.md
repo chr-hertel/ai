@@ -12,6 +12,10 @@ CHANGELOG
  * Add `Context\ResultAwareContextProcessorInterface` for processors that inspect or replace the result after the model answered
  * Add support for overriding the agent's model per call through the `model` option
  * Add agent lifecycle events (`AgentInvocationStarted`, `ModelRequested`, `ModelResponded`, `AgentInvocationCompleted`) dispatched when an event dispatcher is passed to the `Agent`; a listener on `AgentInvocationStarted` can short-circuit the invocation by providing a result
+ * [BC BREAK] Remove the `MultiAgent` namespace; handoffs are now a property of the `Agent` itself, configured through the `handoffs` constructor argument
+ * Add `Handoff\Handoff` and `Handoff\HandoffResolver`: before answering, an agent with handoffs asks the model which of them should handle the request and delegates to it, falling back to answering itself
+ * Add `HandoffRequested` and `HandoffCompleted` events; a listener on `HandoffRequested` can override or cancel the target agent
+ * Handoffs are reported as a `Progress` update of the `handoff` stage, and the target agent receives the caller's context without the delegating agent's `Instruction`
 
 0.13
 ----
