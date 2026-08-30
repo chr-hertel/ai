@@ -26,7 +26,7 @@ $toolbox = new Toolbox([$transcriber], logger: logger());
 $agent = new Agent($platform, 'gpt-oss-120b', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('Please summarize this video for me: https://www.youtube.com/watch?v=6uXW-ulpj0s'));
-$result = $agent->call($messages, ['stream' => true]);
+$result = $agent->call($messages, options: ['stream' => true]);
 
 foreach ($result->getContent() as $delta) {
     if ($delta instanceof TextDelta) {

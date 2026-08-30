@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent;
 
+use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
@@ -35,16 +36,16 @@ final class SpeechAgent implements AgentInterface
     ) {
     }
 
-    public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
+    public function call(string|MessageBag|UserMessage $input, Context $context = new Context(), array $options = []): Execution
     {
-        return new Execution(function () use ($input, $options): \Generator {
+        return new Execution(function () use ($input, $context, $options): \Generator {
             $messages = InputNormalizer::toMessageBag($input);
 
             if ($this->configuration->supportsSpeechToText() && $this->speechToTextPlatform instanceof PlatformInterface) {
                 $messages = $this->transcribe($messages, $options);
             }
 
-            $result = $this->agent->call($messages, $options)->getResult();
+            $result = $this->agent->call($messages, $context, $options)->getResult();
 
             if (!$this->textToSpeechPlatform instanceof PlatformInterface || !$this->configuration->supportsTextToSpeech()) {
                 yield new ResultUpdate($result);

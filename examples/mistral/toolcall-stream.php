@@ -26,7 +26,7 @@ $toolbox = new Toolbox([$transcriber], logger: logger());
 $agent = new Agent($platform, 'mistral-large-latest', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('Please summarize this video for me: https://www.youtube.com/watch?v=6uXW-ulpj0s'));
-$result = $agent->call($messages, [
+$result = $agent->call($messages, options: [
     'stream' => true,
 ]);
 

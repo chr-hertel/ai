@@ -25,7 +25,7 @@ $messages = new MessageBag(
     Message::ofUser('Calculate total cost of a mortgage with 1% interest on 100k€ principal with 25 year maturity'),
 );
 
-$result = $agent->call($messages, [
+$result = $agent->call($messages, options: [
     'tools' => [[
         'type' => 'code_execution_20250825',
         'name' => 'code_execution',
