@@ -115,6 +115,34 @@ Platform
    `Exception\BadRequestException` instead of a plain `\RuntimeException`. Vertex AI reports API
    errors in Gemini's message format, still carrying the API error code.
 
+ * The MiniMax bridge no longer blocks inside its clients while an asynchronous task runs.
+   Video generation and asynchronous speech synthesis (`async: true`) now return a `Result\JobResult`
+   carrying a serializable `Job\JobHandle`, and waiting for the job became explicit. Reading the
+   result directly through `asBinary()`/`asFile()` therefore throws an `UnexpectedResultTypeException`:
+
+   ```diff
+   +use Symfony\AI\Platform\Job\JobRunner;
+   +
+   -$result = $platform->invoke('MiniMax-Hailuo-02', $prompt, ['duration' => 6]);
+   -$result->asFile('video.mp4');
+   +$provider = MiniMaxFactory::createProvider($apiKey);
+   +$handle = $provider->invoke('MiniMax-Hailuo-02', $prompt, ['duration' => 6])->asJob();
+   +
+   +$result = (new JobRunner())->wait($provider->getJobClient(), $handle);
+   +$result->asFile('video.mp4');
+   ```
+
+   The former budgets — 120 seconds for audio, 600 for video — are now stated on the handle rather
+   than baked into the bridge, so waiting for a job needs no knowledge of the provider's timings.
+   Pass `maxDuration` (in seconds) to `wait()` to bound a single call instead, for instance inside a
+   web request. A job that does not finish in time raises a `JobTimeoutException` that carries the
+   handle, so the job can be picked up later instead of being lost, including from another process:
+   the client resolving it comes from `ProviderInterface::getJobClient()`, or from
+   `Bridge\MiniMax\Factory::createJobClient()` in a worker that only resolves jobs.
+
+   Accordingly, polling moved to the new `Bridge\MiniMax\MiniMaxJobClient`. Code building the bridge
+   through `Bridge\MiniMax\Factory` is unaffected.
+
 Store
 -----
 
@@ -556,40 +584,6 @@ Platform
    deltas are wrapped in a `ChoiceDelta`, carrying one `ToolCallComplete` per function call, without
    `ToolCallStart` and without a terminal batch. A consumer walking `ChoiceDelta::getDeltas()` still has to
    merge those.
-
- * The MiniMax bridge no longer blocks inside its result converter while an asynchronous task runs.
-   Video generation and asynchronous speech synthesis (`async: true`) now return a `Result\JobResult`
-   carrying a serializable `Job\JobHandle`, and waiting for the job became explicit. Reading the
-   result directly through `asBinary()`/`asFile()` therefore throws an `UnexpectedResultTypeException`:
-
-   ```diff
-   +use Symfony\AI\Platform\Job\JobRunner;
-   +
-   -$result = $platform->invoke('MiniMax-Hailuo-02', $prompt, ['duration' => 6]);
-   -$result->asFile('video.mp4');
-   +$provider = MiniMaxFactory::createProvider($apiKey);
-   +$handle = $provider->invoke('MiniMax-Hailuo-02', $prompt, ['duration' => 6])->asJob();
-   +
-   +$result = (new JobRunner())->wait($provider->getJobClient(), $handle);
-   +$result->asFile('video.mp4');
-   ```
-
-   The former budgets — 120 seconds for audio, 600 for video — are now stated on the handle rather
-   than baked into the bridge, so waiting for a job needs no knowledge of the provider's timings.
-   Pass `maxDuration` (in seconds) to `wait()` to bound a single call instead, for instance inside a
-   web request. A job that does not finish in time raises a `JobTimeoutException` that carries the
-   handle, so the job can be picked up later instead of being lost, including from another process:
-   the client resolving it comes from `ProviderInterface::getJobClient()`, or from
-   `Bridge\MiniMax\Factory::createJobClient()` in a worker that only resolves jobs.
-
-   Accordingly, the MiniMax clients no longer take a clock; polling moved to the new
-   `Bridge\MiniMax\MiniMaxJobClient`. Code building the bridge through `Bridge\MiniMax\Factory` is
-   unaffected.
-
-   ```diff
-   -$client = new VideoClient($httpClient, $apiKey, $endpoint, $clock);
-   +$client = new VideoClient($httpClient, $apiKey, $endpoint);
-   ```
 
  * `Result\Stream\ListenerInterface` gained an `onError()` method, dispatched with the new
    `Result\Stream\ErrorEvent`. Listeners not extending

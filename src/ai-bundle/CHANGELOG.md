@@ -5,13 +5,13 @@ CHANGELOG
 ----
 
  * [BC BREAK] Replace the `ai.platform.model_client` and `ai.platform.result_converter` autoconfiguration tags with `ai.platform.api_client`, applied to `Platform\ApiClientInterface` implementations
+ * Register `ai.platform.job_runner` (autowired as `Platform\Job\JobRunner`) using the application clock and, for a platform running asynchronous jobs, its `ai.platform.job_client.<name>` client tagged `ai.platform.job_client`; render an asynchronous job in the profiler as the handle it carries instead of as a result
 
 0.13
 ----
 
  * Add support for template variables in file prompts
  * Add an `embedding_function` option to the `chromadb` store, referencing a service implementing `Codewithkyrian\ChromaDB\Embeddings\EmbeddingFunction`, so a bundle-configured store can serve a `TextQuery`
- * Register `ai.platform.job_runner` (autowired as `Platform\Job\JobRunner`) using the application clock and, for a platform running asynchronous jobs, its `ai.platform.job_client.<name>` client tagged `ai.platform.job_client`; render an asynchronous job in the profiler as the handle it carries instead of as a result
 
 0.11
 ----
