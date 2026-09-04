@@ -12,6 +12,8 @@
 namespace Symfony\AI\Platform\Result\Stream\Delta;
 
 /**
+ * A chunk of raw binary content, e.g. the audio of a streamed text-to-speech response.
+ *
  * @author Fabien Potencier <fabien@symfony.com>
  */
 final class BinaryDelta implements DeltaInterface

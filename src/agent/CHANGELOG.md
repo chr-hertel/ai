@@ -6,6 +6,8 @@ CHANGELOG
 
  * Add `Execution::cancel()` to stop an active execution and cancel its active HTTP response
  * `MultiAgent` and `SpeechAgent` now forward the `Progress` updates of the executions they delegate to, and `MultiAgent` reports its routing as a `Progress` update of the `handoff` stage carrying the orchestrator's `MultiAgent\Handoff\Decision` as payload
+ * Add a `ttsStream` flag to `Speech\SpeechConfiguration`, letting `SpeechAgent` stream the synthesized audio as `Progress` updates of the `delta` stage carrying a `BinaryDelta`, so the synthesis can be canceled mid-stream through `Execution::cancel()`
+ * `SpeechAgent` reports its own steps as `Progress` updates of the `transcription` and `speech_synthesis` stages, carrying the transcript and the text to synthesize as payload
 
 0.13
 ----

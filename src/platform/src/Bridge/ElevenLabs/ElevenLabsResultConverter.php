@@ -108,7 +108,7 @@ final class ElevenLabsResultConverter implements ResultConverterInterface
                 continue;
             }
 
-            yield new BinaryDelta($chunk->getContent());
+            yield new BinaryDelta($chunk->getContent(), 'audio/mpeg');
         }
     }
 

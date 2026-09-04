@@ -1411,6 +1411,24 @@ Speech is disabled by default and can be disabled when needed with ``speech: fal
                 model: gpt-4o
                 speech: false
 
+Bridges that stream their text-to-speech endpoint - ElevenLabs today - can send the audio chunk by chunk
+instead of one buffered file, enabled with ``tts_stream``:
+
+.. code-block:: yaml
+
+    ai:
+        agent:
+            my_agent:
+                model: gpt-4o
+                speech:
+                    text_to_speech_platform: 'ai.platform.elevenlabs'
+                    tts_model: eleven_multilingual_v2
+                    tts_stream: true
+
+The execution then yields the audio as :class:`Symfony\\AI\\Platform\\Result\\Stream\\Delta\\BinaryDelta` chunks
+through ``getContent()`` and can be interrupted mid-synthesis with ``cancel()``. See the Agent component
+documentation for the barge-in pattern this enables.
+
 Using the result
 ~~~~~~~~~~~~~~~~
 

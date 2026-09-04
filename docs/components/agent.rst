@@ -1169,6 +1169,49 @@ A full speech-to-speech pipeline (STT + TTS) can be created by configuring both 
 
     Handling both `text-to-speech` and `speech-to-text` introduces latency as most of the process is synchronous.
 
+Observing and streaming the speech pipeline
+...........................................
+
+A speech pipeline takes a while: the transcription, the inner agent's own model requests and tool calls, and
+the synthesis all happen before the audio is ready. Iterating the execution instead of reading its result
+reports each of these steps as it happens - the inner agent's updates are forwarded, and the decorator adds
+its own ``transcription`` and ``speech_synthesis`` stages, carrying the transcript and the text to synthesize
+as payload.
+
+Providers that stream their text-to-speech endpoint - ElevenLabs today - can send the audio chunk by chunk
+instead of one buffered file. The ``ttsStream`` flag enables it, and the chunks are then reported as
+:class:`Symfony\\AI\\Platform\\Result\\Stream\\Delta\\BinaryDelta` deltas, readable through the execution's
+``getContent()``::
+
+    use Symfony\AI\Agent\SpeechAgent;
+    use Symfony\AI\Agent\Speech\SpeechConfiguration;
+
+    $speechAgent = new SpeechAgent($agent, new SpeechConfiguration(
+        ttsModel: 'eleven_multilingual_v2',
+        ttsOptions: ['voice' => 'Dslrhjl3ZpzrctukrQSN'],
+        ttsStream: true,
+    ), textToSpeechPlatform: $elevenLabsPlatform);
+
+    $execution = $speechAgent->call($messages);
+
+    foreach ($execution->getContent() as $delta) {
+        // forward the chunk to the client ...
+
+        if ($userStartedSpeaking) {
+            $execution->cancel();
+        }
+    }
+
+This is the building block of a barge-in pattern: canceling the execution aborts the in-flight HTTP response,
+so the provider stops streaming - and billing - further audio. Once the stream is consumed, the execution's
+result is the complete audio as a :class:`Symfony\\AI\\Platform\\Result\\BinaryResult`, with the spoken text in
+its ``text`` metadata, so ``asFile()`` still writes the whole file.
+
+.. note::
+
+    A bridge that does not support streamed text-to-speech ignores the flag and answers with the buffered
+    audio, as it does without it.
+
 Code Examples
 ~~~~~~~~~~~~~
 

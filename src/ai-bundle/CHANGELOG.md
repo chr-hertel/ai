@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * Add a `tts_stream` option to an agent's `speech` configuration, streaming the synthesized audio chunk by chunk instead of buffering it
+
 0.13
 ----
 

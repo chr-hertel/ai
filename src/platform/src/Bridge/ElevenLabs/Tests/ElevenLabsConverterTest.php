@@ -23,6 +23,7 @@ use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\ObjectResult;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\Stream\Delta\BinaryDelta;
 use Symfony\AI\Platform\Result\StreamResult;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -192,6 +193,33 @@ final class ElevenLabsConverterTest extends TestCase
         ]);
 
         $this->assertInstanceOf(StreamResult::class, $result);
+    }
+
+    public function testConvertTextToSpeechAsStreamYieldsTheAudioChunks()
+    {
+        $response = new MockResponse((static function (): \Generator {
+            yield 'chunk-1';
+            yield 'chunk-2';
+        })(), [
+            'url' => 'https://api.elevenlabs.io/v1/text-to-speech/JBFqnCBsd6RMkjVDRZzb/stream',
+            'http_code' => 200,
+        ]);
+
+        $httpClient = new MockHttpClient([$response]);
+        $rawResult = new RawHttpResult($httpClient->request('POST', 'https://api.elevenlabs.io/v1/text-to-speech/JBFqnCBsd6RMkjVDRZzb/stream'));
+
+        $converter = new ElevenLabsResultConverter($httpClient);
+        $result = $converter->convert($rawResult, [
+            'stream' => true,
+        ]);
+
+        $this->assertInstanceOf(StreamResult::class, $result);
+
+        $deltas = iterator_to_array($result->getContent());
+
+        $this->assertContainsOnlyInstancesOf(BinaryDelta::class, $deltas);
+        $this->assertSame(['chunk-1', 'chunk-2'], array_map(static fn (BinaryDelta $delta): string => $delta->getData(), $deltas));
+        $this->assertSame('audio/mpeg', $deltas[0]->getMimeType());
     }
 
     public function testConvertTextToSpeechResponse()
