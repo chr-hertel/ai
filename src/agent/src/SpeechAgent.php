@@ -24,7 +24,10 @@ use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\Role;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Result\BinaryResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\Stream\Delta\BinaryDelta;
+use Symfony\AI\Platform\Result\StreamResult;
 
 /**
  * @author Guillaume Loulier <personal@guillaumeloulier.fr>
@@ -39,15 +42,26 @@ final class SpeechAgent implements AgentInterface
     ) {
     }
 
+    /**
+     * Starts the agent and returns a lazy {@see Execution} reporting the transcription, the inner agent's own
+     * updates and the speech synthesis as they happen.
+     *
+     * With text-to-speech streaming enabled, the audio arrives as {@see BinaryDelta} chunks readable through
+     * `->getContent()`, and `->cancel()` aborts the synthesis mid-stream, e.g. when the user starts speaking
+     * again (barge-in).
+     *
+     * @param array<string, mixed> $options
+     */
     public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
     {
         $cancellation = new Cancellation();
+        $streamed = $this->configuration->shouldStreamTextToSpeech() && $this->textToSpeechPlatform instanceof PlatformInterface;
 
         return new Execution(function () use ($input, $options, $cancellation): \Generator {
             $messages = InputNormalizer::toMessageBag($input);
 
             if ($this->configuration->supportsSpeechToText() && $this->speechToTextPlatform instanceof PlatformInterface) {
-                $messages = $this->transcribe($messages, $options, $cancellation);
+                $messages = yield from $this->transcribe($messages, $options, $cancellation);
             }
 
             $result = null;
@@ -77,17 +91,35 @@ final class SpeechAgent implements AgentInterface
                 return;
             }
 
+            $text = $result->getContent();
+            $ttsOptions = $this->configuration->getTextToSpeechOptions();
+
+            if ($this->configuration->shouldStreamTextToSpeech()) {
+                $ttsOptions['stream'] = true;
+            }
+
+            yield new Progress('speech_synthesis', 'Synthesizing speech.', $text);
+
             $speechResult = $this->textToSpeechPlatform->invoke(
                 $this->configuration->getTextToSpeechModel(),
-                $result->getContent(),
-                $this->configuration->getTextToSpeechOptions(),
+                $text,
+                $ttsOptions,
             );
             $cancellation->activate($speechResult->getRawResult());
 
-            $speechResult->getMetadata()->add('text', $result->getContent());
+            $speechResult->getMetadata()->add('text', $text);
 
-            yield new ResultUpdate($speechResult->getResult());
-        }, cancellation: $cancellation);
+            $speech = $speechResult->getResult();
+
+            // a bridge without streaming support answers with the buffered audio, even with the option set
+            if (!$speech instanceof StreamResult) {
+                yield new ResultUpdate($speech);
+
+                return;
+            }
+
+            yield from $this->synthesize($speech, $cancellation);
+        }, streamed: $streamed, cancellation: $cancellation);
     }
 
     public function getName(): string
@@ -96,9 +128,13 @@ final class SpeechAgent implements AgentInterface
     }
 
     /**
+     * Transcribes the audio of the latest user message, reporting the transcript as a progress update.
+     *
      * @param array<string, mixed> $options
+     *
+     * @return \Generator<int, Progress, mixed, MessageBag>
      */
-    private function transcribe(MessageBag $messages, array $options, Cancellation $cancellation): MessageBag
+    private function transcribe(MessageBag $messages, array $options, Cancellation $cancellation): \Generator
     {
         try {
             $latestUserMessage = $messages->latestAs(Role::User);
@@ -129,6 +165,43 @@ final class SpeechAgent implements AgentInterface
         $text = new Text($result->asText());
         $messages->replace($latestUserMessage->getId(), Message::ofUser($text));
 
+        yield new Progress('transcription', 'Transcribed the audio input.', $text->getText());
+
         return $messages;
+    }
+
+    /**
+     * Forwards the streamed audio chunks as progress updates and returns them as one buffered result.
+     *
+     * @return \Generator<int, Progress|ResultUpdate, mixed, void>
+     */
+    private function synthesize(StreamResult $stream, Cancellation $cancellation): \Generator
+    {
+        $audio = '';
+        $mimeType = null;
+
+        foreach ($stream->getContent() as $delta) {
+            if (!$delta instanceof BinaryDelta) {
+                continue;
+            }
+
+            $audio .= $delta->getData();
+            $mimeType ??= $delta->getMimeType();
+
+            yield new Progress('delta', 'Received a streamed delta.', $delta);
+
+            if ($cancellation->isRequested()) {
+                return;
+            }
+        }
+
+        if ($cancellation->isRequested()) {
+            return;
+        }
+
+        $speech = new BinaryResult($audio, $mimeType);
+        $speech->getMetadata()->merge($stream->getMetadata());
+
+        yield new ResultUpdate($speech);
     }
 }

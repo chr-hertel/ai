@@ -34,6 +34,8 @@ use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\Stream\Delta\BinaryDelta;
+use Symfony\AI\Platform\Result\StreamResult;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -317,6 +319,160 @@ final class SpeechAgentTest extends TestCase
         $this->assertSame('delta', $updates[1]->getStage());
         $this->assertInstanceOf(ResultUpdate::class, $updates[2]);
         $this->assertSame('hello', $updates[2]->getResult()->getContent());
+    }
+
+    public function testCallStreamsTheSynthesizedSpeech()
+    {
+        $ttsResult = new DeferredResult(new PlainConverter($this->stream('foo', 'bar')), new InMemoryRawResult());
+
+        $platform = $this->createMock(PlatformInterface::class);
+        $platform->expects($this->once())
+            ->method('invoke')
+            ->with('eleven_multilingual_v2', 'hello', ['stream' => true])
+            ->willReturn($ttsResult);
+
+        $innerAgent = $this->createMock(AgentInterface::class);
+        $innerAgent->expects($this->once())
+            ->method('call')
+            ->willReturn($this->execution(new TextResult('hello')));
+
+        $configuration = new SpeechConfiguration(ttsModel: 'eleven_multilingual_v2', ttsStream: true);
+
+        $agent = new SpeechAgent($innerAgent, $configuration, textToSpeechPlatform: $platform);
+        $updates = iterator_to_array($agent->call(new MessageBag(Message::ofUser('Say hello'))));
+
+        $this->assertCount(4, $updates);
+
+        $this->assertInstanceOf(Progress::class, $updates[0]);
+        $this->assertSame('speech_synthesis', $updates[0]->getStage());
+        $this->assertSame('hello', $updates[0]->getPayload());
+
+        $this->assertInstanceOf(Progress::class, $updates[1]);
+        $this->assertSame('delta', $updates[1]->getStage());
+        $this->assertInstanceOf(BinaryDelta::class, $updates[1]->getPayload());
+        $this->assertSame('foo', $updates[1]->getPayload()->getData());
+
+        $this->assertInstanceOf(Progress::class, $updates[2]);
+        $this->assertSame('delta', $updates[2]->getStage());
+
+        $this->assertInstanceOf(ResultUpdate::class, $updates[3]);
+        $speech = $updates[3]->getResult();
+        $this->assertInstanceOf(BinaryResult::class, $speech);
+        $this->assertSame('foobar', $speech->getContent());
+        $this->assertSame('audio/mpeg', $speech->getMimeType());
+        $this->assertSame('hello', $speech->getMetadata()->get('text'));
+    }
+
+    public function testStreamedSpeechIsReadableAsStream()
+    {
+        $ttsResult = new DeferredResult(new PlainConverter($this->stream('foo', 'bar')), new InMemoryRawResult());
+
+        $platform = $this->createStub(PlatformInterface::class);
+        $platform->method('invoke')->willReturn($ttsResult);
+
+        $innerAgent = $this->createStub(AgentInterface::class);
+        $innerAgent->method('call')->willReturn($this->execution(new TextResult('hello')));
+
+        $configuration = new SpeechConfiguration(ttsModel: 'eleven_multilingual_v2', ttsStream: true);
+
+        $agent = new SpeechAgent($innerAgent, $configuration, textToSpeechPlatform: $platform);
+        $execution = $agent->call(new MessageBag(Message::ofUser('Say hello')));
+
+        $audio = '';
+        foreach ($execution->getContent() as $delta) {
+            $this->assertInstanceOf(BinaryDelta::class, $delta);
+
+            $audio .= $delta->getData();
+        }
+
+        $this->assertSame('foobar', $audio);
+    }
+
+    public function testCancelStopsTheSpeechSynthesis()
+    {
+        $response = $this->createMock(ResponseInterface::class);
+        $response->expects($this->once())->method('cancel');
+
+        $ttsResult = new DeferredResult(new PlainConverter($this->stream('foo', 'bar')), new RawHttpResult($response));
+
+        $platform = $this->createStub(PlatformInterface::class);
+        $platform->method('invoke')->willReturn($ttsResult);
+
+        $innerAgent = $this->createStub(AgentInterface::class);
+        $innerAgent->method('call')->willReturn($this->execution(new TextResult('hello')));
+
+        $configuration = new SpeechConfiguration(ttsModel: 'eleven_multilingual_v2', ttsStream: true);
+
+        $agent = new SpeechAgent($innerAgent, $configuration, textToSpeechPlatform: $platform);
+        $execution = $agent->call(new MessageBag(Message::ofUser('Say hello')));
+
+        $updates = [];
+        foreach ($execution as $update) {
+            $updates[] = $update;
+
+            if ($update instanceof Progress && 'delta' === $update->getStage()) {
+                $execution->cancel();
+            }
+        }
+
+        // the synthesis stops on the first chunk, so neither the second delta nor a result is reported
+        $this->assertCount(2, $updates);
+        $this->assertContainsOnlyInstancesOf(Progress::class, $updates);
+    }
+
+    public function testCallReturnsBufferedAudioWhenTheBridgeDoesNotStream()
+    {
+        $ttsResult = new DeferredResult(new PlainConverter(new BinaryResult('audio-binary')), new InMemoryRawResult());
+
+        $platform = $this->createStub(PlatformInterface::class);
+        $platform->method('invoke')->willReturn($ttsResult);
+
+        $innerAgent = $this->createStub(AgentInterface::class);
+        $innerAgent->method('call')->willReturn($this->execution(new TextResult('hello')));
+
+        $configuration = new SpeechConfiguration(ttsModel: 'tts-1', ttsStream: true);
+
+        $agent = new SpeechAgent($innerAgent, $configuration, textToSpeechPlatform: $platform);
+        $result = $agent->call(new MessageBag(Message::ofUser('Say hello')))->getResult();
+
+        $this->assertInstanceOf(BinaryResult::class, $result);
+        $this->assertSame('audio-binary', $result->getContent());
+        $this->assertSame('hello', $result->getMetadata()->get('text'));
+    }
+
+    public function testCallReportsTheTranscriptAsProgress()
+    {
+        $sttResult = new DeferredResult(new PlainConverter(new TextResult('transcribed text')), new InMemoryRawResult());
+
+        $platform = $this->createStub(PlatformInterface::class);
+        $platform->method('invoke')->willReturn($sttResult);
+
+        $innerAgent = $this->createStub(AgentInterface::class);
+        $innerAgent->method('call')->willReturn($this->execution(new TextResult('response')));
+
+        $configuration = new SpeechConfiguration(sttModel: 'whisper-1');
+
+        $messageBag = new MessageBag(
+            Message::ofUser(Audio::fromFile(\dirname(__DIR__).'/../../fixtures/audio.mp3')),
+        );
+
+        $agent = new SpeechAgent($innerAgent, $configuration, $platform);
+        $updates = iterator_to_array($agent->call($messageBag));
+
+        $this->assertCount(2, $updates);
+        $this->assertInstanceOf(Progress::class, $updates[0]);
+        $this->assertSame('transcription', $updates[0]->getStage());
+        $this->assertSame('transcribed text', $updates[0]->getPayload());
+        $this->assertInstanceOf(ResultUpdate::class, $updates[1]);
+    }
+
+    private function stream(string ...$chunks): StreamResult
+    {
+        return new StreamResult((static function () use ($chunks): \Generator {
+            foreach ($chunks as $chunk) {
+                yield new BinaryDelta($chunk, 'audio/mpeg');
+            }
+        })());
     }
 
     private function execution(ResultInterface $result): Execution

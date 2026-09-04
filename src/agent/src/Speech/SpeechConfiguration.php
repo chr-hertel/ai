@@ -25,6 +25,7 @@ final class SpeechConfiguration
         private readonly array $ttsOptions = [],
         private readonly ?string $sttModel = null,
         private readonly array $sttOptions = [],
+        private readonly bool $ttsStream = false,
     ) {
     }
 
@@ -36,6 +37,14 @@ final class SpeechConfiguration
     public function supportsSpeechToText(): bool
     {
         return null !== $this->sttModel;
+    }
+
+    /**
+     * Whether the audio is streamed chunk by chunk instead of being returned as one buffered file.
+     */
+    public function shouldStreamTextToSpeech(): bool
+    {
+        return $this->ttsStream && $this->supportsTextToSpeech();
     }
 
     public function getTextToSpeechModel(): ?string
