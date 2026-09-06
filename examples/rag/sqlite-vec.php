@@ -39,10 +39,7 @@ if (!file_exists($extensionPath)) {
     );
 }
 
-if (!is_dir(__DIR__.'/.sqlite')) {
-    mkdir(__DIR__.'/.sqlite', 0777, true);
-}
-$pdo = new Pdo\Sqlite('sqlite:'.__DIR__.'/.sqlite/vec-vectors.db');
+$pdo = new Pdo\Sqlite('sqlite:'.output_file('vec-vectors.db'));
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->loadExtension($extensionPath);
 

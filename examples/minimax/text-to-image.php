@@ -20,6 +20,6 @@ $result = $platform->invoke('image-01', new Text('A cat on a kitchen table'), [
     'aspect_ratio' => '16:9',
 ]);
 
-$result->asFile(__DIR__.'/text-to-image.jpg');
+$result->asFile($file = output_file('text-to-image.jpg'));
 
-echo 'Image saved to text-to-image.jpg'.\PHP_EOL;
+echo 'Image saved to '.$file.\PHP_EOL;

@@ -39,5 +39,5 @@ $result = $speechAgent->call(new MessageBag(
 ));
 
 echo $result->getMetadata()->get('text').\PHP_EOL;
-$result->asFile('/tmp/speech.mp3');
-output()->writeln('Audio content saved to <comment>/tmp/speech.mp3</comment>');
+$result->asFile($file = output_file('speech.mp3'));
+output()->writeln(sprintf('Audio content saved to <comment>%s</comment>', $file));

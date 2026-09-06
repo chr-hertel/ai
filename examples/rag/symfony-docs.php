@@ -24,7 +24,7 @@ echo "This example demonstrates loading the Symfony documentation from RST files
 echo "indexing them into a vector store, and retrieving relevant sections for a question.\n\n";
 
 // 1. Clone or update Symfony docs
-$docsDir = __DIR__.'/.symfony-docs';
+$docsDir = output_file('symfony-docs');
 if (!is_dir($docsDir.'/.git')) {
     output()->writeln('Cloning symfony/symfony-docs (this may take a moment)...');
     exec('git clone --depth 1 https://github.com/symfony/symfony-docs.git '.escapeshellarg($docsDir), $out, $code);

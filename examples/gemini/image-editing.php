@@ -26,6 +26,6 @@ $messages = new MessageBag(
 );
 $result = $platform->invoke('gemini-2.5-flash-image', $messages);
 
-$result->asFile(__DIR__.'/result.png');
+$result->asFile($file = output_file('result.png'));
 
-echo 'Result image saved to result.png'.\PHP_EOL;
+echo 'Result image saved to '.$file.\PHP_EOL;

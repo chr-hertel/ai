@@ -28,7 +28,7 @@ $result = $platform->invoke(
 
 assert($result instanceof BinaryResult);
 
-$file = __DIR__.'/gpt-image-1-edit.png';
+$file = output_file('gpt-image-1-edit.png');
 $result->asFile($file);
 
 echo 'Edited image saved to '.$file.\PHP_EOL;

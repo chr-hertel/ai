@@ -21,6 +21,6 @@ $platform = Factory::createPlatform(
 
 $result = $platform->invoke('lucy-pro-t2v', new Text('A serene ocean with dolphins jumping at sunset'));
 
-$result->asFile(__DIR__.'/text-to-video.mp4');
+$result->asFile($file = output_file('text-to-video.mp4'));
 
-echo 'Video saved to text-to-video.mp4'.\PHP_EOL;
+echo 'Video saved to '.$file.\PHP_EOL;

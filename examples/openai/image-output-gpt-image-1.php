@@ -23,7 +23,7 @@ $result = $platform->invoke(
 
 assert($result instanceof BinaryResult);
 
-$file = __DIR__.'/gpt-image-1.png';
+$file = output_file('gpt-image-1.png');
 $result->asFile($file);
 
 echo 'Image saved to '.$file.\PHP_EOL;

@@ -22,6 +22,6 @@ $result = $platform->invoke('MiniMax-Hailuo-02', new Text('A cat playing the pia
     'resolution' => '768P',
 ]);
 
-$result->asFile(__DIR__.'/minimax-video.mp4');
+$result->asFile($file = output_file('minimax-video.mp4'));
 
-echo 'Video saved to minimax-video.mp4'.\PHP_EOL;
+echo 'Video saved to '.$file.\PHP_EOL;

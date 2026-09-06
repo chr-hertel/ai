@@ -28,10 +28,7 @@ use Symfony\Component\Uid\Uuid;
 require_once dirname(__DIR__).'/bootstrap.php';
 
 // initialize the store — file-based SQLite for persistence
-if (!is_dir(__DIR__.'/.sqlite')) {
-    mkdir(__DIR__.'/.sqlite', 0777, true);
-}
-$pdo = new PDO('sqlite:'.__DIR__.'/.sqlite/vectors.db');
+$pdo = new PDO('sqlite:'.output_file('vectors.db'));
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $store = new Store($pdo, 'movies');
 $store->setup();

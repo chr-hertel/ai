@@ -36,7 +36,7 @@ $parts = $converted instanceof MultiPartResult ? $converted->getContent() : [$co
 
 foreach ($parts as $part) {
     if ($part instanceof BinaryResult) {
-        $file = __DIR__.'/openai-image-generation.png';
+        $file = output_file('openai-image-generation.png');
         $part->asFile($file);
         echo 'Image saved to '.$file.\PHP_EOL;
     }

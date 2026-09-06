@@ -181,6 +181,26 @@ function logger(): LoggerInterface
 }
 
 /**
+ * Returns a writable path under examples/var/ for an artifact the example generates.
+ *
+ * Generated images, audio and video are build output, not source: keeping them in var/ - which is
+ * git-ignored - stops a full runner pass from scattering untracked binaries across the example
+ * directories, and namespacing by example keeps two examples from overwriting each other.
+ */
+function output_file(string $name): string
+{
+    $script = (string) ($_SERVER['SCRIPT_FILENAME'] ?? ($_SERVER['argv'][0] ?? ''));
+    $directory = __DIR__.'/var/'.basename(\dirname(realpath($script) ?: $script));
+
+    if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
+        output()->writeln(sprintf('<error>Unable to create the output directory "%s".</error>', $directory));
+        exit(1);
+    }
+
+    return $directory.'/'.$name;
+}
+
+/**
  * Whether the example writes to an interactive terminal.
  *
  * Live re-rendering with escape sequences like a clear screen only works there: when the

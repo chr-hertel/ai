@@ -23,6 +23,6 @@ $result = $platform->invoke('lucy-pro-i2v', Image::fromFile(dirname(__DIR__, 2).
     'prompt' => 'Make the man move from right to left while playing accordion',
 ]);
 
-$result->asFile(__DIR__.'/animated-image.mp4');
+$result->asFile($file = output_file('animated-image.mp4'));
 
-echo 'Video saved to animated-image.mp4'.\PHP_EOL;
+echo 'Video saved to '.$file.\PHP_EOL;
