@@ -49,7 +49,7 @@ $result = $platform->invoke('gemini-2.5-flash-preview-tts', $messages, [
 ]);
 
 // Example call
-// php examples/gemini/multi-speaker-voice.php > out.pcm
+// php examples/gemini/text-to-speech-multi-speaker.php > out.pcm
 // ffmpeg -f s16le -ar 24000 -ac 1 -i out.pcm out.wav
 
 echo $result->asBinary();

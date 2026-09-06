@@ -130,11 +130,11 @@ Examples
 
 Complete working examples:
 
-- `examples/openai/web-search.php`_
-- `examples/openai/file-search.php`_ (requires an existing vector store)
-- `examples/openai/code-interpreter.php`_
-- `examples/openai/image-generation.php`_
-- `examples/openai/mcp.php`_ (hosted MCP server)
+- `examples/openai/server-tools-web-search.php`_
+- `examples/openai/server-tools-file-search.php`_ (requires an existing vector store)
+- `examples/openai/server-tools-code-interpreter.php`_
+- `examples/openai/server-tools-image-generation.php`_
+- `examples/openai/server-tools-mcp.php`_ (hosted MCP server)
 
 Limitations
 -----------
@@ -144,8 +144,8 @@ Limitations
 - Streaming emits completed web searches as ``WebSearchComplete`` deltas;
   other built-in tool results are available on non-streamed responses
 
-.. _`examples/openai/web-search.php`: https://github.com/symfony/ai/blob/main/examples/openai/web-search.php
-.. _`examples/openai/file-search.php`: https://github.com/symfony/ai/blob/main/examples/openai/file-search.php
-.. _`examples/openai/code-interpreter.php`: https://github.com/symfony/ai/blob/main/examples/openai/code-interpreter.php
-.. _`examples/openai/image-generation.php`: https://github.com/symfony/ai/blob/main/examples/openai/image-generation.php
-.. _`examples/openai/mcp.php`: https://github.com/symfony/ai/blob/main/examples/openai/mcp.php
+.. _`examples/openai/server-tools-web-search.php`: https://github.com/symfony/ai/blob/main/examples/openai/server-tools-web-search.php
+.. _`examples/openai/server-tools-file-search.php`: https://github.com/symfony/ai/blob/main/examples/openai/server-tools-file-search.php
+.. _`examples/openai/server-tools-code-interpreter.php`: https://github.com/symfony/ai/blob/main/examples/openai/server-tools-code-interpreter.php
+.. _`examples/openai/server-tools-image-generation.php`: https://github.com/symfony/ai/blob/main/examples/openai/server-tools-image-generation.php
+.. _`examples/openai/server-tools-mcp.php`: https://github.com/symfony/ai/blob/main/examples/openai/server-tools-mcp.php

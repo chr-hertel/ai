@@ -10,34 +10,20 @@
  */
 
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
-use Symfony\AI\Platform\Message\Message;
-use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\BinaryResult;
-use Symfony\AI\Platform\Result\MultiPartResult;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
-$messages = new MessageBag(
-    Message::ofUser('Generate an image of a cartoon-style elephant with a long trunk and large ears.'),
-);
+$result = $platform->invoke(
+    model: 'gpt-image-1',
+    input: 'A cartoon-style elephant with a long trunk and large ears.',
+)->getResult();
 
-// Enable OpenAI's native, server-side image generation tool for this call.
-$result = $platform->invoke('gpt-4.1', $messages, [
-    'tools' => [
-        ['type' => 'image_generation'],
-    ],
-]);
+assert($result instanceof BinaryResult);
 
-// The generated image is surfaced as a BinaryResult.
-$converted = $result->getResult();
-$parts = $converted instanceof MultiPartResult ? $converted->getContent() : [$converted];
+$file = output_file('gpt-image-1.png');
+$result->asFile($file);
 
-foreach ($parts as $part) {
-    if ($part instanceof BinaryResult) {
-        $file = output_file('openai-image-generation.png');
-        $part->asFile($file);
-        echo 'Image saved to '.$file.\PHP_EOL;
-    }
-}
+echo 'Image saved to '.$file.\PHP_EOL;

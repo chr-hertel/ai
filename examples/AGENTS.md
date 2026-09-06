@@ -35,6 +35,33 @@ Docker setup pins, a local daemon's documented default, or a parameter the examp
 example instead of being read through `env()`. When adding an example, ask whether the reader must supply the value: if
 not, write it into the code.
 
+## Naming
+
+An example file is named `<capability>[-<variant>].php`, where the capability comes from a fixed
+vocabulary so that the same thing is called the same thing everywhere:
+
+`chat`, `stream`, `embeddings`, `toolcall`, `structured-output`, `token-metadata`, `speech-to-text`,
+`text-to-speech`, `audio-input`, `image-input`, `image-generation`, `image-editing`, `pdf-input`,
+`server-tools`, `rerank`.
+
+Anything not on that list needs a good reason: `vision`, for instance, is not a capability here -
+an example that describes a picture is `image-input`.
+
+Variants qualify the capability rather than replacing it: `-binary` / `-url` for how content is
+passed, `-stream`, `-parallel`, `-roundtrip`, `-multiple`, or the name of the technique being shown.
+A provider-side tool is `server-tools-<tool>`, whichever provider offers it.
+
+Never name a file after a model: model names rot on deprecation, and a reader looking for "how do I
+stream" should not have to know which model the example happens to use. A second example for the
+same capability is justified only when it exercises a genuinely different code path - Bedrock's
+Claude and Nova examples do, because they go through different model clients, and their suffixes say
+which one rather than which model is fashionable.
+
+The exception is a provider whose own API names a capability differently: the HuggingFace examples
+follow HuggingFace's task names (`fill-mask`, `token-classification`, ...) and Scaleway's
+`responses*` examples follow its Responses API, because that is what a reader searching those docs
+will look for.
+
 ## Architecture
 
 ### Directory Structure
