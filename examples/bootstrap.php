@@ -40,6 +40,35 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 require_once __DIR__.'/vendor/autoload.php';
 (new Dotenv())->loadEnv(__DIR__.'/.env');
 
+/**
+ * Exit code signalling "this example could not run here", as opposed to "this example is broken".
+ *
+ * A missing credential, extension or local service is a skip, not a failure - the example runner
+ * classifies this code as such and keeps it out of the failure report. Every other non-zero exit
+ * code, PHP's fatal 255 included, counts as a failure.
+ */
+const SKIP_EXIT_CODE = 97;
+
+/**
+ * Aborts the example as skipped, see SKIP_EXIT_CODE.
+ */
+function skip(string $message, string ...$hints): never
+{
+    output()->writeln(sprintf('<comment>%s</comment>', $message));
+
+    foreach ($hints as $hint) {
+        output()->writeln($hint);
+    }
+
+    exit(SKIP_EXIT_CODE);
+}
+
+/**
+ * Reads a secret - an API key, or an endpoint or identifier that is bound to a personal account.
+ *
+ * Values that are not secrets do not belong here: anything the local Docker setup pins, a local
+ * daemon's default host or the example's own parameters are inlined in the example itself.
+ */
 function env(string $var): string
 {
     if (isset($_SERVER[$var]) && '' !== $_SERVER[$var]) {
@@ -50,8 +79,17 @@ function env(string $var): string
         return 'sk-replay-'.strtolower($var);
     }
 
-    output()->writeln(sprintf('<error>Please set the "%s" environment variable to run this example.</error>', $var));
-    exit(1);
+    skip(sprintf('Set the "%s" environment variable in .env.local to run this example.', $var));
+}
+
+/**
+ * Skips the example unless every given secret is available.
+ */
+function require_env(string ...$vars): void
+{
+    foreach ($vars as $var) {
+        env($var);
+    }
 }
 
 function is_replay(): bool

@@ -18,9 +18,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 require_once dirname(__DIR__).'/bootstrap.php';
 
 if (!function_exists('pcntl_signal')) {
-    echo 'This example requires the pcntl extension.'.\PHP_EOL;
-
-    exit(1);
+    skip('This example requires the pcntl extension.');
 }
 
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());

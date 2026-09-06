@@ -33,9 +33,10 @@ require_once dirname(__DIR__).'/bootstrap.php';
 // That drops a vec0.* loadable file next to this script. Override via SQLITE_VEC_PATH if needed.
 $extensionPath = $_SERVER['SQLITE_VEC_PATH'] ?? __DIR__.'/vec0.'.(\PHP_OS_FAMILY === 'Darwin' ? 'dylib' : (\PHP_OS_FAMILY === 'Windows' ? 'dll' : 'so'));
 if (!file_exists($extensionPath)) {
-    echo 'The sqlite-vec extension was not found at "'.$extensionPath.'".'.\PHP_EOL;
-    echo 'Install it via: curl -L https://github.com/asg017/sqlite-vec/releases/download/v0.1.9/install.sh | sh'.\PHP_EOL;
-    exit(1);
+    skip(
+        sprintf('The sqlite-vec extension was not found at "%s".', $extensionPath),
+        'Install it via: curl -L https://github.com/asg017/sqlite-vec/releases/download/v0.1.9/install.sh | sh',
+    );
 }
 
 if (!is_dir(__DIR__.'/.sqlite')) {

@@ -24,12 +24,10 @@ require_once dirname(__DIR__).'/bootstrap.php';
 // See: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/bounding-box-detection
 
 if (!extension_loaded('imagick')) {
-    output()->writeln('<error>The Imagick extension is not installed. Please install it to generate annotated images.</error>');
-    exit(1);
+    skip('The Imagick extension is not installed - it is required to generate the annotated images.');
 }
 if (!shell_exec('command -v gs')) {
-    output()->writeln('<error>Ghostscript (gs) is not installed. Please install it to enable PDF reading in Imagick.</error>');
-    exit(1);
+    skip('Ghostscript (gs) is not installed - it is required for PDF reading in Imagick.');
 }
 
 $dispatcher = new EventDispatcher();

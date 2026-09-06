@@ -15,9 +15,10 @@ use Symfony\AI\Platform\Bridge\TransformersPhp\Factory;
 require_once dirname(__DIR__).'/bootstrap.php';
 
 if (!extension_loaded('ffi') || '1' !== ini_get('ffi.enable')) {
-    echo 'FFI extension is not loaded or enabled. Please enable it in your php.ini file.'.\PHP_EOL;
-    echo 'See https://github.com/CodeWithKyrian/transformers-php for setup instructions.'.\PHP_EOL;
-    exit(1);
+    skip(
+        'The FFI extension is not loaded or not enabled - enable it in your php.ini to run this example.',
+        'See https://github.com/CodeWithKyrian/transformers-php for setup instructions.',
+    );
 }
 
 if (!is_dir(dirname(__DIR__).'/.transformers-cache/Xenova/LaMini-Flan-T5-783M')) {

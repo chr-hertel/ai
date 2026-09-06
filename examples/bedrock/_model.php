@@ -15,11 +15,7 @@ use Symfony\Component\Console\Application;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-if (!isset($_SERVER['AWS_ACCESS_KEY_ID'], $_SERVER['AWS_SECRET_ACCESS_KEY'], $_SERVER['AWS_DEFAULT_REGION'])
-) {
-    echo 'Please set the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION environment variables.'.\PHP_EOL;
-    exit(1);
-}
+require_env('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_DEFAULT_REGION');
 
 $bedrockClient = new BedrockClient();
 

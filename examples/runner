@@ -17,6 +17,31 @@ use Symfony\Component\Process\Process;
 require_once __DIR__ . '/vendor/autoload.php';
 
 /**
+ * Exit code an example uses to say "I cannot run here" - keep in sync with SKIP_EXIT_CODE in bootstrap.php.
+ */
+const SKIP_EXIT_CODE = 97;
+
+/**
+ * Classifies a terminated example run.
+ *
+ * A skip is opt-in: only an example that deliberately exits with SKIP_EXIT_CODE - a missing
+ * credential, extension or local service - is skipped. Everything else that did not exit cleanly
+ * failed, PHP's fatal 255 included, so a broken example can never hide in the skipped column.
+ */
+function classify(Process $process): string
+{
+    if (SKIP_EXIT_CODE === $process->getExitCode()) {
+        return 'skipped';
+    }
+
+    if (!$process->isSuccessful() || '' === trim($process->getOutput())) {
+        return 'failed';
+    }
+
+    return 'successful';
+}
+
+/**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 $app = (new SingleCommandApplication('Symfony AI Example Runner'))
@@ -98,13 +123,13 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
                     if (str_contains($output, "\0")) {
                         $output = '<fg=gray>[binary output]</>';
                     }
-                    $emptyOutput = 0 === strlen(trim($output));
-
                     $state = 'Running';
                     if ($process->isTerminated()) {
-                        $success = $process->isSuccessful() && !$emptyOutput;
-                        $state = $success ? '<info>Finished</info>'
-                            : (1 === $run['process']->getExitCode() || $emptyOutput ? '<error>Failed</error>' : '<comment>Skipped</comment>');
+                        $state = match (classify($process)) {
+                            'successful' => '<info>Finished</info>',
+                            'skipped' => '<comment>Skipped</comment>',
+                            default => '<error>Failed</error>',
+                        };
                     }
 
                     $table->addRow([$example->getRelativePathname(), $state, $output]);
@@ -130,14 +155,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
                 $resultsByDirectory[$directory] = ['successful' => 0, 'skipped' => 0, 'failed' => 0];
             }
 
-            $emptyOutput = 0 === strlen(trim($run['process']->getOutput()));
-            if ($run['process']->isSuccessful() && !$emptyOutput) {
-                $resultsByDirectory[$directory]['successful']++;
-            } elseif (1 === $run['process']->getExitCode() || $emptyOutput) {
-                $resultsByDirectory[$directory]['failed']++;
-            } else {
-                $resultsByDirectory[$directory]['skipped']++;
-            }
+            $resultsByDirectory[$directory][classify($run['process'])]++;
         }
 
         ksort($resultsByDirectory);
@@ -196,7 +214,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
 
         if ($output->isVerbose()) {
             foreach ($exampleRuns as $run) {
-                if (!$run['process']->isSuccessful()) {
+                if ('failed' === classify($run['process'])) {
                     $io->section('Error in ' . $run['example']->getRelativePathname());
                     $output = $run['process']->getErrorOutput();
                     $io->text('' !== $output ? $output : $run['process']->getOutput());
@@ -250,14 +268,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
 
             $failedReports = [];
             foreach ($exampleRuns as $run) {
-                $process = $run['process'];
-                $stdout = $process->getOutput();
-                $emptyOutput = 0 === strlen(trim($stdout));
-                if ($process->isSuccessful() && !$emptyOutput) {
-                    continue;
-                }
-                if (!(1 === $process->getExitCode() || $emptyOutput)) {
-                    // Skipped (e.g. missing API key) — not a failure
+                if ('failed' !== classify($run['process'])) {
                     continue;
                 }
                 $failedReports[] = $run;
@@ -303,7 +314,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
 
         // Interactive retry for failed examples
         if ($input->isInteractive()) {
-            $failedRuns = array_filter($exampleRuns, fn ($run) => !$run['process']->isSuccessful());
+            $failedRuns = array_filter($exampleRuns, fn ($run) => 'failed' === classify($run['process']));
 
             while (count($failedRuns) > 0) {
                 $io->newLine();
@@ -338,7 +349,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
                     $output->write($buffer);
                 });
 
-                if ($process->isSuccessful()) {
+                if ('failed' !== classify($process)) {
                     unset($failedRuns[$runKey]);
                 }
             }
