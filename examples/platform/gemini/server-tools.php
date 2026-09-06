@@ -1,0 +1,36 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Symfony\AI\Agent\Agent;
+use Symfony\AI\Platform\Bridge\Gemini\Factory;
+use Symfony\AI\Platform\Message\Message;
+use Symfony\AI\Platform\Message\MessageBag;
+
+require_once dirname(__DIR__, 2).'/bootstrap.php';
+
+$platform = Factory::createPlatform(env('GEMINI_API_KEY'), http_client());
+
+$agent = new Agent($platform, 'gemini-2.5-pro');
+
+$messages = new MessageBag(
+    Message::ofUser(
+        <<<'PROMPT'
+            What was the 12 month Euribor rate a week ago based on https://www.euribor-rates.eu/en/current-euribor-rates/4/euribor-rate-12-months/
+            PROMPT,
+    ),
+);
+
+$result = $agent->call($messages, [
+    'server_tools' => ['url_context' => true],
+    'temperature' => 1.0,
+]);
+
+echo $result->asText().\PHP_EOL;

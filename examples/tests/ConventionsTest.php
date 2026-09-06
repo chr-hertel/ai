@@ -13,6 +13,7 @@ namespace Symfony\AI\Examples\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Process\Process;
 
 /**
  * Guards the invariants of the example corpus that reviewers cannot hold in their head.
@@ -161,6 +162,29 @@ final class ConventionsTest extends TestCase
             "These bridges are recorded now and must be removed from tests/cassette-debt.txt:\n  %s",
             implode("\n  ", $settled),
         ));
+    }
+
+    /**
+     * INDEX.md is the one view the tree cannot give: the capability matrix across platform bridges.
+     *
+     * It is generated, so it is only useful while it is current - regenerate with "./build-index".
+     */
+    public function testIndexIsUpToDate()
+    {
+        $committed = (string) file_get_contents(self::examplesDirectory().'/INDEX.md');
+
+        $process = new Process(['php', self::examplesDirectory().'/build-index'], self::examplesDirectory());
+        $process->run();
+
+        $this->assertSame(0, $process->getExitCode(), 'build-index failed: '.$process->getErrorOutput());
+
+        $regenerated = (string) file_get_contents(self::examplesDirectory().'/INDEX.md');
+
+        if ($committed !== $regenerated) {
+            file_put_contents(self::examplesDirectory().'/INDEX.md', $committed);
+        }
+
+        $this->assertSame($committed, $regenerated, 'INDEX.md is stale, run "./build-index" and commit the result.');
     }
 
     /**

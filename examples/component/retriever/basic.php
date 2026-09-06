@@ -1,0 +1,57 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Symfony\AI\Platform\Bridge\OpenAi\Factory;
+use Symfony\AI\Store\Document\Loader\TextFileLoader;
+use Symfony\AI\Store\Document\Transformer\TextSplitTransformer;
+use Symfony\AI\Store\Document\Vectorizer;
+use Symfony\AI\Store\Indexer\DocumentProcessor;
+use Symfony\AI\Store\Indexer\SourceIndexer;
+use Symfony\AI\Store\InMemory\Store as InMemoryStore;
+use Symfony\AI\Store\Retriever;
+
+require_once dirname(__DIR__, 2).'/bootstrap.php';
+
+$store = new InMemoryStore();
+
+$platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
+$vectorizer = new Vectorizer($platform, 'text-embedding-3-small');
+
+$indexer = new SourceIndexer(
+    loader: new TextFileLoader(),
+    processor: new DocumentProcessor(
+        vectorizer: $vectorizer,
+        store: $store,
+        transformers: [
+            new TextSplitTransformer(chunkSize: 500, overlap: 100),
+        ],
+        logger: logger(),
+    ),
+);
+$indexer->index([
+    dirname(__DIR__, 3).'/fixtures/movies/gladiator.md',
+    dirname(__DIR__, 3).'/fixtures/movies/inception.md',
+    dirname(__DIR__, 3).'/fixtures/movies/jurassic-park.md',
+]);
+
+$retriever = new Retriever(
+    vectorizer: $vectorizer,
+    store: $store,
+);
+
+echo "Searching for: 'Roman gladiator revenge'\n\n";
+$results = $retriever->retrieve('Roman gladiator revenge', ['maxItems' => 1]);
+
+foreach ($results as $i => $document) {
+    echo sprintf("%d. Document ID: %s\n", $i + 1, $document->getId());
+    echo sprintf("   Score: %s\n", $document->getScore() ?? 'n/a');
+    echo sprintf("   Source: %s\n\n", $document->getMetadata()->getSource() ?? 'unknown');
+}

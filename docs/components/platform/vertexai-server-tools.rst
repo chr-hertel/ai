@@ -121,7 +121,7 @@ You can enable multiple tools in a single request::
 Example
 -------
 
-See `examples/vertexai/server-tools.php`_ for a complete working example.
+See `examples/platform/vertexai/server-tools.php`_ for a complete working example.
 
 Limitations
 -----------
@@ -132,4 +132,4 @@ Limitations
 - **Latency:** Using multiple tools or fetching from slow external sources can increase response time.
 - **Regional availability:** Ensure you are using a location that supports the selected model and tools.
 
-.. _`examples/vertexai/server-tools.php`: https://github.com/symfony/ai/blob/main/examples/vertexai/server-tools.php
+.. _`examples/platform/vertexai/server-tools.php`: https://github.com/symfony/ai/blob/main/examples/platform/vertexai/server-tools.php

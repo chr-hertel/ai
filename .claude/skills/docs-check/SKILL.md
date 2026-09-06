@@ -35,7 +35,7 @@ For each reference, verify the class/interface/method actually exists at that na
 - Check that parameter names and order roughly match the current signatures
 
 ### 6. Example File References
-- Links to example files (e.g., `examples/rag/in-memory.php`)
+- Links to example files (e.g., `examples/component/store/in-memory.php`)
 - Verify the referenced file paths exist
 
 ## Where to Look

@@ -178,24 +178,24 @@ Requires a vectorizer and a configured vector store.
 See :doc:`/components/agent` for a full RAG integration example.
 
 .. _`Brave Search API`: https://brave.com/search/api/
-.. _`Brave Search Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/brave.php
+.. _`Brave Search Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/brave.php
 .. _`SerpApi`: https://serpapi.com/
-.. _`SerpApi Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/serpapi.php
+.. _`SerpApi Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/serpapi.php
 .. _`Tavily`: https://tavily.com/
-.. _`Tavily Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/tavily.php
+.. _`Tavily Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/tavily.php
 .. _`Firecrawl`: https://www.firecrawl.dev/
-.. _`Firecrawl Scrape Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/firecrawl-scrape.php
-.. _`Firecrawl Crawl Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/firecrawl-crawl.php
-.. _`Firecrawl Map Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/firecrawl-map.php
+.. _`Firecrawl Scrape Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/firecrawl-scrape.php
+.. _`Firecrawl Crawl Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/firecrawl-crawl.php
+.. _`Firecrawl Map Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/firecrawl-map.php
 .. _`Mapbox Geocoding API`: https://docs.mapbox.com/api/search/geocoding/
-.. _`Mapbox Geocode Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/mapbox-geocode.php
-.. _`Mapbox Reverse Geocode Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/mapbox-reverse-geocode.php
+.. _`Mapbox Geocode Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/mapbox-geocode.php
+.. _`Mapbox Reverse Geocode Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/mapbox-reverse-geocode.php
 .. _`Open-Meteo API`: https://open-meteo.com/
-.. _`Weather Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/weather-event.php
-.. _`Wikipedia Example`: https://github.com/symfony/ai/blob/main/examples/openai/toolcall-stream.php
-.. _`YouTube Transcriber Example`: https://github.com/symfony/ai/blob/main/examples/openai/toolcall.php
+.. _`Weather Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/weather-event.php
+.. _`Wikipedia Example`: https://github.com/symfony/ai/blob/main/examples/platform/openai/toolcall-stream.php
+.. _`YouTube Transcriber Example`: https://github.com/symfony/ai/blob/main/examples/platform/openai/toolcall.php
 .. _`Ollama`: https://ollama.com/
-.. _`Ollama Web Search Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/ollama-web-search.php
-.. _`Ollama Webpage Fetch Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/ollama-webpage-fetch.php
-.. _`Clock Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/clock.php
+.. _`Ollama Web Search Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/ollama-web-search.php
+.. _`Ollama Webpage Fetch Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/ollama-webpage-fetch.php
+.. _`Clock Example`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/clock.php
 .. _`Symfony Clock`: https://symfony.com/doc/current/components/clock.html

@@ -1,0 +1,31 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Symfony\AI\Platform\Bridge\OpenAi\Factory;
+use Symfony\AI\Platform\Message\Message;
+use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\StructuredOutput\PlatformSubscriber;
+use Symfony\AI\Platform\Tests\Fixtures\StructuredOutput\PolymorphicType\ListOfPolymorphicTypesDto;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+
+require_once dirname(__DIR__, 2).'/bootstrap.php';
+
+$dispatcher = new EventDispatcher();
+$dispatcher->addSubscriber(new PlatformSubscriber());
+
+$platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client(), eventDispatcher: $dispatcher);
+$messages = new MessageBag(
+    Message::forSystem('You are a persona data collector! Return all the data you can gather from the user input.'),
+    Message::ofUser('Hi! My name is John Doe, I am 30 years old and I live in Paris.'),
+);
+$result = $platform->invoke('gpt-5-mini', $messages, ['response_format' => ListOfPolymorphicTypesDto::class]);
+
+print_structure($result->asObject());

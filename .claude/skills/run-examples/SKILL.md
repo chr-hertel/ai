@@ -65,8 +65,8 @@ grep -rl "Symfony\\\\AI\\\\<Component>\\\\Bridge\\\\<Vendor>" examples/
 ```
 
 This catches both the "obvious" matches (Bridge `OpenAi/Embeddings/` → uses in
-`examples/openai/embeddings.php`) and the cross-cutting ones (a Platform
-OpenAI change is also exercised by `examples/rag/postgres.php` because it uses
+`examples/platform/openai/embeddings.php`) and the cross-cutting ones (a Platform
+OpenAI change is also exercised by `examples/component/store/postgres.php` because it uses
 OpenAI for embeddings).
 
 Common shortcuts that hold:

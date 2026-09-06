@@ -249,7 +249,7 @@ services:
         ports:
             - "4000:4000"
         volumes:
-            - ./litellm/config.yaml:/app/config.yaml
+            - ./platform/litellm/config.yaml:/app/config.yaml
         env_file:
             - .env
             - path: .env.local

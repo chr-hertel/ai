@@ -225,6 +225,6 @@ listener automatically — no service configuration needed. The event is inferre
 Learn More
 ----------
 
-* `Human-in-the-Loop Confirmation Example <https://github.com/symfony/ai/blob/main/examples/toolbox/confirmation.php>`_
+* `Human-in-the-Loop Confirmation Example <https://github.com/symfony/ai/blob/main/examples/component/toolbox/confirmation.php>`_
 * :doc:`tool-calling-with-agents` - Build and register custom tools
 * :doc:`../components/agent` - Agent component documentation

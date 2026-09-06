@@ -181,7 +181,7 @@ itself arrives as a ``Progress`` update of the ``handoff`` stage, carrying the o
 The message names the agent that actually runs, while the decision explains why the orchestrator
 picked it - the two differ when the orchestrator selects an agent that no handoff defines, in which
 case the fallback answers instead. See the
-`orchestrator-iterable.php <https://github.com/symfony/ai/blob/main/examples/multi-agent/orchestrator-iterable.php>`_
+`orchestrator-iterable.php <https://github.com/symfony/ai/blob/main/examples/component/multi-agent/orchestrator-iterable.php>`_
 example for a runnable version of this loop.
 
 .. note::

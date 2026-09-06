@@ -106,7 +106,7 @@ You can enable multiple server tools simultaneously::
 Example
 -------
 
-See `examples/gemini/server-tools.php`_ for a complete working example.
+See `examples/platform/gemini/server-tools.php`_ for a complete working example.
 
 Limitations
 -----------
@@ -116,4 +116,4 @@ Limitations
 - Response times may vary based on the complexity of server tool operations
 - Not all Gemini model versions support all server tools
 
-.. _`examples/gemini/server-tools.php`: https://github.com/symfony/ai/blob/main/examples/gemini/server-tools.php
+.. _`examples/platform/gemini/server-tools.php`: https://github.com/symfony/ai/blob/main/examples/platform/gemini/server-tools.php

@@ -5,6 +5,37 @@ reference implementation to help you get started.
 
 On top, the examples are used as integration tests to ensure that the components work as expected.
 
+## Layout
+
+```
+platform/<vendor>/     one directory per platform bridge - openai/, anthropic/, gemini/, ...
+component/<component>/ everything that is about a component rather than a provider
+```
+
+`platform/` answers "how do I do X with this provider": each directory covers one bridge's API
+surface, and the same capability carries the same filename in all of them, so `platform/*/stream.php`
+is every provider's streaming example.
+
+`component/` answers "how do I use this part of the library": `agent/`, `platform/`, `chat/`,
+`store/` (one file per store backend), `indexer/`, `retriever/`, `document/`, `memory/`,
+`multi-agent/`, `toolbox/`, `speech/`, `commands/`, and `rag/` for recipes that compose several of
+them into a working retrieval pipeline.
+
+`INDEX.md` lists which capability each platform bridge has an example for - the one view the tree
+cannot give you. It is generated, so regenerate it after adding or renaming an example:
+
+```bash
+./build-index
+```
+
+Two conventions are worth knowing before adding a file:
+
+* a directory may carry its own `bootstrap.php` next to its examples for helpers only that directory
+  needs - `platform/perplexity/`, `platform/vertexai/` and `component/store/` do - and it requires
+  the shared `examples/bootstrap.php` in turn;
+* a file whose name starts with an underscore, like `platform/bedrock/_model.php`, is a helper rather
+  than an example, and the runner skips it.
+
 ## Running the examples
 
 For setting up and running the examples, you can either run them standalone or via the example runner. You find the
@@ -60,13 +91,13 @@ Every example script is a standalone PHP script that can be run from the command
 You can run an example by executing the following command:
 
 ```bash
-php openai/chat.php
+php platform/openai/chat.php
 ```
 
 To get more insights into what is happening at runtime, e.g. HTTP and tool calls, you can add `-vv` or `-vvv`:
 
 ```bash
-php openai/toolcall-stream.php -vvv
+php platform/openai/toolcall-stream.php -vvv
 ```
 
 ### Running examples via the example runner
@@ -81,10 +112,12 @@ You can run the example runner by executing the following command:
 ./runner
 ```
 
-If you only want to run examples of one or multiple specific subdirectories, you can pass the name as an argument:
+If you only want to run examples of one or multiple specific subdirectories, you can pass the name as an
+argument - a bare vendor or component name is resolved under `platform/` and `component/` for you:
 
 ```bash
 ./runner openai mistral
+./runner platform/openai component/store
 ```
 
 If you only want to run a specific subset of examples, you can use a filter option:

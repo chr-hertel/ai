@@ -102,8 +102,8 @@ including its side effects, so it can only be *iterated* once. Call ``call()`` a
 
 Iterating fits when you drive the loop yourself, e.g. to stream updates to a client, while callbacks fit when you
 would read the result anyway and just want to observe the run on the side. See the
-`execution-iterable.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-iterable.php>`_ and
-`execution-callbacks.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-callbacks.php>`_
+`execution-iterable.php <https://github.com/symfony/ai/blob/main/examples/component/agent/execution-iterable.php>`_ and
+`execution-callbacks.php <https://github.com/symfony/ai/blob/main/examples/component/agent/execution-callbacks.php>`_
 examples for both.
 
 .. note::
@@ -148,7 +148,7 @@ the stream without producing a final result::
 Cancellation is idempotent, propagates to the agents a ``MultiAgent`` or ``SpeechAgent`` delegates to, and makes
 ``getResult()`` throw a :class:`Symfony\\AI\\Agent\\Exception\\RuntimeException` instead of returning a partial
 answer. See the
-`execution-cancellation.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-cancellation.php>`_
+`execution-cancellation.php <https://github.com/symfony/ai/blob/main/examples/component/agent/execution-cancellation.php>`_
 example.
 
 Once the stream is drained, the execution resolves to the assembled answer like a non-streamed one: ``getResult()``
@@ -527,7 +527,7 @@ This generates a JSON Schema with ``anyOf`` to properly describe all possible im
 which field identifies the type, and the Symfony Serializer will automatically deserialize to the correct implementation
 class based on this discriminator field.
 
-See the `toolcall-polymorphic-interface.php <https://github.com/symfony/ai/blob/main/examples/agent/toolcall-polymorphic-interface.php>`_
+See the `toolcall-polymorphic-interface.php <https://github.com/symfony/ai/blob/main/examples/component/agent/toolcall-polymorphic-interface.php>`_
 example for a complete working implementation.
 
 Third-Party Tools
@@ -1189,21 +1189,21 @@ Code Examples
     agent/tools
 
 .. _`Platform Component`: https://github.com/symfony/ai-platform
-.. _`Anthropic Toolbox Example`: https://github.com/symfony/ai/blob/main/examples/anthropic/toolcall.php
-.. _`Brave Tool`: https://github.com/symfony/ai/blob/main/examples/toolbox/brave.php
-.. _`Clock Tool`: https://github.com/symfony/ai/blob/main/examples/toolbox/clock.php
-.. _`Crawler Tool`: https://github.com/symfony/ai/blob/main/examples/toolbox/firecrawl-crawl.php
-.. _`Mapbox Geocode Tool`: https://github.com/symfony/ai/blob/main/examples/toolbox/mapbox-geocode.php
-.. _`Mapbox Reverse Geocode Tool`: https://github.com/symfony/ai/blob/main/examples/toolbox/mapbox-reverse-geocode.php
-.. _`SerpAPI Tool`: https://github.com/symfony/ai/blob/main/examples/toolbox/serpapi.php
-.. _`Tavily Tool`: https://github.com/symfony/ai/blob/main/examples/toolbox/tavily.php
-.. _`Weather Tool with Event Listener`: https://github.com/symfony/ai/blob/main/examples/toolbox/weather-event.php
-.. _`Wikipedia Tool`: https://github.com/symfony/ai/blob/main/examples/openai/toolcall-stream.php
-.. _`YouTube Transcriber Tool`: https://github.com/symfony/ai/blob/main/examples/openai/toolcall.php
+.. _`Anthropic Toolbox Example`: https://github.com/symfony/ai/blob/main/examples/platform/anthropic/toolcall.php
+.. _`Brave Tool`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/brave.php
+.. _`Clock Tool`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/clock.php
+.. _`Crawler Tool`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/firecrawl-crawl.php
+.. _`Mapbox Geocode Tool`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/mapbox-geocode.php
+.. _`Mapbox Reverse Geocode Tool`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/mapbox-reverse-geocode.php
+.. _`SerpAPI Tool`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/serpapi.php
+.. _`Tavily Tool`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/tavily.php
+.. _`Weather Tool with Event Listener`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/weather-event.php
+.. _`Wikipedia Tool`: https://github.com/symfony/ai/blob/main/examples/platform/openai/toolcall-stream.php
+.. _`YouTube Transcriber Tool`: https://github.com/symfony/ai/blob/main/examples/platform/openai/toolcall.php
 .. _`Store Component`: https://github.com/symfony/ai-store
-.. _`RAG with MongoDB`: https://github.com/symfony/ai/blob/main/examples/rag/mongodb.php
-.. _`RAG with Pinecone`: https://github.com/symfony/ai/blob/main/examples/rag/pinecone.php
-.. _`Chat with static memory`: https://github.com/symfony/ai/blob/main/examples/memory/static.php
-.. _`Chat with embedding search memory`: https://github.com/symfony/ai/blob/main/examples/memory/mariadb.php
-.. _`Human-in-the-Loop Confirmation`: https://github.com/symfony/ai/blob/main/examples/toolbox/confirmation.php
-.. _`Tool Call Argument Validation`: https://github.com/symfony/ai/blob/main/examples/toolbox/validation.php
+.. _`RAG with MongoDB`: https://github.com/symfony/ai/blob/main/examples/component/store/mongodb.php
+.. _`RAG with Pinecone`: https://github.com/symfony/ai/blob/main/examples/component/store/pinecone.php
+.. _`Chat with static memory`: https://github.com/symfony/ai/blob/main/examples/component/memory/static.php
+.. _`Chat with embedding search memory`: https://github.com/symfony/ai/blob/main/examples/component/memory/mariadb.php
+.. _`Human-in-the-Loop Confirmation`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/confirmation.php
+.. _`Tool Call Argument Validation`: https://github.com/symfony/ai/blob/main/examples/component/toolbox/validation.php

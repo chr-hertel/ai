@@ -61,10 +61,23 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
 
         if ($subdirectories = $input->getArgument('subdirectories')) {
             foreach ($subdirectories as $key => $subdirectory) {
-                $directory = $findIn.'/'.$subdirectory;
+                // Examples live under platform/<vendor> and component/<component>, but naming the
+                // vendor or component alone is what anyone actually types.
+                $candidates = [$subdirectory, 'platform/'.$subdirectory, 'component/'.$subdirectory];
+                $directory = null;
 
-                if (!is_dir($directory)) {
+                foreach ($candidates as $candidate) {
+                    if (is_dir($findIn.'/'.$candidate)) {
+                        $directory = $findIn.'/'.$candidate;
+
+                        break;
+                    }
+                }
+
+                if (null === $directory) {
                     $io->error(sprintf('Subdirectory "%s" does not exist.', $subdirectory));
+
+                    return Command::FAILURE;
                 }
 
                 $subdirectories[$key] = $directory;

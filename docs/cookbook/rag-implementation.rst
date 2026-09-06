@@ -24,7 +24,7 @@ Prerequisites
 * A language model (e.g., gpt-4o-mini)
 * Optional: A vector store (or use in-memory for testing)
 
-You can follow the complete example here: `in-memory.php <https://github.com/symfony/ai/blob/main/examples/rag/in-memory.php>`_
+You can follow the complete example here: `in-memory.php <https://github.com/symfony/ai/blob/main/examples/component/store/in-memory.php>`_
 
 Step 1: Initialize the Vector Store
 -----------------------------------

@@ -136,10 +136,10 @@ moving between bridges keeps its text.
 Example
 -------
 
-See `examples/anthropic/server-tools-code-execution.php`_ and `examples/anthropic/server-tools-web-search.php`_ for
-complete working examples, and `examples/anthropic/server-tools-web-search-roundtrip.php`_ for a two-turn
+See `examples/platform/anthropic/server-tools-code-execution.php`_ and `examples/platform/anthropic/server-tools-web-search.php`_ for
+complete working examples, and `examples/platform/anthropic/server-tools-web-search-roundtrip.php`_ for a two-turn
 conversation continuing after a search.
 
-.. _`examples/anthropic/server-tools-code-execution.php`: https://github.com/symfony/ai/blob/main/examples/anthropic/server-tools-code-execution.php
-.. _`examples/anthropic/server-tools-web-search.php`: https://github.com/symfony/ai/blob/main/examples/anthropic/server-tools-web-search.php
-.. _`examples/anthropic/server-tools-web-search-roundtrip.php`: https://github.com/symfony/ai/blob/main/examples/anthropic/server-tools-web-search-roundtrip.php
+.. _`examples/platform/anthropic/server-tools-code-execution.php`: https://github.com/symfony/ai/blob/main/examples/platform/anthropic/server-tools-code-execution.php
+.. _`examples/platform/anthropic/server-tools-web-search.php`: https://github.com/symfony/ai/blob/main/examples/platform/anthropic/server-tools-web-search.php
+.. _`examples/platform/anthropic/server-tools-web-search-roundtrip.php`: https://github.com/symfony/ai/blob/main/examples/platform/anthropic/server-tools-web-search-roundtrip.php
