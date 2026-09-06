@@ -38,6 +38,11 @@ Depending on the examples you want to run, you may need to configure the needed 
 `.env.local` file in the root of the examples' directory. This file should contain the environment variables for the
 corresponding example you want to run.
 
+Only secrets are configurable that way: API keys, and endpoints or identifiers bound to a personal account. Everything
+else is inlined in the example itself - the hosts and credentials of the services in `compose.yaml`, the defaults of
+local daemons like Ollama or LM Studio, and the parameters an example picks for itself. So an example that talks to a
+`compose.yaml` service needs nothing but `docker compose up -d`, and `.env` lists exactly what you have to supply.
+
 _Now you can run examples standalone or via the example runner._
 
 #### Store with Docker

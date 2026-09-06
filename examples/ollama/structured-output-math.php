@@ -21,11 +21,11 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $dispatcher = new EventDispatcher();
 $dispatcher->addSubscriber(new PlatformSubscriber());
 
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), env('OLLAMA_API_KEY'), httpClient: http_client(), eventDispatcher: $dispatcher);
+$platform = Factory::createPlatform('http://localhost:11434', env('OLLAMA_API_KEY'), httpClient: http_client(), eventDispatcher: $dispatcher);
 $messages = new MessageBag(
     Message::forSystem('You are a helpful math tutor. Guide the user through the solution step by step.'),
     Message::ofUser('how can I solve 8x + 7 = -23'),
 );
-$result = $platform->invoke(env('OLLAMA_LLM'), $messages, ['response_format' => MathReasoning::class]);
+$result = $platform->invoke('llama3.2', $messages, ['response_format' => MathReasoning::class]);
 
 dump($result->asObject());

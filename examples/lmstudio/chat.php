@@ -15,7 +15,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('LMSTUDIO_HOST_URL'), http_client());
+$platform = Factory::createPlatform('http://127.0.0.1:1234', http_client());
 
 $messages = new MessageBag(
     Message::forSystem('You are a pirate and you write funny.'),

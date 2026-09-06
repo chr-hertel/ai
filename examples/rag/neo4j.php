@@ -30,10 +30,10 @@ require_once dirname(__DIR__).'/bootstrap.php';
 // initialize the store
 $store = new Store(
     httpClient: http_client(),
-    endpointUrl: env('NEO4J_HOST'),
-    username: env('NEO4J_USERNAME'),
-    password: env('NEO4J_PASSWORD'),
-    databaseName: env('NEO4J_DATABASE'),
+    endpointUrl: 'http://127.0.0.1:7474',
+    username: 'neo4j',
+    password: 'symfonyai',
+    databaseName: 'neo4j',
     vectorIndexName: 'Movies',
     nodeName: 'movies',
 );

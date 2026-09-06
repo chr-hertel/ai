@@ -30,8 +30,8 @@ require_once dirname(__DIR__).'/bootstrap.php';
 // initialize the store
 $store = StoreFactory::create(
     collection: 'movies',
-    endpoint: env('TYPESENSE_HOST'),
-    apiKey: env('TYPESENSE_API_KEY'),
+    endpoint: 'http://127.0.0.1:8108',
+    apiKey: 'changeMe',
     httpClient: http_client(),
 );
 

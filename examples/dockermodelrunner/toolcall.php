@@ -18,7 +18,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('DOCKER_MODEL_RUNNER_HOST_URL'), http_client());
+$platform = Factory::createPlatform('http://127.0.0.1:12434', http_client());
 
 $wikipedia = new Wikipedia(http_client());
 $toolbox = new Toolbox([$wikipedia]);

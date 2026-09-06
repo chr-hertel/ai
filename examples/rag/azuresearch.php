@@ -32,7 +32,7 @@ $store = StoreFactory::create(
     indexName: 'movies',
     endpoint: env('AZURE_SEARCH_ENDPOINT'),
     apiKey: env('AZURE_SEARCH_API_KEY'),
-    apiVersion: env('AZURE_SEARCH_API_VERSION'),
+    apiVersion: '2024-07-01',
     httpClient: http_client(),
 );
 

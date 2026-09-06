@@ -28,7 +28,7 @@ use Symfony\Component\Uid\Uuid;
 require_once dirname(__DIR__).'/bootstrap.php';
 
 // initialize the store
-$store = StoreFactory::create('Movies', env('WEAVIATE_HOST'), env('WEAVIATE_API_KEY'));
+$store = StoreFactory::create('Movies', 'http://127.0.0.1:8080', 'symfony');
 
 // initialize the index
 $store->setup();

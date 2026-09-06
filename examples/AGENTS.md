@@ -30,6 +30,11 @@ php openai/toolcall-stream.php -vvv
 ### Environment
 Configure API keys in `.env.local` (copy from `.env` template).
 
+`.env` holds secrets only - API keys, and endpoints or identifiers bound to a personal account. A value that the local
+Docker setup pins, a local daemon's documented default, or a parameter the example chooses for itself is inlined in the
+example instead of being read through `env()`. When adding an example, ask whether the reader must supply the value: if
+not, write it into the code.
+
 ## Architecture
 
 ### Directory Structure

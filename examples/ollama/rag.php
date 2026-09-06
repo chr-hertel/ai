@@ -41,15 +41,15 @@ foreach (Movies::all() as $i => $movie) {
 }
 
 // create embeddings for documents
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), env('OLLAMA_API_KEY'), httpClient: http_client());
-$vectorizer = new Vectorizer($platform, env('OLLAMA_EMBEDDINGS'), logger());
+$platform = Factory::createPlatform('http://localhost:11434', env('OLLAMA_API_KEY'), httpClient: http_client());
+$vectorizer = new Vectorizer($platform, 'nomic-embed-text', logger());
 $indexer = new DocumentIndexer(new DocumentProcessor($vectorizer, $store, logger: logger()));
 $indexer->index($documents);
 
 $retriever = new Retriever($store, $vectorizer);
 $similaritySearch = new SimilaritySearch($retriever);
 $toolbox = new Toolbox([$similaritySearch], logger: logger());
-$agent = new Agent($platform, env('OLLAMA_LLM'), toolbox: $toolbox);
+$agent = new Agent($platform, 'llama3.2', toolbox: $toolbox);
 
 $messages = new MessageBag(
     Message::forSystem('Please answer all user questions only using SimilaritySearch function.'),

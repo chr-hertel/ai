@@ -31,7 +31,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 // initialize the store
 $store = Store::fromDbal(
-    connection: DriverManager::getConnection((new DsnParser())->parse(env('MARIADB_URI'))),
+    connection: DriverManager::getConnection((new DsnParser())->parse('pdo-mysql://root@127.0.0.1:3309/my_database')),
     tableName: 'my_table_openai',
     indexName: 'my_index',
 );

@@ -30,8 +30,8 @@ require_once dirname(__DIR__).'/bootstrap.php';
 // initialize the store
 $store = StoreFactory::create(
     indexName: 'movies',
-    endpoint: env('MEILISEARCH_HOST'),
-    apiKey: env('MEILISEARCH_API_KEY'),
+    endpoint: 'http://127.0.0.1:7700',
+    apiKey: 'changeMe',
     httpClient: http_client(),
 );
 

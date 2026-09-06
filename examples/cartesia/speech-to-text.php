@@ -16,7 +16,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 $platform = Factory::createPlatform(
     apiKey: env('CARTESIA_API_KEY'),
-    version: env('CARTESIA_API_VERSION'),
+    version: '2025-04-16',
     httpClient: http_client(),
 );
 

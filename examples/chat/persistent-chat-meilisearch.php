@@ -21,7 +21,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
-$store = new MessageStore(http_client(), env('MEILISEARCH_HOST'), env('MEILISEARCH_API_KEY'), new MonotonicClock());
+$store = new MessageStore(http_client(), 'http://127.0.0.1:7700', 'changeMe', new MonotonicClock());
 $store->setup();
 
 $agent = new Agent($platform, 'gpt-5-mini');

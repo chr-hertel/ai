@@ -31,10 +31,10 @@ $store = new Store(
     httpClient: http_client(),
     endpoint: env('SUPABASE_URL'),
     apiKey: env('SUPABASE_API_KEY'),
-    table: env('SUPABASE_TABLE'),
-    vectorFieldName: env('SUPABASE_VECTOR_FIELD'),
-    vectorDimension: (int) env('SUPABASE_VECTOR_DIMENSION'),
-    functionName: env('SUPABASE_MATCH_FUNCTION'),
+    table: 'documents',
+    vectorFieldName: 'embedding',
+    vectorDimension: 768,
+    functionName: 'match_documents',
 );
 
 $documents = [];
@@ -47,16 +47,16 @@ foreach (Movies::all() as $movie) {
     );
 }
 
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), httpClient: http_client());
+$platform = Factory::createPlatform('http://localhost:11434', httpClient: http_client());
 
-$vectorizer = new Vectorizer($platform, env('OLLAMA_EMBEDDINGS'));
+$vectorizer = new Vectorizer($platform, 'nomic-embed-text');
 $indexer = new DocumentIndexer(new DocumentProcessor($vectorizer, $store, logger: logger()));
 $indexer->index($documents);
 
 $retriever = new Retriever($store, $vectorizer);
 $similaritySearch = new SimilaritySearch($retriever);
 $toolbox = new Toolbox([$similaritySearch], logger: logger());
-$agent = new Agent($platform, env('OLLAMA_LLM'), toolbox: $toolbox);
+$agent = new Agent($platform, 'llama3.2', toolbox: $toolbox);
 
 $messages = new MessageBag(
     Message::forSystem('Please answer all user questions only using SimilaritySearch function.'),

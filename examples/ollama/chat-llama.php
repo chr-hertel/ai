@@ -15,7 +15,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), env('OLLAMA_API_KEY'), httpClient: http_client());
+$platform = Factory::createPlatform('http://localhost:11434', env('OLLAMA_API_KEY'), httpClient: http_client());
 
 $messages = new MessageBag(
     Message::forSystem('You are a helpful assistant.'),
@@ -23,7 +23,7 @@ $messages = new MessageBag(
 );
 
 try {
-    $result = $platform->invoke(env('OLLAMA_LLM'), $messages);
+    $result = $platform->invoke('llama3.2', $messages);
     echo $result->asText().\PHP_EOL;
 } catch (InvalidArgumentException $e) {
     echo $e->getMessage()."\nMaybe use a different model?\n";

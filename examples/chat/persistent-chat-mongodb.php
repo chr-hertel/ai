@@ -22,7 +22,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $store = new MessageStore(
-    new MongoDbClient(env('MONGODB_URI')),
+    new MongoDbClient('mongodb://symfony:symfony@127.0.0.1:27017'),
     'chat',
     'symfony',
 );

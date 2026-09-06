@@ -20,7 +20,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
-$store = new MessageStore(http_client(), env('POGOCACHE_HOST'), env('POGOCACHE_PASSWORD'));
+$store = new MessageStore(http_client(), 'http://127.0.0.1:9401', 'symfony');
 $store->setup();
 
 $agent = new Agent($platform, 'gpt-5-mini');

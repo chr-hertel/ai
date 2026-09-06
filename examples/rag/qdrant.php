@@ -28,7 +28,7 @@ use Symfony\Component\Uid\Uuid;
 require_once dirname(__DIR__).'/bootstrap.php';
 
 // initialize the store
-$store = StoreFactory::create('movies', env('QDRANT_HOST'), env('QDRANT_SERVICE_API_KEY'));
+$store = StoreFactory::create('movies', 'http://127.0.0.1:6333', 'changeMe');
 
 // initialize the collection (needs to be called before the indexer)
 $store->setup();

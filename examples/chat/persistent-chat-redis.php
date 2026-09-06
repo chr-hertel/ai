@@ -21,7 +21,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $redis = new Redis([
-    'host' => env('REDIS_HOST'),
+    'host' => 'localhost',
     'port' => 6379,
 ]);
 

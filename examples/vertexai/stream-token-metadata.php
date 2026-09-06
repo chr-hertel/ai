@@ -17,7 +17,7 @@ use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 
 require_once __DIR__.'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('GOOGLE_CLOUD_LOCATION'), env('GOOGLE_CLOUD_PROJECT'), httpClient: adc_aware_http_client());
+$platform = Factory::createPlatform('global', env('GOOGLE_CLOUD_PROJECT'), httpClient: adc_aware_http_client());
 
 $agent = new Agent($platform, 'gemini-2.5-flash');
 $messages = new MessageBag(

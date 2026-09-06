@@ -21,10 +21,10 @@ use Symfony\AI\Store\Query\VectorQuery;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), env('OLLAMA_API_KEY'), httpClient: http_client());
+$platform = Factory::createPlatform('http://localhost:11434', env('OLLAMA_API_KEY'), httpClient: http_client());
 
 $store = new InMemoryStore();
-$vectorizer = new Vectorizer($platform, env('OLLAMA_EMBEDDINGS'), logger());
+$vectorizer = new Vectorizer($platform, 'nomic-embed-text', logger());
 $indexer = new SourceIndexer(
     loader: new TextFileLoader(),
     processor: new DocumentProcessor(

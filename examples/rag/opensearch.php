@@ -30,7 +30,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 // initialize the store
 $store = new Store(
     httpClient: http_client(),
-    endpoint: env('OPENSEARCH_ENDPOINT'),
+    endpoint: 'http://127.0.0.1:9200',
     indexName: 'movies',
 );
 

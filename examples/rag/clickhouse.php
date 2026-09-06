@@ -30,9 +30,9 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 // initialize the store
 $store = new Store(
-    HttpClient::createForBaseUri(env('CLICKHOUSE_HOST')),
-    env('CLICKHOUSE_DATABASE'),
-    env('CLICKHOUSE_TABLE'),
+    HttpClient::createForBaseUri('http://symfony:symfony@127.0.0.1:8123'),
+    'symfony',
+    'symfony',
 );
 
 // initialize the index

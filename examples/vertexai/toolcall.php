@@ -18,7 +18,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once __DIR__.'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('GOOGLE_CLOUD_LOCATION'), env('GOOGLE_CLOUD_PROJECT'), httpClient: adc_aware_http_client());
+$platform = Factory::createPlatform('global', env('GOOGLE_CLOUD_PROJECT'), httpClient: adc_aware_http_client());
 
 $toolbox = new Toolbox([new Clock()], logger: logger());
 $agent = new Agent($platform, 'gemini-2.5-flash-lite', toolbox: $toolbox);

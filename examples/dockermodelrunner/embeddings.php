@@ -13,7 +13,7 @@ use Symfony\AI\Platform\Bridge\DockerModelRunner\Factory;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('DOCKER_MODEL_RUNNER_HOST_URL'), http_client());
+$platform = Factory::createPlatform('http://127.0.0.1:12434', http_client());
 $result = $platform->invoke('ai/nomic-embed-text-v1.5', <<<TEXT
     Once upon a time, there was a country called Japan. It was a beautiful country with a lot of mountains and rivers.
     The people of Japan were very kind and hardworking. They loved their country very much and took care of it. The

@@ -24,8 +24,8 @@ $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $store = new MessageStore(
     httpClient: http_client(),
     endpointUrl: 'http://127.0.0.1:8000',
-    user: env('SURREALDB_USER'),
-    password: env('SURREALDB_PASS'),
+    user: 'symfony',
+    password: 'symfony',
     namespace: 'default',
     database: 'chat',
     table: 'chat',

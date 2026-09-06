@@ -32,8 +32,8 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 $store = new Store(
     (new ChromaDbFactory())
-        ->withHost(env('CHROMADB_HOST'))
-        ->withPort((int) env('CHROMADB_PORT'))
+        ->withHost('http://127.0.0.1')
+        ->withPort(8001)
         ->connect(),
     'movies',
 );

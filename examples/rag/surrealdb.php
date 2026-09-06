@@ -31,9 +31,9 @@ require_once dirname(__DIR__).'/bootstrap.php';
 $store = StoreFactory::create(
     namespace: 'default',
     database: 'movies',
-    user: env('SURREALDB_USER'),
-    password: env('SURREALDB_PASS'),
-    endpoint: env('SURREALDB_HOST'),
+    user: 'symfony',
+    password: 'symfony',
+    endpoint: 'http://127.0.0.1:8000',
     httpClient: http_client(),
     table: 'movies',
 );

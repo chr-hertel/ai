@@ -23,7 +23,7 @@ $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $firecrawl = new Firecrawl(
     http_client(),
     env('FIRECRAWL_API_KEY'),
-    env('FIRECRAWL_HOST'),
+    'https://api.firecrawl.dev',
 );
 
 $toolbox = new Toolbox([$firecrawl], logger: logger());

@@ -18,11 +18,11 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), httpClient: http_client());
+$platform = Factory::createPlatform('http://localhost:11434', httpClient: http_client());
 
 $ollama = new Ollama(http_client(), env('OLLAMA_API_KEY'));
 $toolbox = new Toolbox([$ollama], logger: logger());
-$agent = new Agent($platform, env('OLLAMA_LLM'), toolbox: $toolbox);
+$agent = new Agent($platform, 'llama3.2', toolbox: $toolbox);
 
 $result = $agent->call(new MessageBag(Message::ofUser('What is Ollama?')));
 

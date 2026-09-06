@@ -18,10 +18,10 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), env('OLLAMA_API_KEY'), httpClient: http_client());
+$platform = Factory::createPlatform('http://localhost:11434', env('OLLAMA_API_KEY'), httpClient: http_client());
 
 $toolbox = new Toolbox([new Clock()], logger: logger());
-$agent = new Agent($platform, env('OLLAMA_LLM'), toolbox: $toolbox);
+$agent = new Agent($platform, 'llama3.2', toolbox: $toolbox);
 
 $messages = new MessageBag(Message::ofUser('What time is it?'));
 $result = $agent->call($messages);

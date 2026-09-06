@@ -30,7 +30,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 // initialize the store
 $store = new Store(
-    client: new MongoDbClient(env('MONGODB_URI')),
+    client: new MongoDbClient('mongodb://symfony:symfony@127.0.0.1:27017'),
     databaseName: 'my-database',
     collectionName: 'my-collection',
     indexName: 'my-index',

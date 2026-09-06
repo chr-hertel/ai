@@ -31,7 +31,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 // initialize the store
 $store = StoreFactory::createStoreFromDbal(
-    connection: DriverManager::getConnection((new DsnParser())->parse(env('POSTGRES_URI'))),
+    connection: DriverManager::getConnection((new DsnParser())->parse('pdo-pgsql://postgres:postgres@127.0.0.1:5432/my_database')),
     tableName: 'my_table',
 );
 

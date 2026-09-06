@@ -15,14 +15,14 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform(env('OLLAMA_HOST_URL'), env('OLLAMA_API_KEY'), httpClient: http_client());
+$platform = Factory::createPlatform('http://localhost:11434', env('OLLAMA_API_KEY'), httpClient: http_client());
 
 $messages = new MessageBag(
     Message::forSystem('You are a helpful assistant.'),
     Message::ofUser('Tina has one brother and one sister. How many sisters do Tina\'s siblings have?'),
 );
 
-$result = $platform->invoke(env('OLLAMA_LLM'), $messages, ['stream' => true]);
+$result = $platform->invoke('llama3.2', $messages, ['stream' => true]);
 
 foreach ($result->asTextStream() as $delta) {
     echo $delta;
