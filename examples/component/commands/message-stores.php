@@ -126,7 +126,7 @@ function run_store_command(Application $application, ConsoleOutput $output, Mono
             if (0 === $exitCode || microtime(true) >= $deadline) {
                 return $exitCode;
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (microtime(true) >= $deadline) {
                 throw $e;
             }

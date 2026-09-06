@@ -5,5 +5,5 @@ One use case of Elevenlabs is to convert text to speech, which creates audio fil
 To run the examples, you can use additional tools like (mpg123)[https://www.mpg123.de/]:
 
 ```bash
-php elevenlabs/text-to-speech.php | mpg123 -
+php platform/elevenlabs/text-to-speech.php | mpg123 -
 ```

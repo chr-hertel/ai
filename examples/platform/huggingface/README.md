@@ -29,7 +29,7 @@ You can run an example by executing the following command:
 ./runner huggingface
 
 # Or run a specific example standalone, e.g., object detection:
-php huggingface/object-detection.php
+php platform/huggingface/object-detection.php
 ```
 
 ## Available Models
@@ -51,49 +51,49 @@ and filter by the desired task, or you can use the `huggingface/_model.php` scri
 List _all_ models:
 
 ```bash
-php huggingface/_model.php ai:huggingface:model-list
+php platform/huggingface/_model.php ai:huggingface:model-list
 ```
 (This is limited to 1000 results by default.)
 
 Limit models to a specific _task_, e.g., object-detection:
 
 ```bash
-php huggingface/_model.php ai:huggingface:model-list --task=object-detection
+php platform/huggingface/_model.php ai:huggingface:model-list --task=object-detection
 ```
 
 Limit models to a specific _provider_, e.g., "hf-inference":
 
 ```bash
 # Single provider:
-php huggingface/_model.php ai:huggingface:model-list --provider=hf-inference
+php platform/huggingface/_model.php ai:huggingface:model-list --provider=hf-inference
 
 # Multiple providers:
-php huggingface/_model.php ai:huggingface:model-list --provider=sambanova,novita
+php platform/huggingface/_model.php ai:huggingface:model-list --provider=sambanova,novita
 ```
 
 Search for models matching a specific term, e.g., "gpt":
 
 ```bash
-php huggingface/_model.php ai:huggingface:model-list --search=gpt
+php platform/huggingface/_model.php ai:huggingface:model-list --search=gpt
 ```
 
 Limit models to currently warm models:
 
 ```bash
-php huggingface/_model.php ai:huggingface:model-list --warm
+php platform/huggingface/_model.php ai:huggingface:model-list --warm
 ```
 
 You can combine task and provider filters, task and warm filters, but not provider and warm filters.
 
 ```bash
 # Combine provider and task:
-php huggingface/_model.php ai:huggingface:model-list --provider=hf-inference --task=object-detection
+php platform/huggingface/_model.php ai:huggingface:model-list --provider=hf-inference --task=object-detection
 
 # Combine task and warm:
-php huggingface/_model.php ai:huggingface:model-list --task=object-detection --warm
+php platform/huggingface/_model.php ai:huggingface:model-list --task=object-detection --warm
 
 # Search for warm gpt model for text-generation:
-php huggingface/_model.php ai:huggingface:model-list --warm --task=text-generation --search=gpt
+php platform/huggingface/_model.php ai:huggingface:model-list --warm --task=text-generation --search=gpt
 ```
 
 ### Model Information
@@ -101,7 +101,7 @@ php huggingface/_model.php ai:huggingface:model-list --warm --task=text-generati
 To get detailed information about a specific model, you can use the `huggingface/_model.php` script:
 
 ```bash
-php huggingface/_model.php ai:huggingface:model-info google/vit-base-patch16-224
+php platform/huggingface/_model.php ai:huggingface:model-info google/vit-base-patch16-224
 
 Hugging Face Model Information
 ==============================

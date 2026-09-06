@@ -9,9 +9,9 @@ Set `MINI_MAX_API_KEY` in `examples/.env.local` before running the examples.
 ## Chat
 
 ```bash
-php minimax/chat.php
-php minimax/chat-as-stream.php
-php minimax/chat-with-token-usage.php
+php platform/minimax/chat.php
+php platform/minimax/chat-as-stream.php
+php platform/minimax/chat-with-token-usage.php
 ```
 
 ## Text-to-speech
@@ -19,14 +19,14 @@ php minimax/chat-with-token-usage.php
 Audio is returned as binary; pipe it to a player like [mpg123](https://www.mpg123.de/):
 
 ```bash
-php minimax/text-to-speech.php | mpg123 -
-php minimax/text-to-speech-async.php | mpg123 -
+php platform/minimax/text-to-speech.php | mpg123 -
+php platform/minimax/text-to-speech-async.php | mpg123 -
 ```
 
 ## Image, music and video
 
 ```bash
-php minimax/text-to-image.php > minimax-image.jpg
-php minimax/music.php | mpg123 -
-php minimax/text-to-video.php
+php platform/minimax/text-to-image.php > minimax-image.jpg
+php platform/minimax/music.php | mpg123 -
+php platform/minimax/text-to-video.php
 ```

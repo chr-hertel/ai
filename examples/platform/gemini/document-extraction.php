@@ -34,7 +34,7 @@ $dispatcher = new EventDispatcher();
 $dispatcher->addSubscriber(new PlatformSubscriber());
 $platform = Factory::createPlatform(env('GEMINI_API_KEY'), http_client(), eventDispatcher: $dispatcher);
 
-$documentPath = dirname(__DIR__, 3).'/fixtures/symfony_site_document.pdf';
+$documentPath = dirname(__DIR__, 3).'/fixtures/symfony-site-document.pdf';
 $messages = new MessageBag(
     Message::forSystem(<<<'TEXT'
             You are a document extraction assistant. Extract the text content and metadata from the provided document.

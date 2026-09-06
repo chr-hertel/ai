@@ -190,7 +190,7 @@ function logger(): LoggerInterface
 function output_file(string $name): string
 {
     $script = (string) ($_SERVER['SCRIPT_FILENAME'] ?? ($_SERVER['argv'][0] ?? ''));
-    $directory = __DIR__.'/var/'.basename(\dirname(realpath($script) ?: $script));
+    $directory = __DIR__.'/var/'.basename(dirname(realpath($script) ?: $script));
 
     if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
         output()->writeln(sprintf('<error>Unable to create the output directory "%s".</error>', $directory));
@@ -437,7 +437,7 @@ function format_scalar(mixed $value): string
         null === $value => '<fg=gray>null</>',
         is_bool($value) => $value ? 'true' : 'false',
         $value instanceof UnitEnum => sprintf('%s::%s', (new ReflectionClass($value))->getShortName(), $value->name),
-        $value instanceof DateTimeInterface => $value->format(DATE_ATOM),
+        $value instanceof DateTimeInterface => $value->format(\DATE_ATOM),
         is_string($value) => $value,
         is_int($value) || is_float($value) => (string) $value,
         default => get_debug_type($value),

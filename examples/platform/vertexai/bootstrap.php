@@ -18,7 +18,16 @@ require_once dirname(__DIR__, 2).'/bootstrap.php';
 
 function adc_aware_http_client(): HttpClientInterface
 {
-    $credentials = ApplicationDefaultCredentials::getCredentials(['https://www.googleapis.com/auth/cloud-platform']);
+    try {
+        $credentials = ApplicationDefaultCredentials::getCredentials(['https://www.googleapis.com/auth/cloud-platform']);
+    } catch (DomainException) {
+        // Not a broken example: this machine simply has no Application Default Credentials.
+        skip(
+            'No Google Application Default Credentials found, which the VertexAI examples authenticate with.',
+            'See https://cloud.google.com/docs/authentication/external/set-up-adc to set them up.',
+        );
+    }
+
     $httpClient = HttpClient::create([
         'auth_bearer' => $credentials->fetchAuthToken()['access_token'] ?? null,
     ]);

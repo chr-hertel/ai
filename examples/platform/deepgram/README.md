@@ -6,13 +6,13 @@ To play back the audio produced by the TTS example, pipe the output into a playe
 [mpg123](https://www.mpg123.de/):
 
 ```bash
-php deepgram/text-to-speech.php | mpg123 -
+php platform/deepgram/text-to-speech.php | mpg123 -
 ```
 
 The STT example writes the transcribed text directly to stdout:
 
 ```bash
-php deepgram/speech-to-text.php
+php platform/deepgram/speech-to-text.php
 ```
 
 Set `DEEPGRAM_API_KEY` in `.env.local` before running the examples.
