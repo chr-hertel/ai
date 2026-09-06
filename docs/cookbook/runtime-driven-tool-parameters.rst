@@ -230,8 +230,8 @@ it an iterable of providers indexed by the identifier referenced from ``#[Schema
 (FQCN by default). The :class:`Symfony\\AI\\Platform\\Contract\\JsonSchema\\Factory` is then handed
 to :class:`Symfony\\AI\\Agent\\Toolbox\\ToolFactory\\ReflectionToolFactory` for tool parameters or
 to :class:`Symfony\\AI\\Platform\\StructuredOutput\\ResponseFormatFactory` for structured output.
-See ``examples/toolbox/schema-provider.php`` and
-``examples/openai/structured-output-schema-provider.php`` in the repository for complete runnable
+See ``examples/component/toolbox/schema-provider.php`` and
+``examples/platform/openai/structured-output-schema-provider.php`` in the repository for complete runnable
 setups.
 
 Caveats

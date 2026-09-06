@@ -150,7 +150,7 @@ Supported Models & Platforms
   * `Mistral OCR`_ with `Mistral`_ as Platform
   * `LM Studio Catalog`_ and `HuggingFace`_ Models  with `LM Studio`_ as Platform.
   * All models provided by `HuggingFace`_ can be listed with a command in the examples folder,
-    and also filtered, e.g. ``php examples/huggingface/_model.php --provider=hf-inference --task=object-detection``
+    and also filtered, e.g. ``php examples/platform/huggingface/_model.php --provider=hf-inference --task=object-detection``
 * **Voice Models**
   * `ElevenLabs TTS`_ with `ElevenLabs`_ as Platform
   * `ElevenLabs STT`_ with `ElevenLabs`_ as Platform
@@ -2003,7 +2003,7 @@ Code Examples
 .. _`ElevenLabs`: https://elevenlabs.io/
 .. _`ElevenLabs STT`: https://elevenlabs.io/speech-to-text
 .. _`ElevenLabs TTS`: https://elevenlabs.io/text-to-speech
-.. _`LiteLLM example`: https://github.com/symfony/ai/blob/main/examples/litellm/chat.php
+.. _`LiteLLM example`: https://github.com/symfony/ai/blob/main/examples/platform/litellm/chat.php
 .. _`Meta's Llama`: https://www.llama.com/
 .. _`Ollama`: https://ollama.com/
 .. _`Replicate`: https://replicate.com/
@@ -2030,30 +2030,30 @@ Code Examples
 .. _`Mistral OCR`: https://docs.mistral.ai/api/endpoint/ocr
 .. _`HuggingFace`: https://huggingface.co/
 .. _`Mercure`: https://mercure.rocks/
-.. _`Streaming Claude`: https://github.com/symfony/ai/blob/main/examples/anthropic/stream.php
-.. _`Streaming GPT`: https://github.com/symfony/ai/blob/main/examples/openai/stream.php
-.. _`Streaming Mistral`: https://github.com/symfony/ai/blob/main/examples/mistral/stream.php
-.. _`Binary Image Input with GPT`: https://github.com/symfony/ai/blob/main/examples/openai/image-input-binary.php
-.. _`Image URL Input with GPT`: https://github.com/symfony/ai/blob/main/examples/openai/image-input-url.php
-.. _`Audio Input with GPT`: https://github.com/symfony/ai/blob/main/examples/openai/audio-input.php
-.. _`Audio Output with GPT`: https://github.com/symfony/ai/blob/main/examples/openai/audio-output.php
-.. _`ElevenLabs Speech-to-Text with SRT`: https://github.com/symfony/ai/blob/main/examples/elevenlabs/speech-to-text-srt.php
-.. _`PDF Input with GPT`: https://github.com/symfony/ai/blob/main/examples/openai/pdf-input-binary.php
-.. _`PDF Input with Claude`: https://github.com/symfony/ai/blob/main/examples/anthropic/pdf-input-binary.php
-.. _`OCR with Mistral (URL)`: https://github.com/symfony/ai/blob/main/examples/mistral/ocr-url.php
-.. _`OCR with Mistral (binary)`: https://github.com/symfony/ai/blob/main/examples/mistral/ocr-binary.php
-.. _`Embeddings with OpenAI`: https://github.com/symfony/ai/blob/main/examples/openai/embeddings.php
-.. _`Embeddings with Voyage`: https://github.com/symfony/ai/blob/main/examples/voyage/text-embeddings.php
-.. _`Multimodal embeddings with Voyage`: https://github.com/symfony/ai/blob/main/examples/voyage/multimodal-embeddings.php
-.. _`Embeddings with Mistral`: https://github.com/symfony/ai/blob/main/examples/mistral/embeddings.php
-.. _`Structured Output with PHP class`: https://github.com/symfony/ai/blob/main/examples/openai/structured-output-math.php
-.. _`Structured Output with array`: https://github.com/symfony/ai/blob/main/examples/openai/structured-output-clock.php
-.. _`Populating existing objects`: https://github.com/symfony/ai/blob/main/examples/platform/structured-output-populate-object.php
-.. _`Partial JSON streaming via DeferredResult`: https://github.com/symfony/ai/blob/main/examples/platform/partial-json-stream.php
-.. _`Streaming Structured Output`: https://github.com/symfony/ai/blob/main/examples/platform/streaming-structured-output.php
-.. _`Parallel GPT Calls`: https://github.com/symfony/ai/blob/main/examples/misc/parallel-chat-gpt.php
-.. _`Parallel Embeddings Calls`: https://github.com/symfony/ai/blob/main/examples/misc/parallel-embeddings.php
+.. _`Streaming Claude`: https://github.com/symfony/ai/blob/main/examples/platform/anthropic/stream.php
+.. _`Streaming GPT`: https://github.com/symfony/ai/blob/main/examples/platform/openai/stream.php
+.. _`Streaming Mistral`: https://github.com/symfony/ai/blob/main/examples/platform/mistral/stream.php
+.. _`Binary Image Input with GPT`: https://github.com/symfony/ai/blob/main/examples/platform/openai/image-input-binary.php
+.. _`Image URL Input with GPT`: https://github.com/symfony/ai/blob/main/examples/platform/openai/image-input-url.php
+.. _`Audio Input with GPT`: https://github.com/symfony/ai/blob/main/examples/platform/openai/audio-input.php
+.. _`Audio Output with GPT`: https://github.com/symfony/ai/blob/main/examples/platform/openai/text-to-speech.php
+.. _`ElevenLabs Speech-to-Text with SRT`: https://github.com/symfony/ai/blob/main/examples/platform/elevenlabs/speech-to-text-srt.php
+.. _`PDF Input with GPT`: https://github.com/symfony/ai/blob/main/examples/platform/openai/pdf-input-binary.php
+.. _`PDF Input with Claude`: https://github.com/symfony/ai/blob/main/examples/platform/anthropic/pdf-input-binary.php
+.. _`OCR with Mistral (URL)`: https://github.com/symfony/ai/blob/main/examples/platform/mistral/ocr-url.php
+.. _`OCR with Mistral (binary)`: https://github.com/symfony/ai/blob/main/examples/platform/mistral/ocr-binary.php
+.. _`Embeddings with OpenAI`: https://github.com/symfony/ai/blob/main/examples/platform/openai/embeddings.php
+.. _`Embeddings with Voyage`: https://github.com/symfony/ai/blob/main/examples/platform/voyage/embeddings.php
+.. _`Multimodal embeddings with Voyage`: https://github.com/symfony/ai/blob/main/examples/platform/voyage/embeddings-multimodal.php
+.. _`Embeddings with Mistral`: https://github.com/symfony/ai/blob/main/examples/platform/mistral/embeddings.php
+.. _`Structured Output with PHP class`: https://github.com/symfony/ai/blob/main/examples/platform/openai/structured-output-math.php
+.. _`Structured Output with array`: https://github.com/symfony/ai/blob/main/examples/platform/openai/structured-output-clock.php
+.. _`Populating existing objects`: https://github.com/symfony/ai/blob/main/examples/component/platform/structured-output-populate-object.php
+.. _`Partial JSON streaming via DeferredResult`: https://github.com/symfony/ai/blob/main/examples/component/platform/partial-json-stream.php
+.. _`Streaming Structured Output`: https://github.com/symfony/ai/blob/main/examples/component/platform/streaming-structured-output.php
+.. _`Parallel GPT Calls`: https://github.com/symfony/ai/blob/main/examples/component/platform/parallel-chat.php
+.. _`Parallel Embeddings Calls`: https://github.com/symfony/ai/blob/main/examples/component/platform/parallel-embeddings.php
 .. _`LM Studio`: https://lmstudio.ai/
 .. _`LM Studio Catalog`: https://lmstudio.ai/models
-.. _`Cerebras Chat`: https://github.com/symfony/ai/blob/main/examples/cerebras/chat.php
-.. _`Cerebras Streaming`: https://github.com/symfony/ai/blob/main/examples/cerebras/stream.php
+.. _`Cerebras Chat`: https://github.com/symfony/ai/blob/main/examples/platform/cerebras/chat.php
+.. _`Cerebras Streaming`: https://github.com/symfony/ai/blob/main/examples/platform/cerebras/stream.php

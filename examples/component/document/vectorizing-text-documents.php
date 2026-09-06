@@ -1,0 +1,31 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Symfony\AI\Platform\Bridge\OpenAi\Factory;
+use Symfony\AI\Store\Document\TextDocument;
+use Symfony\AI\Store\Document\VectorDocumentInterface;
+use Symfony\AI\Store\Document\Vectorizer;
+use Symfony\Component\Uid\Uuid;
+
+require_once dirname(__DIR__, 2).'/bootstrap.php';
+
+$platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
+
+$textDocuments = [
+    new TextDocument(Uuid::v4(), 'Hello World'),
+    new TextDocument(Uuid::v4(), 'Lorem ipsum dolor sit amet'),
+    new TextDocument(Uuid::v4(), 'PHP Hypertext Preprocessor'),
+];
+
+$vectorizer = new Vectorizer($platform, 'text-embedding-3-large');
+$vectorDocuments = $vectorizer->vectorize($textDocuments);
+
+print_structure(array_map(static fn (VectorDocumentInterface $document) => $document->getVector()->getDimensions(), $vectorDocuments));

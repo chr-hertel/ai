@@ -1,0 +1,48 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Symfony\AI\Agent\Agent;
+use Symfony\AI\Platform\Bridge\Cache\CachePlatform;
+use Symfony\AI\Platform\Bridge\OpenAi\Factory;
+use Symfony\AI\Platform\Message\Message;
+use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\Component\Cache\Adapter\RedisTagAwareAdapter;
+
+require_once dirname(__DIR__, 2).'/bootstrap.php';
+
+$platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
+$cachedPlatform = new CachePlatform($platform, cache: new RedisTagAwareAdapter(new Redis([
+    'host' => 'localhost',
+    'port' => 6379,
+])));
+
+$agent = new Agent($cachedPlatform, 'gpt-5-mini');
+$messages = new MessageBag(
+    Message::forSystem('You are a helpful assistant.'),
+    Message::ofUser('Tina has one brother and one sister. How many sisters do Tina\'s siblings have?'),
+);
+$result = $agent->call($messages, [
+    'prompt_cache_key' => 'chat',
+]);
+
+verify($result->getMetadata()->has('cached'), 'the first call to be marked as cacheable');
+
+echo $result->asText().\PHP_EOL;
+
+// Thanks to the cache adapter and the "prompt_cache_key" key, this call will not trigger any network call
+
+$secondResult = $agent->call($messages, [
+    'prompt_cache_key' => 'chat',
+]);
+
+verify($secondResult->getMetadata()->has('cached'), 'the second call to be served from the cache');
+
+echo $secondResult->asText().\PHP_EOL;

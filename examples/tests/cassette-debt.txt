@@ -1,0 +1,39 @@
+# Platform bridges that have no recorded example yet, so nothing replays them offline.
+#
+# ConventionsTest::testEveryPlatformBridgeIsReplayed treats this file as a shrinking baseline: a
+# bridge that is not listed here must ship with a cassette, and a bridge that gains one has to be
+# removed from the list. Record with "./runner --record <directory>" and commit the cassette and
+# its golden together.
+AiMlApi
+Albert
+AmazeeAi
+Azure
+Bedrock
+Cache
+Cartesia
+Cerebras
+ClaudeCode
+Codex
+Cohere
+Decart
+DeepSeek
+Deepgram
+DockerModelRunner
+ElevenLabs
+Failover
+Gemini
+Generic
+HuggingFace
+LmStudio
+MiniMax
+ModelsDev
+Ollama
+OpenResponses
+OpenRouter
+Ovh
+Perplexity
+Replicate
+Scaleway
+TransformersPhp
+VertexAi
+Voyage

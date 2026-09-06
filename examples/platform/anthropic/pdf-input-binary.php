@@ -1,0 +1,29 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Symfony\AI\Platform\Bridge\Anthropic\Factory;
+use Symfony\AI\Platform\Message\Content\Document;
+use Symfony\AI\Platform\Message\Message;
+use Symfony\AI\Platform\Message\MessageBag;
+
+require_once dirname(__DIR__, 2).'/bootstrap.php';
+
+$platform = Factory::createPlatform(env('ANTHROPIC_API_KEY'), httpClient: http_client());
+
+$messages = new MessageBag(
+    Message::ofUser(
+        Document::fromFile(dirname(__DIR__, 3).'/fixtures/document.pdf'),
+        'What is this document about?',
+    ),
+);
+$result = $platform->invoke('claude-sonnet-4-5-20250929', $messages);
+
+echo $result->asText().\PHP_EOL;

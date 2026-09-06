@@ -40,6 +40,35 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 require_once __DIR__.'/vendor/autoload.php';
 (new Dotenv())->loadEnv(__DIR__.'/.env');
 
+/**
+ * Exit code signalling "this example could not run here", as opposed to "this example is broken".
+ *
+ * A missing credential, extension or local service is a skip, not a failure - the example runner
+ * classifies this code as such and keeps it out of the failure report. Every other non-zero exit
+ * code, PHP's fatal 255 included, counts as a failure.
+ */
+const SKIP_EXIT_CODE = 97;
+
+/**
+ * Aborts the example as skipped, see SKIP_EXIT_CODE.
+ */
+function skip(string $message, string ...$hints): never
+{
+    output()->writeln(sprintf('<comment>%s</comment>', $message));
+
+    foreach ($hints as $hint) {
+        output()->writeln($hint);
+    }
+
+    exit(SKIP_EXIT_CODE);
+}
+
+/**
+ * Reads a secret - an API key, or an endpoint or identifier that is bound to a personal account.
+ *
+ * Values that are not secrets do not belong here: anything the local Docker setup pins, a local
+ * daemon's default host or the example's own parameters are inlined in the example itself.
+ */
 function env(string $var): string
 {
     if (isset($_SERVER[$var]) && '' !== $_SERVER[$var]) {
@@ -50,8 +79,17 @@ function env(string $var): string
         return 'sk-replay-'.strtolower($var);
     }
 
-    output()->writeln(sprintf('<error>Please set the "%s" environment variable to run this example.</error>', $var));
-    exit(1);
+    skip(sprintf('Set the "%s" environment variable in .env.local to run this example.', $var));
+}
+
+/**
+ * Skips the example unless every given secret is available.
+ */
+function require_env(string ...$vars): void
+{
+    foreach ($vars as $var) {
+        env($var);
+    }
 }
 
 function is_replay(): bool
@@ -140,6 +178,42 @@ function logger(): LoggerInterface
             }
         }
     };
+}
+
+/**
+ * Returns a writable path under examples/var/ for an artifact the example generates.
+ *
+ * Generated images, audio and video are build output, not source: keeping them in var/ - which is
+ * git-ignored - stops a full runner pass from scattering untracked binaries across the example
+ * directories, and namespacing by example keeps two examples from overwriting each other.
+ */
+function output_file(string $name): string
+{
+    $script = (string) ($_SERVER['SCRIPT_FILENAME'] ?? ($_SERVER['argv'][0] ?? ''));
+    $directory = __DIR__.'/var/'.basename(dirname(realpath($script) ?: $script));
+
+    if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
+        output()->writeln(sprintf('<error>Unable to create the output directory "%s".</error>', $directory));
+        exit(1);
+    }
+
+    return $directory.'/'.$name;
+}
+
+/**
+ * Verifies something the example exists to demonstrate.
+ *
+ * Not assert(): that is compiled out under zend.assertions=-1, so an example whose whole point is
+ * "this result really did come from the cache" would silently stop proving it.
+ */
+function verify(bool $condition, string $expectation): void
+{
+    if ($condition) {
+        return;
+    }
+
+    output()->writeln(sprintf('<error>Expected %s.</error>', $expectation));
+    exit(1);
 }
 
 /**
@@ -264,6 +338,110 @@ function describe_message_parts(MessageInterface $message): array
     }
 
     return [] === $parts ? ['<error>empty</error>'] : $parts;
+}
+
+/**
+ * Renders a structured result - the object or array a model was asked to produce - as a stable tree.
+ *
+ * Examples use this rather than dump(): VarDumper renders for interactive debugging, carries type
+ * and size annotations and changes between versions, which makes it a poor source for output that
+ * gets frozen into a replay golden.
+ */
+function print_structure(mixed $value, ?string $label = null): void
+{
+    $output = output();
+
+    if (null !== $label) {
+        $output->writeln(sprintf('<comment>%s</comment>', $label));
+    }
+
+    foreach (describe_structure($value) as $line) {
+        $output->writeln($line);
+    }
+}
+
+/**
+ * @return list<string>
+ */
+function describe_structure(mixed $value, int $depth = 0): array
+{
+    $indent = str_repeat('  ', $depth);
+
+    if (is_structure($value)) {
+        $lines = [];
+
+        if (is_object($value)) {
+            $lines[] = $indent.describe_class($value);
+            ++$depth;
+        }
+
+        return array_merge($lines, describe_children($value, $depth));
+    }
+
+    return [$indent.format_scalar($value)];
+}
+
+/**
+ * @param object|array<array-key, mixed> $value
+ *
+ * @return list<string>
+ */
+function describe_children(object|array $value, int $depth): array
+{
+    $indent = str_repeat('  ', $depth);
+    $children = is_object($value) ? get_object_vars($value) : $value;
+
+    if ([] === $children) {
+        return [$indent.'<fg=gray>(empty)</>'];
+    }
+
+    $isList = is_array($value) && array_is_list($value);
+    $lines = [];
+
+    foreach ($children as $key => $child) {
+        $prefix = $isList ? '-' : $key.':';
+
+        if (!is_structure($child)) {
+            $lines[] = $indent.$prefix.' '.format_scalar($child);
+
+            continue;
+        }
+
+        $lines[] = is_object($child) ? $indent.$prefix.' '.describe_class($child) : $indent.$prefix;
+        $lines = array_merge($lines, describe_children($child, $depth + 1));
+    }
+
+    return $lines;
+}
+
+/**
+ * Whether the value is worth descending into, as opposed to being printed on one line.
+ */
+function is_structure(mixed $value): bool
+{
+    if (is_array($value)) {
+        return true;
+    }
+
+    return is_object($value) && !$value instanceof UnitEnum && !$value instanceof DateTimeInterface;
+}
+
+function describe_class(object $value): string
+{
+    return sprintf('<info>%s</info>', (new ReflectionClass($value))->getShortName());
+}
+
+function format_scalar(mixed $value): string
+{
+    return match (true) {
+        null === $value => '<fg=gray>null</>',
+        is_bool($value) => $value ? 'true' : 'false',
+        $value instanceof UnitEnum => sprintf('%s::%s', (new ReflectionClass($value))->getShortName(), $value->name),
+        $value instanceof DateTimeInterface => $value->format(\DATE_ATOM),
+        is_string($value) => $value,
+        is_int($value) || is_float($value) => (string) $value,
+        default => get_debug_type($value),
+    };
 }
 
 function print_finish_reason(?FinishReason $finishReason): void

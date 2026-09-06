@@ -337,25 +337,25 @@ Its index is the storage directory itself, which is simply recreated.
     store/bridges
 
 .. _`Retrieval Augmented Generation`: https://en.wikipedia.org/wiki/Retrieval-augmented_generation
-.. _`Basic Retriever Example`: https://github.com/symfony/ai/blob/main/examples/retriever/basic.php
-.. _`Similarity Search with Cloudflare (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/cloudflare.php
-.. _`Similarity Search with Manticore Search (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/manticore.php
-.. _`Similarity Search with MariaDB (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/mariadb-gemini.php
-.. _`Similarity Search with Meilisearch (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/meilisearch.php
-.. _`Similarity Search with memory storage (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/in-memory.php
-.. _`Similarity Search with Milvus (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/milvus.php
-.. _`Similarity Search with MongoDB (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/mongodb.php
-.. _`Similarity Search with Neo4j (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/neo4j.php
-.. _`Similarity Search with OpenSearch (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/opensearch.php
-.. _`Similarity Search with Pinecone (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/pinecone.php
-.. _`Similarity Search with SQLite (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/sqlite.php
-.. _`Similarity Search with Symfony Cache (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/cache.php
-.. _`Similarity Search with Qdrant (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/qdrant.php
-.. _`Similarity Search with SurrealDB (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/surrealdb.php
-.. _`Similarity Search with Typesense (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/typesense.php
-.. _`Similarity Search with Supabase (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/supabase.php
-.. _`Similarity Search with Vektor (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/vektor.php
-.. _`Similarity Search with Weaviate (RAG)`: https://github.com/symfony/ai/blob/main/examples/rag/weaviate.php
+.. _`Basic Retriever Example`: https://github.com/symfony/ai/blob/main/examples/component/retriever/basic.php
+.. _`Similarity Search with Cloudflare (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/cloudflare.php
+.. _`Similarity Search with Manticore Search (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/manticore.php
+.. _`Similarity Search with MariaDB (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/mariadb-gemini.php
+.. _`Similarity Search with Meilisearch (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/meilisearch.php
+.. _`Similarity Search with memory storage (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/in-memory.php
+.. _`Similarity Search with Milvus (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/milvus.php
+.. _`Similarity Search with MongoDB (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/mongodb.php
+.. _`Similarity Search with Neo4j (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/neo4j.php
+.. _`Similarity Search with OpenSearch (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/opensearch.php
+.. _`Similarity Search with Pinecone (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/pinecone.php
+.. _`Similarity Search with SQLite (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/sqlite.php
+.. _`Similarity Search with Symfony Cache (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/cache.php
+.. _`Similarity Search with Qdrant (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/qdrant.php
+.. _`Similarity Search with SurrealDB (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/surrealdb.php
+.. _`Similarity Search with Typesense (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/typesense.php
+.. _`Similarity Search with Supabase (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/supabase.php
+.. _`Similarity Search with Vektor (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/vektor.php
+.. _`Similarity Search with Weaviate (RAG)`: https://github.com/symfony/ai/blob/main/examples/component/store/weaviate.php
 .. _`Azure AI Search`: https://azure.microsoft.com/products/ai-services/ai-search
 .. _`ChromaDB`: https://www.trychroma.com/
 .. _`ClickHouse`: https://clickhouse.com/

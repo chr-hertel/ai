@@ -1,0 +1,41 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use Codewithkyrian\Transformers\Pipelines\Task;
+use Symfony\AI\Platform\Bridge\TransformersPhp\Factory;
+
+require_once dirname(__DIR__, 2).'/bootstrap.php';
+
+if (!extension_loaded('ffi') || '1' !== ini_get('ffi.enable')) {
+    skip(
+        'The FFI extension is not loaded or not enabled - enable it in your php.ini to run this example.',
+        'See https://github.com/CodeWithKyrian/transformers-php for setup instructions.',
+    );
+}
+
+if (!is_dir(dirname(__DIR__).'/.transformers-cache/Xenova/all-MiniLM-L6-v2')) {
+    echo 'Model "Xenova/all-MiniLM-L6-v2" not found. Downloading it will be part of the first run. This may take a while...'.\PHP_EOL;
+}
+
+$platform = Factory::createPlatform();
+
+$text = <<<TEXT
+    Once upon a time, there was a country called Japan. It was a beautiful country with a lot of mountains and rivers.
+    The people of Japan were very kind and hardworking. They loved their country very much and took care of it. The
+    country was very peaceful and prosperous. The people lived happily ever after.
+    TEXT;
+
+$result = $platform->invoke('Xenova/all-MiniLM-L6-v2', $text, [
+    'task' => Task::Embeddings,
+    'input_options' => ['pooling' => 'mean', 'normalize' => true],
+]);
+
+print_vectors($result);

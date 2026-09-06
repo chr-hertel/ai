@@ -378,7 +378,7 @@ jobs:
 
             - name: Run command example
               working-directory: examples
-              run: php commands/message-stores.php
+              run: php component/commands/message-stores.php
 
     examples-replay:
         name: Integration / Examples (replay)
