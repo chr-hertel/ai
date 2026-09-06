@@ -25,4 +25,4 @@ $result = $platform->invoke('deepset/roberta-base-squad2', $input, [
     'task' => Task::QUESTION_ANSWERING,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

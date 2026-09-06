@@ -28,4 +28,4 @@ $messages = new MessageBag(
 );
 $result = $platform->invoke('llama3.2', $messages, ['response_format' => MathReasoning::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

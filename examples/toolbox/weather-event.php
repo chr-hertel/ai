@@ -40,4 +40,4 @@ $eventDispatcher->addListener(ToolCallsExecuted::class, static function (ToolCal
 $messages = new MessageBag(Message::ofUser('How is the weather currently in Berlin?'));
 $result = $agent->call($messages);
 
-dump($result->asObject());
+print_structure($result->asObject());

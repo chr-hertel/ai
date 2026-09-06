@@ -52,4 +52,4 @@ $result = $agent->call($messages, ['response_format' => [
     ],
 ]]);
 
-dump($result->asObject());
+print_structure($result->asObject());

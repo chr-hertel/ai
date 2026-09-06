@@ -28,4 +28,4 @@ $messages = new MessageBag(
 );
 $result = $platform->invoke('gpt-5-mini', $messages, ['response_format' => ListOfPolymorphicTypesDto::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

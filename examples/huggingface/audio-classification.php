@@ -22,4 +22,4 @@ $result = $platform->invoke('MIT/ast-finetuned-audioset-10-10-0.4593', $audio, [
     'task' => Task::AUDIO_CLASSIFICATION,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

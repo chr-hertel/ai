@@ -29,4 +29,4 @@ $messages = new MessageBag(
 
 $result = $platform->invoke('gpt-oss-120b', $messages, ['response_format' => MathReasoning::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

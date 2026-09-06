@@ -28,4 +28,4 @@ $result = $platform->invoke('google/tapas-base-finetuned-wtq', $input, [
     'task' => Task::TABLE_QUESTION_ANSWERING,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

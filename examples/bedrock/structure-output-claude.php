@@ -30,4 +30,4 @@ $messages = new MessageBag(
 );
 $result = $platform->invoke('claude-haiku-4-5-20251001', $messages, ['response_format' => MathReasoning::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

@@ -45,4 +45,4 @@ foreach ($converted as $part) {
 }
 output()->writeln('<info></reasoning></info>');
 
-dump($result->asObject());
+print_structure($result->asObject());

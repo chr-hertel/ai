@@ -22,4 +22,4 @@ $result = $platform->invoke('google/vit-base-patch16-224', $image, [
     'task' => Task::IMAGE_CLASSIFICATION,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

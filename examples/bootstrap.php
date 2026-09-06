@@ -324,6 +324,108 @@ function describe_message_parts(MessageInterface $message): array
     return [] === $parts ? ['<error>empty</error>'] : $parts;
 }
 
+/**
+ * Renders a structured result - the object or array a model was asked to produce - as a stable tree.
+ *
+ * Examples use this rather than dump(): VarDumper renders for interactive debugging, carries type
+ * and size annotations and changes between versions, which makes it a poor source for output that
+ * gets frozen into a replay golden.
+ */
+function print_structure(mixed $value, ?string $label = null): void
+{
+    $output = output();
+
+    if (null !== $label) {
+        $output->writeln(sprintf('<comment>%s</comment>', $label));
+    }
+
+    foreach (describe_structure($value) as $line) {
+        $output->writeln($line);
+    }
+}
+
+/**
+ * @return list<string>
+ */
+function describe_structure(mixed $value, int $depth = 0): array
+{
+    $indent = str_repeat('  ', $depth);
+
+    if (is_structure($value)) {
+        $lines = [];
+
+        if (is_object($value)) {
+            $lines[] = $indent.describe_class($value);
+            ++$depth;
+        }
+
+        return array_merge($lines, describe_children($value, $depth));
+    }
+
+    return [$indent.format_scalar($value)];
+}
+
+/**
+ * @return list<string>
+ */
+function describe_children(object|array $value, int $depth): array
+{
+    $indent = str_repeat('  ', $depth);
+    $children = is_object($value) ? get_object_vars($value) : $value;
+
+    if ([] === $children) {
+        return [$indent.'<fg=gray>(empty)</>'];
+    }
+
+    $isList = is_array($value) && array_is_list($value);
+    $lines = [];
+
+    foreach ($children as $key => $child) {
+        $prefix = $isList ? '-' : $key.':';
+
+        if (!is_structure($child)) {
+            $lines[] = $indent.$prefix.' '.format_scalar($child);
+
+            continue;
+        }
+
+        $lines[] = is_object($child) ? $indent.$prefix.' '.describe_class($child) : $indent.$prefix;
+        $lines = array_merge($lines, describe_children($child, $depth + 1));
+    }
+
+    return $lines;
+}
+
+/**
+ * Whether the value is worth descending into, as opposed to being printed on one line.
+ */
+function is_structure(mixed $value): bool
+{
+    if (is_array($value)) {
+        return true;
+    }
+
+    return is_object($value) && !$value instanceof UnitEnum && !$value instanceof DateTimeInterface;
+}
+
+function describe_class(object $value): string
+{
+    return sprintf('<info>%s</info>', (new ReflectionClass($value))->getShortName());
+}
+
+function format_scalar(mixed $value): string
+{
+    return match (true) {
+        null === $value => '<fg=gray>null</>',
+        is_bool($value) => $value ? 'true' : 'false',
+        $value instanceof UnitEnum => sprintf('%s::%s', (new ReflectionClass($value))->getShortName(), $value->name),
+        $value instanceof DateTimeInterface => $value->format(DATE_ATOM),
+        is_string($value) => $value,
+        is_int($value) || is_float($value) => (string) $value,
+        default => get_debug_type($value),
+    };
+}
+
 function print_finish_reason(?FinishReason $finishReason): void
 {
     if (null === $finishReason) {

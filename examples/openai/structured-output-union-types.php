@@ -31,4 +31,4 @@ $messages = new MessageBag(
 );
 $result = $platform->invoke('gpt-4o-mini', $messages, ['response_format' => UnionTypeDto::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

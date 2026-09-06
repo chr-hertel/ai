@@ -22,4 +22,4 @@ $result = $platform->invoke('nvidia/segformer-b0-finetuned-ade-512-512', $image,
     'task' => Task::IMAGE_SEGMENTATION,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

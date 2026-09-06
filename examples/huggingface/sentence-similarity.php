@@ -29,4 +29,4 @@ $result = $platform->invoke('sentence-transformers/all-MiniLM-L6-v2', $input, [
     'task' => Task::SENTENCE_SIMILARITY,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

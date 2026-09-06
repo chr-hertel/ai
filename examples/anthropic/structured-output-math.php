@@ -29,4 +29,4 @@ $messages = new MessageBag(
 
 $result = $platform->invoke('claude-sonnet-4-5-20250929', $messages, ['response_format' => MathReasoning::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

@@ -46,5 +46,5 @@ foreach ($platforms as $model => $platform) {
 
     $order = $result->asObject();
     assert($order instanceof ShippingOrder);
-    dump($order);
+    print_structure($order);
 }

@@ -35,7 +35,7 @@ final class ShippingTool
      */
     public function create(ShippingOrder $order): string
     {
-        dump($order);
+        print_structure($order);
 
         return 'Shipping order created.';
     }

@@ -72,4 +72,4 @@ $result = $platform->invoke('claude-sonnet-4-5-20250929', $messages, ['response_
     ],
 ]]);
 
-dump($result->getResult()->getContent());
+print_structure($result->getResult()->getContent());

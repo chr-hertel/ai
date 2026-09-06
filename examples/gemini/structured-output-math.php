@@ -29,4 +29,4 @@ $messages = new MessageBag(
 
 $result = $platform->invoke('gemini-2.5-flash', $messages, ['response_format' => MathReasoning::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

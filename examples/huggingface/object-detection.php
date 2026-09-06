@@ -22,4 +22,4 @@ $result = $platform->invoke('facebook/detr-resnet-50', $image, [
     'task' => Task::OBJECT_DETECTION,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

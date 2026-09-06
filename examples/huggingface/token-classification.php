@@ -20,4 +20,4 @@ $result = $platform->invoke('dbmdz/bert-large-cased-finetuned-conll03-english', 
     'task' => Task::TOKEN_CLASSIFICATION,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

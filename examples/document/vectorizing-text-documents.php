@@ -28,4 +28,4 @@ $textDocuments = [
 $vectorizer = new Vectorizer($platform, 'text-embedding-3-large');
 $vectorDocuments = $vectorizer->vectorize($textDocuments);
 
-dump(array_map(static fn (VectorDocumentInterface $document) => $document->getVector()->getDimensions(), $vectorDocuments));
+print_structure(array_map(static fn (VectorDocumentInterface $document) => $document->getVector()->getDimensions(), $vectorDocuments));

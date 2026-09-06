@@ -28,4 +28,4 @@ $messages = new MessageBag(
 );
 $result = $platform->invoke('mistral-small-latest', $messages, ['response_format' => MathReasoning::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

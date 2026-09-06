@@ -22,4 +22,4 @@ $result = $platform->invoke('facebook/bart-large-mnli', $text, [
     'candidate_labels' => ['refund', 'legal', 'faq'],
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

@@ -20,4 +20,4 @@ $result = $platform->invoke('ProsusAI/finbert', 'I like you. I love you.', [
     'task' => Task::TEXT_CLASSIFICATION,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());

@@ -52,7 +52,7 @@ logger()->info('Received response from Gemini model.', ['result' => $result->asO
 
 $frameworkDetails = $result->asObject();
 assert($frameworkDetails instanceof FrameworkDetails);
-dump($frameworkDetails);
+print_structure($frameworkDetails);
 
 $fieldsToPlot = [
     'latestVersion' => $frameworkDetails->latestVersion,

@@ -75,4 +75,4 @@ $messages = new MessageBag(
 
 $result = $platform->invoke('gpt-5-mini', $messages, ['response_format' => IssueQuery::class]);
 
-dump($result->asObject());
+print_structure($result->asObject());

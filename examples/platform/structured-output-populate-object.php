@@ -35,7 +35,7 @@ $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client(), eventD
 $city = new City(name: 'Berlin');
 
 echo "Initial object state:\n";
-dump($city);
+print_structure($city);
 
 $messages = new MessageBag(
     Message::forSystem('You are a helpful assistant that provides information about cities.'),
@@ -48,7 +48,7 @@ $result = $platform->invoke('gpt-4o-mini', $messages, [
 ]);
 
 echo "\nPopulated object state:\n";
-dump($result->asObject());
+print_structure($result->asObject());
 
 echo "\nObject identity preserved: ";
-dump($city === $result->asObject());
+print_structure($city === $result->asObject());

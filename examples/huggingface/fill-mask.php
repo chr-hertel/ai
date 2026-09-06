@@ -20,4 +20,4 @@ $result = $platform->invoke('FacebookAI/xlm-roberta-base', 'Hello I\'m a <mask> 
     'task' => Task::FILL_MASK,
 ]);
 
-dump($result->asObject());
+print_structure($result->asObject());
