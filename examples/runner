@@ -80,7 +80,7 @@ $app = (new SingleCommandApplication('Symfony AI Example Runner'))
         $examples = (new Finder())
             ->in($findIn)
             ->name($filter)
-            ->exclude('vendor')
+            ->exclude(['vendor', 'tests', 'var'])
             ->sortByName()
             ->notName(['bootstrap.php', '_[a-z\-]*.php'])
             ->files();
