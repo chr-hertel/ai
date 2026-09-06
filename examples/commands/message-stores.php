@@ -9,8 +9,6 @@
  * file that was distributed with this source code.
  */
 
-require_once dirname(__DIR__).'/bootstrap.php';
-
 use Doctrine\DBAL\DriverManager;
 use MongoDB\Client as MongoDbClient;
 use Symfony\AI\Chat\Bridge\Cache\MessageStore as CacheStore;
@@ -38,6 +36,8 @@ use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Serializer;
+
+require_once dirname(__DIR__).'/bootstrap.php';
 
 $factories = [
     'cache' => static fn (): CacheStore => new CacheStore(new ArrayAdapter(), cacheKey: 'symfony'),
@@ -104,17 +104,54 @@ $application->addCommands([
 ]);
 
 $clock = new MonotonicClock();
-$clock->sleep(10);
+$consoleOutput = new ConsoleOutput();
+
+/**
+ * Runs a store command, retrying while the backing service is still coming up.
+ *
+ * The services are started by "docker compose up -d" right before this runs, so the first setup
+ * of a store regularly races its container. Polling until it answers replaces a blind sleep: it
+ * costs nothing when the services are already up, and it still waits when they are slow.
+ *
+ * @param array<string, bool|string> $input
+ */
+function run_store_command(Application $application, ConsoleOutput $output, MonotonicClock $clock, array $input): int
+{
+    $deadline = microtime(true) + 30.0;
+
+    while (true) {
+        try {
+            $exitCode = $application->run(new ArrayInput($input), $output);
+
+            if (0 === $exitCode || microtime(true) >= $deadline) {
+                return $exitCode;
+            }
+        } catch (\Throwable $e) {
+            if (microtime(true) >= $deadline) {
+                throw $e;
+            }
+        }
+
+        $clock->sleep(1);
+    }
+}
 
 foreach ($storesIds as $store) {
-    $setupOutputCode = $application->run(new ArrayInput([
+    $setupExitCode = run_store_command($application, $consoleOutput, $clock, [
         'command' => 'ai:message-store:setup',
         'store' => $store,
-    ]), new ConsoleOutput());
+    ]);
 
-    $dropOutputCode = $application->run(new ArrayInput([
+    $dropExitCode = run_store_command($application, $consoleOutput, $clock, [
         'command' => 'ai:message-store:drop',
         'store' => $store,
         '--force' => true,
-    ]), new ConsoleOutput());
+    ]);
+
+    // Without this the example exits 0 no matter what the commands reported, and the CI job that
+    // spins up five services to run it can never fail.
+    verify(0 === $setupExitCode, sprintf('"%s" to set up cleanly, got exit code %d', $store, $setupExitCode));
+    verify(0 === $dropExitCode, sprintf('"%s" to drop cleanly, got exit code %d', $store, $dropExitCode));
+
+    output()->writeln(sprintf('<info>%s</info>: set up and dropped', $store));
 }
