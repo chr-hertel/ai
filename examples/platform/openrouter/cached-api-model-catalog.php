@@ -18,6 +18,8 @@ use Symfony\Component\HttpClient\CachingHttpClient;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Caching the model catalog so the list is not re-fetched on every run.
+
 $cache = new FilesystemTagAwareAdapter(
     namespace: 'model_catalog',
     defaultLifetime: 60 * 60 * 24 * 7, // One week

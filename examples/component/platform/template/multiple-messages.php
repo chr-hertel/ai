@@ -20,6 +20,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 require_once dirname(__DIR__, 3).'/bootstrap.php';
 
+// One MessageBag whose system and user messages both carry templates, rendered in a single pass.
+
 $eventDispatcher = new EventDispatcher();
 $rendererRegistry = new TemplateRendererRegistry([
     new StringTemplateRenderer(),

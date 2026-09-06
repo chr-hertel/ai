@@ -20,6 +20,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 require_once dirname(__DIR__, 3).'/bootstrap.php';
 
+// A templated user message that also carries non-text content: only the text parts get rendered.
+
 $eventDispatcher = new EventDispatcher();
 $rendererRegistry = new TemplateRendererRegistry([
     new StringTemplateRenderer(),

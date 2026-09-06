@@ -17,6 +17,8 @@ use Symfony\AI\Platform\Result\MultiPartResult;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// A tool the model calls with free-form text rather than a JSON argument object.
+
 $platform = Factory::createPlatform('https://api.x.ai', env('XAI_API_KEY'), http_client());
 
 $messages = new MessageBag(Message::ofUser('What is the current sentiment on X about the Symfony framework?'));

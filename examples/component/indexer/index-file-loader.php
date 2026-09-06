@@ -21,6 +21,8 @@ use Symfony\AI\Store\Query\VectorQuery;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Indexing straight from the filesystem, with the loader deciding what a document is.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $store = new InMemoryStore();
 $vectorizer = new Vectorizer($platform, 'text-embedding-3-small');

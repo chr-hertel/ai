@@ -15,6 +15,8 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once __DIR__.'/bootstrap.php';
 
+// Restricting Perplexity's search to academic sources.
+
 $platform = Factory::createPlatform(env('PERPLEXITY_API_KEY'), http_client());
 
 $messages = new MessageBag(Message::ofUser('What is the best French cheese of the first quarter-century of 21st century?'));

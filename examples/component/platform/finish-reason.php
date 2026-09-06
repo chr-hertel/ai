@@ -17,6 +17,8 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Why a result stopped, normalised across providers - here by cutting two of them off mid-answer.
+
 $messages = new MessageBag(
     Message::forSystem('You are an encyclopedia.'),
     Message::ofUser('Explain the history of the Roman Empire in great detail.'),

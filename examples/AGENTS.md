@@ -62,6 +62,16 @@ follow HuggingFace's task names (`fill-mask`, `token-classification`, ...) and S
 `responses*` examples follow its Responses API, because that is what a reader searching those docs
 will look for.
 
+## Describing an example
+
+The filename says what the example is; a comment right below the `require_once` says what is worth
+noticing, when the name does not already say it. `platform/openai/toolcall-stream.php` needs no
+header. `component/platform/template/mixed-content.php` does, because "mixed content" does not tell
+you that only the text parts of the message get rendered.
+
+One line, about the behaviour rather than the code - `// A tool that must not run unattended: the
+agent asks before the call is executed` rather than `// Toolbox with a confirmation processor`.
+
 ## Architecture
 
 ### Directory Structure

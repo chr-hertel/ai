@@ -21,6 +21,8 @@ use Symfony\Component\HttpClient\HttpClient;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Indexing a remote feed, which makes the loader the only part that changes.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $store = new InMemoryStore();
 $vectorizer = new Vectorizer($platform, 'text-embedding-3-small');

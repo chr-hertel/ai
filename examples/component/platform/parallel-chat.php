@@ -15,6 +15,8 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// invoke() returns before the response arrives, so several calls are in flight at once.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $messages = new MessageBag(

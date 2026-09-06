@@ -19,6 +19,8 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Text in, speech out: the agent's answer is synthesised to an audio file.
+
 $openAIPlatform = OpenAiFactory::createPlatform(env('OPENAI_API_KEY'), httpClient: http_client());
 $agent = new Agent($openAIPlatform, 'gpt-4o');
 

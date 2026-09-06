@@ -20,6 +20,8 @@ use Symfony\AI\Store\Retriever;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// The smallest end-to-end retrieval: load a text file, split it, embed it, then query the store.
+
 $store = new InMemoryStore();
 
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());

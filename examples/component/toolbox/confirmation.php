@@ -22,6 +22,8 @@ use Symfony\Component\Filesystem\Filesystem as SymfonyFilesystem;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// A tool that must not run unattended: the agent asks before the call is executed.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $eventDispatcher = new EventDispatcher();

@@ -19,6 +19,8 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Facts the agent should always know, injected into every call by a memory provider.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $systemPromptProcessor = new SystemPromptInputProcessor('You are a professional trainer with short, personalized advice and a motivating claim.');

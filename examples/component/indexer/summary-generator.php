@@ -22,6 +22,8 @@ use Symfony\Component\Uid\Uuid;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Summarising each document with a model on its way into the store, as a transformer.
+
 echo "=== Summary Generator Transformer ===\n\n";
 echo "This example demonstrates using the SummaryGeneratorTransformer to automatically\n";
 echo "generate LLM-based summaries during document indexing and store them in metadata.\n\n";

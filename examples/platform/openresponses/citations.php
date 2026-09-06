@@ -17,6 +17,8 @@ use Symfony\AI\Platform\Result\TextResult;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Reading back the sources a Responses-API model cited for its answer.
+
 $platform = Factory::createPlatform('https://api.x.ai', env('XAI_API_KEY'), http_client());
 
 $messages = new MessageBag(Message::ofUser('What is xAI?'));

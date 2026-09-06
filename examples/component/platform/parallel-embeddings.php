@@ -13,6 +13,8 @@ use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// The same deferred behaviour for embeddings, across three models at once.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $ada = 'text-embedding-ada-002';
 $small = 'text-embedding-3-small';

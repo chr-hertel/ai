@@ -19,6 +19,8 @@ use Symfony\Component\Clock\Clock;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// The smallest possible tool call, using a tool that needs no credentials.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $metadataFactory = (new MemoryToolFactory())

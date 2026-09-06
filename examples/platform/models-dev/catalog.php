@@ -16,6 +16,8 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Browsing the models.dev catalog: what a provider offers and what each model can do.
+
 $platform = AnthropicFactory::createPlatform(
     env('ANTHROPIC_API_KEY'),
     http_client(),

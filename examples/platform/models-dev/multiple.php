@@ -20,6 +20,8 @@ use Symfony\AI\Platform\Platform;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Querying several providers from one catalog to compare what they offer.
+
 $platform = new Platform([
     GenericFactory::createProvider(
         baseUrl: (new ProviderRegistry())->getApiBaseUrl('deepseek'),

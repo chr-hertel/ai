@@ -22,6 +22,8 @@ use Symfony\Component\Uid\Uuid;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Retrieval straight against the store, without an agent or a tool in between.
+
 $store = new InMemoryStore();
 
 $documents = [];

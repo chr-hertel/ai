@@ -15,6 +15,8 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once __DIR__.'/bootstrap.php';
 
+// Perplexity without its search, which turns it back into a plain chat model.
+
 $platform = Factory::createPlatform(env('PERPLEXITY_API_KEY'), http_client());
 
 $messages = new MessageBag(Message::ofUser('What is 2 + 2?'));

@@ -20,6 +20,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 require_once dirname(__DIR__, 3).'/bootstrap.php';
 
+// Placeholders in a user message, filled in by the template renderer before the call is sent.
+
 $eventDispatcher = new EventDispatcher();
 $rendererRegistry = new TemplateRendererRegistry([
     new StringTemplateRenderer(),

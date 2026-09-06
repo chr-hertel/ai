@@ -20,6 +20,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 require_once dirname(__DIR__, 3).'/bootstrap.php';
 
+// The same templating applied to a system message, so a prompt can be parameterised per call.
+
 $eventDispatcher = new EventDispatcher();
 $rendererRegistry = new TemplateRendererRegistry([
     new StringTemplateRenderer(),

@@ -23,6 +23,8 @@ use Symfony\Component\Uid\Uuid;
 
 require_once dirname(__DIR__, 2).'/bootstrap.php';
 
+// Dropping documents during indexing, so the store never sees what you filtered out.
+
 $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $store = new InMemoryStore();
 $vectorizer = new Vectorizer($platform, 'text-embedding-3-small', includeText: true);
