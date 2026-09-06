@@ -19,6 +19,7 @@ use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded;
 use Symfony\AI\Agent\Toolbox\Exception\ToolExecutionException;
 use Symfony\AI\Agent\Toolbox\Exception\ToolExecutionExceptionInterface;
+use Symfony\AI\Agent\Toolbox\Exception\ToolInteractionException;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\HasSourcesInterface;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
@@ -114,6 +115,9 @@ final class Toolbox implements ToolboxInterface
             $this->eventDispatcher?->dispatch(new ToolCallSucceeded($tool, $metadata, $arguments, $result));
         } catch (ToolExecutionExceptionInterface $e) {
             $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments ?? [], $e));
+            throw $e;
+        } catch (ToolInteractionException $e) {
+            // not a failure: the tool pauses the execution for human interaction
             throw $e;
         } catch (\Throwable $e) {
             $this->logger->warning(\sprintf('Failed to execute tool "%s".', $toolCall->getName()), ['exception' => $e]);
