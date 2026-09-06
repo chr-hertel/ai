@@ -12,6 +12,9 @@ CHANGELOG
    the `ai.agent.*.system_prompt_processor` service, and memory is wired as `ai.agent.*.memory_processor`
  * [BC BREAK] Remove the `ai.tool.agent_processor.*` services; the toolbox and its settings (`max_tool_calls`,
    `exclude_tool_messages`, `include_sources`) are passed to the `Agent` directly
+ * [BC BREAK] The `multi_agent` configuration now builds an `Agent` carrying handoffs instead of a `MultiAgent`
+   service: `ai.multi_agent.*` is the orchestrating agent with the configured handoffs, and the `fallback` agent is
+   registered as a catch-all handoff. The configuration keys are unchanged
  * Fix the `memory` agent option: a string was passed to `StaticMemoryProvider`, whose constructor takes a list of
    facts, so a configured string memory failed to instantiate
 

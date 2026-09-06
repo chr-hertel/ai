@@ -716,7 +716,7 @@ Handoff rules are defined as a key-value mapping where:
 
 Example of creating a Handoff in PHP::
 
-    use Symfony\AI\Agent\MultiAgent\Handoff;
+    use Symfony\AI\Agent\Handoff\Handoff;
 
     $technicalHandoff = new Handoff(
         to: $technicalAgent,
