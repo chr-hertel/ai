@@ -9,11 +9,8 @@
  * file that was distributed with this source code.
  */
 
-use Symfony\AI\Fixtures\Movies;
 use Symfony\AI\Platform\Bridge\HuggingFace\Factory;
 use Symfony\AI\Store\CombinedStore;
-use Symfony\AI\Store\Document\Metadata;
-use Symfony\AI\Store\Document\TextDocument;
 use Symfony\AI\Store\Document\Vectorizer;
 use Symfony\AI\Store\Event\PostQueryEvent;
 use Symfony\AI\Store\EventListener\RerankerListener;
@@ -23,9 +20,8 @@ use Symfony\AI\Store\InMemory\Store as InMemoryStore;
 use Symfony\AI\Store\Reranker\Reranker;
 use Symfony\AI\Store\Retriever;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Uid\Uuid;
 
-require_once dirname(__DIR__).'/bootstrap.php';
+require_once __DIR__.'/bootstrap.php';
 
 echo "=== Hybrid Retrieval with RRF + HuggingFace Reranking ===\n\n";
 echo "This example demonstrates combining vector (semantic) and text (keyword)\n";
@@ -34,14 +30,7 @@ echo "optional reranking via a PostQueryEvent listener.\n\n";
 
 $store = new InMemoryStore();
 
-$documents = [];
-foreach (Movies::all() as $movie) {
-    $documents[] = new TextDocument(
-        id: Uuid::v4(),
-        content: 'Title: '.$movie['title'].\PHP_EOL.'Director: '.$movie['director'].\PHP_EOL.'Description: '.$movie['description'],
-        metadata: new Metadata($movie),
-    );
-}
+$documents = movie_documents();
 
 $platform = Factory::createPlatform(env('HUGGINGFACE_KEY'), httpClient: http_client());
 $vectorizer = new Vectorizer($platform, 'BAAI/bge-small-en-v1.5?task=feature-extraction', logger());

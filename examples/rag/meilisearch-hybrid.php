@@ -9,19 +9,15 @@
  * file that was distributed with this source code.
  */
 
-use Symfony\AI\Fixtures\Movies;
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Store\Bridge\Meilisearch\StoreFactory;
-use Symfony\AI\Store\Document\Metadata;
-use Symfony\AI\Store\Document\TextDocument;
 use Symfony\AI\Store\Document\Vectorizer;
 use Symfony\AI\Store\Indexer\DocumentIndexer;
 use Symfony\AI\Store\Indexer\DocumentProcessor;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\VectorQuery;
-use Symfony\Component\Uid\Uuid;
 
-require_once dirname(__DIR__).'/bootstrap.php';
+require_once __DIR__.'/bootstrap.php';
 
 echo "=== Meilisearch Hybrid Search Demo ===\n\n";
 echo "This example demonstrates how to configure the semantic ratio to balance\n";
@@ -36,15 +32,7 @@ $store = StoreFactory::create(
     semanticRatio: 0.5, // Balanced hybrid search by default
 );
 
-// Create embeddings and documents
-$documents = [];
-foreach (Movies::all() as $i => $movie) {
-    $documents[] = new TextDocument(
-        id: Uuid::v4(),
-        content: 'Title: '.$movie['title'].\PHP_EOL.'Director: '.$movie['director'].\PHP_EOL.'Description: '.$movie['description'],
-        metadata: new Metadata($movie),
-    );
-}
+$documents = movie_documents();
 
 // Initialize the index
 $store->setup();

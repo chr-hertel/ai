@@ -11,23 +11,11 @@
 
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Tools\DsnParser;
-use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Bridge\SimilaritySearch\SimilaritySearch;
-use Symfony\AI\Agent\Toolbox\Toolbox;
-use Symfony\AI\Fixtures\Movies;
 use Symfony\AI\Platform\Bridge\Gemini\Factory;
-use Symfony\AI\Platform\Message\Message;
-use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Store\Bridge\MariaDb\Store;
-use Symfony\AI\Store\Document\Metadata;
-use Symfony\AI\Store\Document\TextDocument;
 use Symfony\AI\Store\Document\Vectorizer;
-use Symfony\AI\Store\Indexer\DocumentIndexer;
-use Symfony\AI\Store\Indexer\DocumentProcessor;
-use Symfony\AI\Store\Retriever;
-use Symfony\Component\Uid\Uuid;
 
-require_once dirname(__DIR__).'/bootstrap.php';
+require_once __DIR__.'/bootstrap.php';
 
 // initialize the store
 $store = Store::fromDbal(
@@ -36,35 +24,10 @@ $store = Store::fromDbal(
     indexName: 'my_index',
 );
 
-// create embeddings and documents
-$documents = [];
-foreach (Movies::all() as $i => $movie) {
-    $documents[] = new TextDocument(
-        id: Uuid::v4(),
-        content: 'Title: '.$movie['title'].\PHP_EOL.'Director: '.$movie['director'].\PHP_EOL.'Description: '.$movie['description'],
-        metadata: new Metadata($movie),
-    );
-}
-
 // initialize the table
 $store->setup(['dimensions' => 768]);
 
-// create embeddings for documents
 $platform = Factory::createPlatform(env('GEMINI_API_KEY'), http_client());
-$model = 'gemini-embedding-001?dimensions=768&task_type=SEMANTIC_SIMILARITY';
-$vectorizer = new Vectorizer($platform, $model, logger());
-$indexer = new DocumentIndexer(new DocumentProcessor($vectorizer, $store, logger: logger()));
-$indexer->index($documents);
+$vectorizer = index_movies($store, new Vectorizer($platform, 'gemini-embedding-001?dimensions=768&task_type=SEMANTIC_SIMILARITY', logger()));
 
-$retriever = new Retriever($store, $vectorizer);
-$similaritySearch = new SimilaritySearch($retriever);
-$toolbox = new Toolbox([$similaritySearch], logger: logger());
-$agent = new Agent($platform, 'gemini-2.5-flash-lite', toolbox: $toolbox);
-
-$messages = new MessageBag(
-    Message::forSystem('Please answer all user questions only using SimilaritySearch function.'),
-    Message::ofUser('Which movie fits the theme of the mafia?')
-);
-$result = $agent->call($messages);
-
-echo $result->asText().\PHP_EOL;
+ask_about_movies($store, $vectorizer, 'Which movie fits the theme of the mafia?', platform: $platform, model: 'gemini-2.5-flash-lite');

@@ -10,52 +10,13 @@
  */
 
 use Probots\Pinecone\Pinecone;
-use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Bridge\SimilaritySearch\SimilaritySearch;
-use Symfony\AI\Agent\Toolbox\Toolbox;
-use Symfony\AI\Fixtures\Movies;
-use Symfony\AI\Platform\Bridge\OpenAi\Factory;
-use Symfony\AI\Platform\Message\Message;
-use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Store\Bridge\Pinecone\Store;
-use Symfony\AI\Store\Document\Metadata;
-use Symfony\AI\Store\Document\TextDocument;
-use Symfony\AI\Store\Document\Vectorizer;
-use Symfony\AI\Store\Indexer\DocumentIndexer;
-use Symfony\AI\Store\Indexer\DocumentProcessor;
-use Symfony\AI\Store\Retriever;
-use Symfony\Component\Uid\Uuid;
 
-require_once dirname(__DIR__).'/bootstrap.php';
+require_once __DIR__.'/bootstrap.php';
 
 // initialize the store
 $store = new Store(Pinecone::client('pclocal', 'http://127.0.0.1:5080'), 'symfony');
 
-// create embeddings and documents
-$documents = [];
-foreach (Movies::all() as $movie) {
-    $documents[] = new TextDocument(
-        id: Uuid::v4(),
-        content: 'Title: '.$movie['title'].\PHP_EOL.'Director: '.$movie['director'].\PHP_EOL.'Description: '.$movie['description'],
-        metadata: new Metadata($movie),
-    );
-}
+$vectorizer = index_movies($store);
 
-// create embeddings for documents
-$platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
-$vectorizer = new Vectorizer($platform, 'text-embedding-3-small', logger());
-$indexer = new DocumentIndexer(new DocumentProcessor($vectorizer, $store, logger: logger()));
-$indexer->index($documents);
-
-$retriever = new Retriever($store, $vectorizer);
-$similaritySearch = new SimilaritySearch($retriever);
-$toolbox = new Toolbox([$similaritySearch], logger: logger());
-$agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox);
-
-$messages = new MessageBag(
-    Message::forSystem('Please answer all user questions only using SimilaritySearch function.'),
-    Message::ofUser('Which movie fits the theme of the mafia?')
-);
-$result = $agent->call($messages);
-
-echo $result->asText().\PHP_EOL;
+ask_about_movies($store, $vectorizer, 'Which movie fits the theme of the mafia?');

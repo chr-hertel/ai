@@ -366,6 +366,8 @@ function describe_structure(mixed $value, int $depth = 0): array
 }
 
 /**
+ * @param object|array<array-key, mixed> $value
+ *
  * @return list<string>
  */
 function describe_children(object|array $value, int $depth): array

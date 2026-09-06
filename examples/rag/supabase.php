@@ -9,24 +9,14 @@
  * file that was distributed with this source code.
  */
 
-use Symfony\AI\Agent\Agent;
-use Symfony\AI\Agent\Bridge\SimilaritySearch\SimilaritySearch;
-use Symfony\AI\Agent\Toolbox\Toolbox;
-use Symfony\AI\Fixtures\Movies;
 use Symfony\AI\Platform\Bridge\Ollama\Factory;
-use Symfony\AI\Platform\Message\Message;
-use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Store\Bridge\Supabase\Store;
-use Symfony\AI\Store\Document\Metadata;
-use Symfony\AI\Store\Document\TextDocument;
 use Symfony\AI\Store\Document\Vectorizer;
-use Symfony\AI\Store\Indexer\DocumentIndexer;
-use Symfony\AI\Store\Indexer\DocumentProcessor;
-use Symfony\AI\Store\Retriever;
-use Symfony\Component\Uid\Uuid;
 
-require_once dirname(__DIR__).'/bootstrap.php';
+require_once __DIR__.'/bootstrap.php';
 
+// The Supabase table, match function and vector dimension are the ones this example expects you to
+// create in your project - see the store's README for the SQL.
 $store = new Store(
     httpClient: http_client(),
     endpoint: env('SUPABASE_URL'),
@@ -37,32 +27,8 @@ $store = new Store(
     functionName: 'match_documents',
 );
 
-$documents = [];
-
-foreach (Movies::all() as $movie) {
-    $documents[] = new TextDocument(
-        id: Uuid::v4(),
-        content: 'Title: '.$movie['title'].\PHP_EOL.'Director: '.$movie['director'].\PHP_EOL.'Description: '.$movie['description'],
-        metadata: new Metadata($movie),
-    );
-}
-
+// 768 dimensions above matches Ollama's nomic-embed-text, which this example embeds with
 $platform = Factory::createPlatform('http://localhost:11434', httpClient: http_client());
+$vectorizer = index_movies($store, new Vectorizer($platform, 'nomic-embed-text'));
 
-$vectorizer = new Vectorizer($platform, 'nomic-embed-text');
-$indexer = new DocumentIndexer(new DocumentProcessor($vectorizer, $store, logger: logger()));
-$indexer->index($documents);
-
-$retriever = new Retriever($store, $vectorizer);
-$similaritySearch = new SimilaritySearch($retriever);
-$toolbox = new Toolbox([$similaritySearch], logger: logger());
-$agent = new Agent($platform, 'llama3.2', toolbox: $toolbox);
-
-$messages = new MessageBag(
-    Message::forSystem('Please answer all user questions only using SimilaritySearch function.'),
-    Message::ofUser('Which movie fits the theme of technology?')
-);
-
-$result = $agent->call($messages);
-
-echo $result->asText().\PHP_EOL;
+ask_about_movies($store, $vectorizer, platform: $platform, model: 'llama3.2');
