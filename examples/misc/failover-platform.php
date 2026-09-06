@@ -38,6 +38,6 @@ $result = $platform->invoke('gpt-5.2', new MessageBag(
     Message::ofUser('Tina has one brother and one sister. How many sisters do Tina\'s siblings have?'),
 ));
 
-assert($result->getResultConverter() instanceof ResultConverter);
+verify($result->getResultConverter() instanceof ResultConverter, 'the failover to have landed on the OpenAI platform');
 
 echo $result->asText().\PHP_EOL;

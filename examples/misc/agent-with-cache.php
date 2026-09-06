@@ -31,7 +31,7 @@ $result = $agent->call($messages, [
     'prompt_cache_key' => 'chat',
 ]);
 
-assert($result->getMetadata()->has('cached'));
+verify($result->getMetadata()->has('cached'), 'the first call to be marked as cacheable');
 
 echo $result->asText().\PHP_EOL;
 
@@ -41,6 +41,6 @@ $secondResult = $agent->call($messages, [
     'prompt_cache_key' => 'chat',
 ]);
 
-assert($secondResult->getMetadata()->has('cached'));
+verify($secondResult->getMetadata()->has('cached'), 'the second call to be served from the cache');
 
 echo $secondResult->asText().\PHP_EOL;

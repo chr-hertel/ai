@@ -201,6 +201,22 @@ function output_file(string $name): string
 }
 
 /**
+ * Verifies something the example exists to demonstrate.
+ *
+ * Not assert(): that is compiled out under zend.assertions=-1, so an example whose whole point is
+ * "this result really did come from the cache" would silently stop proving it.
+ */
+function verify(bool $condition, string $expectation): void
+{
+    if ($condition) {
+        return;
+    }
+
+    output()->writeln(sprintf('<error>Expected %s.</error>', $expectation));
+    exit(1);
+}
+
+/**
  * Whether the example writes to an interactive terminal.
  *
  * Live re-rendering with escape sequences like a clear screen only works there: when the
