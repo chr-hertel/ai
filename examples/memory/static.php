@@ -19,7 +19,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform($_ENV['OPENAI_API_KEY'], http_client());
+$platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 $systemPromptProcessor = new SystemPromptInputProcessor('You are a professional trainer with short, personalized advice and a motivating claim.');
 

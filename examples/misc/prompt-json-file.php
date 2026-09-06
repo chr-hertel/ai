@@ -18,7 +18,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-$platform = Factory::createPlatform($_ENV['OPENAI_API_KEY'], http_client());
+$platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 
 // Load system prompt from a JSON file
 $promptFile = File::fromFile(dirname(__DIR__, 2).'/fixtures/prompts/code-reviewer.json');
