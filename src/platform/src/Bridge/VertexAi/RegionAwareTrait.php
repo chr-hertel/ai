@@ -43,21 +43,19 @@ trait RegionAwareTrait
      * The location is only part of the URL for the project-scoped endpoint, so without a project ID
      * the global endpoint is the only one that can be addressed.
      */
-    private static function getEndpoint(?string $location, ?string $projectId, string $model, string $method): string
+    private static function getBaseUrl(?string $location, ?string $projectId): string
     {
         if (null === $location || null === $projectId) {
-            return \sprintf('https://%s/v1/publishers/google/models/%s:%s', self::GLOBAL_HOST, $model, $method);
+            return \sprintf('https://%s/v1/publishers/google/', self::GLOBAL_HOST);
         }
 
         $location = strtolower($location);
 
         return \sprintf(
-            'https://%s/v1/projects/%s/locations/%s/publishers/google/models/%s:%s',
+            'https://%s/v1/projects/%s/locations/%s/publishers/google/',
             self::getHost($location),
             $projectId,
             $location,
-            $model,
-            $method,
         );
     }
 

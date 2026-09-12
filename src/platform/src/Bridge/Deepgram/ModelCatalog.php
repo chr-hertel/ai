@@ -50,7 +50,9 @@ final class ModelCatalog implements ModelCatalogInterface
             throw new ModelNotFoundException(\sprintf('Model "%s" does not exist.', $modelName));
         }
 
-        return new Deepgram($modelName, $models[$modelName]['capabilities']);
+        $modelConfig = $models[$modelName];
+
+        return new Deepgram($modelName, $modelConfig['capabilities']);
     }
 
     public function getModels(): array

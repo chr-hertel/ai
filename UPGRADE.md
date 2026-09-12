@@ -39,6 +39,47 @@ Platform
    +protected function convertStreamUsage(array $usage, ?string $model = null): TokenUsage
    ```
 
+ * A bridge now serves each endpoint with a single `EndpointClientInterface` implementation that owns
+   the request shape, the transport call and the response shape together, so the per-bridge
+   `ModelClient` and `ResultConverter` pairs are gone. Code instantiating or extending one of them has
+   to move to the client that replaced it -- `Bridge\Anthropic\ModelClient` and
+   `Bridge\Anthropic\ResultConverter` become `Bridge\Anthropic\MessagesClient`, and so on for the
+   other bridges. Both are registered on the `Provider` as the same instance:
+
+   ```diff
+   -$client = new ModelClient($httpClient, $apiKey);
+   -
+    return new Provider(
+        $name,
+   -    [$client],
+   -    [new ResultConverter()],
+   +    [$client = new MessagesClient(new HttpTransport($httpClient, $apiKey))],
+   +    [$client],
+        $modelCatalog,
+    );
+   ```
+
+   A custom client implements `EndpointClientInterface`, whose `supports()` decides which models it
+   serves -- by class, or by capability where one model class covers several contracts -- and whose
+   `endpoint()` returns the identifier `$options['endpoint']` selects it by. Where several registered
+   clients accept the same model, the order they are registered in decides.
+
+ * `Bridge\HuggingFace` selects a task through `$options['endpoint']` rather than `$options['task']`,
+   using the constant of the client implementing it:
+
+   ```diff
+   -$platform->invoke($model, $input, ['task' => Task::IMAGE_TO_TEXT]);
+   +$platform->invoke($model, $input, ['endpoint' => ImageToTextClient::ENDPOINT]);
+   ```
+
+ * `Bridge\Azure` maps HTTP status codes in its transport instead of leaving them to each result
+   converter, so the mapping is now uniform across its contracts. A 404 -- an unknown deployment,
+   most commonly -- raises `Exception\ModelNotFoundException` where the embeddings contract
+   previously raised `Exception\BadRequestException`. Both implement `Exception\ExceptionInterface`,
+   but they do not share a PHP base class: `BadRequestException` is a `\RuntimeException` while
+   `ModelNotFoundException` is a `\LogicException`, so a catch on either of those -- not just one
+   naming `BadRequestException` -- has to widen to `ExceptionInterface`.
+
 Store
 -----
 

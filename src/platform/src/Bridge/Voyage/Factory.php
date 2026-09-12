@@ -42,10 +42,15 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $clients = [
+            new EmbeddingsClient($httpClient, $apiKey, $baseUrl),
+            new MultimodalEmbeddingsClient($httpClient, $apiKey, $baseUrl),
+        ];
+
         return new Provider(
             $name,
-            [new ModelClient($httpClient, $apiKey, $baseUrl)],
-            [new ResultConverter()],
+            $clients,
+            $clients,
             $modelCatalog,
             $contract ?? VoyageContract::create(),
             $eventDispatcher,
