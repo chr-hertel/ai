@@ -15,7 +15,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Anthropic\Claude;
 use Symfony\AI\Platform\Bridge\Anthropic\Contract\AnthropicContract;
-use Symfony\AI\Platform\Bridge\Anthropic\ResultConverter;
+use Symfony\AI\Platform\Bridge\Anthropic\MessagesClient;
+use Symfony\AI\Platform\Bridge\Anthropic\Transport\HttpTransport;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -27,7 +28,7 @@ use Symfony\Component\HttpClient\Response\JsonMockResponse;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * End-to-end replay test: feed a fixture provider response into ResultConverter,
+ * End-to-end replay test: feed a fixture provider response into MessagesClient,
  * build an assistant message via Message::ofAssistant($result), append the next
  * user/tool turn, and assert the byte-shape of the request that would be sent
  * back to the provider on turn 2.
@@ -49,7 +50,7 @@ final class AssistantReplayTest extends TestCase
     {
         $httpClient = new MockHttpClient(new JsonMockResponse($providerResponse));
         $httpResponse = $httpClient->request('POST', 'https://api.anthropic.com/v1/messages');
-        $result = (new ResultConverter())->convert(new RawHttpResult($httpResponse));
+        $result = self::client()->convert(new RawHttpResult($httpResponse));
 
         $bag = $bagBuilder($result);
         $payload = AnthropicContract::create()->createRequestPayload(new Claude(Claude::SONNET_4_0), $bag);
@@ -67,7 +68,7 @@ final class AssistantReplayTest extends TestCase
             'caller' => ['type' => 'code_execution_20260120', 'tool_id' => 'srvtoolu_code_1'],
         ]]]));
         $httpResponse = $httpClient->request('POST', 'https://api.anthropic.com/v1/messages');
-        $result = (new ResultConverter())->convert(new RawHttpResult($httpResponse));
+        $result = self::client()->convert(new RawHttpResult($httpResponse));
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('surrounding code execution blocks are not supported');
@@ -82,7 +83,7 @@ final class AssistantReplayTest extends TestCase
         $response = $this->createStub(ResponseInterface::class);
         $response->method('getStatusCode')->willReturn(200);
 
-        $result = (new ResultConverter())->convert(new InMemoryRawResult(dataStream: [
+        $result = self::client()->convert(new InMemoryRawResult(dataStream: [
             ['type' => 'message_start', 'message' => ['id' => 'msg_1', 'role' => 'assistant', 'content' => []]],
             ['type' => 'content_block_start', 'index' => 0, 'content_block' => ['type' => 'thinking', 'thinking' => '']],
             ['type' => 'content_block_delta', 'index' => 0, 'delta' => ['type' => 'thinking_delta', 'thinking' => 'I should search the web.']],
@@ -151,7 +152,7 @@ final class AssistantReplayTest extends TestCase
         $response = $this->createStub(ResponseInterface::class);
         $response->method('getStatusCode')->willReturn(200);
 
-        $result = (new ResultConverter())->convert(new InMemoryRawResult(dataStream: [
+        $result = self::client()->convert(new InMemoryRawResult(dataStream: [
             ['type' => 'message_start', 'message' => ['id' => 'msg_1', 'role' => 'assistant', 'content' => []]],
             ['type' => 'content_block_start', 'index' => 0, 'content_block' => [
                 'type' => 'server_tool_use',
@@ -493,5 +494,10 @@ final class AssistantReplayTest extends TestCase
                 'model' => 'claude-sonnet-4-0',
             ],
         ];
+    }
+
+    private static function client(): MessagesClient
+    {
+        return new MessagesClient(new HttpTransport(new MockHttpClient(), 'unused'));
     }
 }

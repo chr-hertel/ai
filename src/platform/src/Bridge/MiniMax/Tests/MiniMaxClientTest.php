@@ -12,8 +12,12 @@
 namespace Symfony\AI\Platform\Bridge\MiniMax\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Bridge\MiniMax\ChatCompletionsClient;
+use Symfony\AI\Platform\Bridge\MiniMax\ImageClient;
 use Symfony\AI\Platform\Bridge\MiniMax\MiniMax;
-use Symfony\AI\Platform\Bridge\MiniMax\MiniMaxClient;
+use Symfony\AI\Platform\Bridge\MiniMax\MusicClient;
+use Symfony\AI\Platform\Bridge\MiniMax\SpeechClient;
+use Symfony\AI\Platform\Bridge\MiniMax\VideoClient;
 use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -24,11 +28,12 @@ use Symfony\Component\HttpClient\Response\JsonMockResponse;
  */
 final class MiniMaxClientTest extends TestCase
 {
-    public function testItSupportsMiniMaxModels()
+    public function testItSupportsModelsDeclaringItsEndpoint()
     {
-        $client = new MiniMaxClient(new MockHttpClient(), 'key');
+        $client = new ChatCompletionsClient(new MockHttpClient(), 'key');
 
-        $this->assertTrue($client->supports(new MiniMax('MiniMax-M2', [Capability::INPUT_MESSAGES])));
+        $this->assertTrue($client->supports($this->model('MiniMax-M2', Capability::INPUT_MESSAGES)));
+        $this->assertFalse($client->supports($this->model('image-01', Capability::TEXT_TO_IMAGE)));
     }
 
     public function testItThrowsWhenTextPayloadIsNotAnArray()
@@ -36,17 +41,8 @@ final class MiniMaxClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The payload is not an array, given "string".');
 
-        $client = new MiniMaxClient(new MockHttpClient(), 'key');
-        $client->request(new MiniMax('MiniMax-M2', [Capability::INPUT_MESSAGES]), 'foo');
-    }
-
-    public function testItThrowsForUnsupportedModel()
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('The "foo" model is not supported.');
-
-        $client = new MiniMaxClient(new MockHttpClient(), 'key');
-        $client->request(new MiniMax('foo', []), 'bar');
+        $client = new ChatCompletionsClient(new MockHttpClient(), 'key');
+        $client->request($this->model('MiniMax-M2', Capability::INPUT_MESSAGES), 'foo');
     }
 
     public function testItGeneratesText()
@@ -62,8 +58,8 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('MiniMax-M2', [Capability::INPUT_MESSAGES]), [
+        $client = new ChatCompletionsClient($httpClient, 'key');
+        $client->request($this->model('MiniMax-M2', Capability::INPUT_MESSAGES), [
             'messages' => [['role' => 'user', 'content' => 'foo']],
         ]);
 
@@ -79,8 +75,8 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('MiniMax-M2', [Capability::INPUT_MESSAGES]), [
+        $client = new ChatCompletionsClient($httpClient, 'key');
+        $client->request($this->model('MiniMax-M2', Capability::INPUT_MESSAGES), [
             'messages' => [['role' => 'user', 'content' => 'foo']],
         ], [
             'stream' => true,
@@ -102,8 +98,8 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('speech-2.6-hd', [Capability::TEXT_TO_SPEECH]), 'Hello world');
+        $client = new SpeechClient($httpClient, 'key');
+        $client->request($this->model('speech-2.6-hd', Capability::TEXT_TO_SPEECH), 'Hello world');
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -119,8 +115,8 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('speech-2.6-hd', [Capability::TEXT_TO_SPEECH]), [
+        $client = new SpeechClient($httpClient, 'key');
+        $client->request($this->model('speech-2.6-hd', Capability::TEXT_TO_SPEECH), [
             'type' => 'text',
             'text' => 'Hello world',
         ]);
@@ -133,8 +129,8 @@ final class MiniMaxClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The payload must be a string or contain a "text" key.');
 
-        $client = new MiniMaxClient(new MockHttpClient(), 'key');
-        $client->request(new MiniMax('speech-2.6-hd', [Capability::TEXT_TO_SPEECH]), [
+        $client = new SpeechClient(new MockHttpClient(), 'key');
+        $client->request($this->model('speech-2.6-hd', Capability::TEXT_TO_SPEECH), [
             'type' => 'text',
         ]);
     }
@@ -150,8 +146,8 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('speech-2.6-hd', [Capability::TEXT_TO_SPEECH, Capability::TEXT_TO_SPEECH_ASYNC]), 'Hello world', [
+        $client = new SpeechClient($httpClient, 'key');
+        $client->request($this->model('speech-2.6-hd', Capability::TEXT_TO_SPEECH), 'Hello world', [
             'async' => true,
         ]);
 
@@ -171,8 +167,8 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('image-01', [Capability::TEXT_TO_IMAGE]), 'A cat');
+        $client = new ImageClient($httpClient, 'key');
+        $client->request($this->model('image-01', Capability::TEXT_TO_IMAGE), 'A cat');
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -182,8 +178,8 @@ final class MiniMaxClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The "lyrics" option is required when generating music.');
 
-        $client = new MiniMaxClient(new MockHttpClient(), 'key');
-        $client->request(new MiniMax('music-1.5', [Capability::MUSIC]), 'An upbeat pop song');
+        $client = new MusicClient(new MockHttpClient(), 'key');
+        $client->request($this->model('music-1.5', Capability::MUSIC), 'An upbeat pop song');
     }
 
     public function testItGeneratesMusic()
@@ -199,8 +195,8 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('music-1.5', [Capability::MUSIC]), 'An upbeat pop song', [
+        $client = new MusicClient($httpClient, 'key');
+        $client->request($this->model('music-1.5', Capability::MUSIC), 'An upbeat pop song', [
             'lyrics' => 'la la la',
         ]);
 
@@ -219,9 +215,14 @@ final class MiniMaxClientTest extends TestCase
             return new JsonMockResponse([]);
         });
 
-        $client = new MiniMaxClient($httpClient, 'key');
-        $client->request(new MiniMax('MiniMax-Hailuo-02', [Capability::TEXT_TO_VIDEO]), 'A cat playing piano');
+        $client = new VideoClient($httpClient, 'key');
+        $client->request($this->model('MiniMax-Hailuo-02', Capability::TEXT_TO_VIDEO), 'A cat playing piano');
 
         $this->assertSame(1, $httpClient->getRequestsCount());
+    }
+
+    private function model(string $name, Capability $capability): MiniMax
+    {
+        return new MiniMax($name, [$capability]);
     }
 }

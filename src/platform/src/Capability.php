@@ -14,6 +14,15 @@ namespace Symfony\AI\Platform;
 use OskarStark\Enum\Trait\Comparable;
 
 /**
+ * Flat capability flag describing what a model accepts/emits and what
+ * features it supports. Modality-style cases (INPUT_*, OUTPUT_*) coexist
+ * with feature flags (TOOL_CALLING, OUTPUT_STREAMING, …) and task hints
+ * (EMBEDDINGS, TEXT_TO_IMAGE, …).
+ *
+ * Capabilities also drive dispatch: a bridge serving several contracts from
+ * one model class — text-to-speech versus speech-to-text, say — has each of
+ * its clients match on the capability that distinguishes them.
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 enum Capability: string

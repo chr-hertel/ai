@@ -11,11 +11,14 @@
 
 namespace Symfony\AI\Platform\Bridge\Azure\OpenAi;
 
-use Symfony\AI\Platform\Bridge\Azure\Responses\ModelClient as ResponsesModelClient;
-use Symfony\AI\Platform\Bridge\Generic\Embeddings;
+use Symfony\AI\Platform\Bridge\Azure\Transport\AzureTransport;
+use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\OpenAi\Contract\OpenAiContract;
+use Symfony\AI\Platform\Bridge\OpenAi\EmbeddingsClient;
+use Symfony\AI\Platform\Bridge\OpenAi\ResponsesClient;
+use Symfony\AI\Platform\Bridge\OpenAi\TranscriptionClient;
 use Symfony\AI\Platform\Bridge\OpenAi\Whisper;
-use Symfony\AI\Platform\Bridge\OpenResponses\ResultConverter as ResponsesResultConverter;
+use Symfony\AI\Platform\Bridge\OpenResponses\ResponsesModel;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -48,14 +51,22 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        // The OpenAI contract handlers are reused verbatim; everything Azure does
+        // differently — api-key auth, the resource URL, the api-version and the
+        // deployment indirection — lives in the transport. The catalog maps GPT and
+        // embedding models onto their Responses/Generic classes, so each client is
+        // told which family it serves here.
+        $transport = new AzureTransport($httpClient, $baseUrl, $deployment, $apiVersion, $apiKey);
+        $clients = [
+            new ResponsesClient($transport, ResponsesModel::class),
+            new EmbeddingsClient($transport, EmbeddingsModel::class),
+            new TranscriptionClient($transport, Whisper::class),
+        ];
+
         return new Provider(
             $name,
-            [
-                new ResponsesModelClient($httpClient, $baseUrl, $apiKey, $deployment),
-                new EmbeddingsModelClient($httpClient, $baseUrl, $deployment, $apiVersion, $apiKey),
-                new WhisperModelClient($httpClient, $baseUrl, $deployment, $apiVersion, $apiKey),
-            ],
-            [new ResponsesResultConverter(), new Embeddings\ResultConverter(), new Whisper\ResultConverter()],
+            $clients,
+            $clients,
             $modelCatalog,
             $contract ?? OpenAiContract::create(),
             $eventDispatcher,

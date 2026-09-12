@@ -12,7 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\ModelsDev;
 
 use Symfony\AI\Platform\Bridge\Anthropic\Claude;
-use Symfony\AI\Platform\Bridge\Gemini\Embeddings;
+use Symfony\AI\Platform\Bridge\Gemini\Embeddings as GeminiEmbeddings;
 use Symfony\AI\Platform\Bridge\Gemini\Gemini;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
@@ -41,7 +41,7 @@ final class ModelCatalog extends AbstractModelCatalog
         ],
         '@ai-sdk/google' => [
             'completions' => Gemini::class,
-            'embeddings' => Embeddings::class,
+            'embeddings' => GeminiEmbeddings::class,
         ],
         '@ai-sdk/google-vertex' => [
             'completions' => VertexAiGemini::class,

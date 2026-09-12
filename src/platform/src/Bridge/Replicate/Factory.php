@@ -41,10 +41,14 @@ final class Factory
         string $name = 'replicate',
         string $baseUrl = 'https://api.replicate.com',
     ): ProviderInterface {
+        $client = new Client($httpClient ?? HttpClient::create(), new Clock(), $apiKey, $baseUrl);
+
+        $clients = [new MetaPredictionsClient($client)];
+
         return new Provider(
             $name,
-            [new LlamaModelClient(new Client($httpClient ?? HttpClient::create(), new Clock(), $apiKey, $baseUrl))],
-            [new LlamaResultConverter()],
+            $clients,
+            $clients,
             $modelCatalog,
             $contract ?? Contract::create([new LlamaMessageBagNormalizer()]),
             $eventDispatcher,

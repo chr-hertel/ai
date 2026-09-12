@@ -18,6 +18,7 @@ use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Exception\ServerException;
 use Symfony\AI\Platform\FinishReason\FinishReasonAwareTrait;
 use Symfony\AI\Platform\Result\RawResultInterface;
+use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\Stream\Delta\MetadataDelta;
 use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 use Symfony\AI\Platform\Result\Stream\Delta\ThinkingComplete;
@@ -238,7 +239,7 @@ trait CompletionsConversionTrait
      *     finish_reason: 'stop'|'length'|'tool_calls'|'content_filter',
      * } $choice
      */
-    protected function convertChoice(array $choice): ToolCallResult|TextResult
+    protected function convertChoice(array $choice): ResultInterface
     {
         if ('tool_calls' === $choice['finish_reason']) {
             return $this->withFinishReason(new ToolCallResult(array_map([$this, 'convertToolCall'], $choice['message']['tool_calls'])), FinishReasonMapper::map($choice['finish_reason']));

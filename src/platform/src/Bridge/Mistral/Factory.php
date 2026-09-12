@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\Mistral;
 
+use Symfony\AI\Platform\Bridge\Generic\EmbeddingsClient;
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\AssistantMessageNormalizer;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\AudioNormalizer;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\DocumentNormalizer;
@@ -47,10 +49,14 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $transport = new HttpTransport($httpClient, $baseUrl, $apiKey, ['Accept' => 'application/json']);
+        $clients = [new ChatCompletionsClient($transport, modelClass: Mistral::class), new EmbeddingsClient($transport, modelClass: Embeddings::class)];
+
         return new Provider(
             $name,
-            [new Embeddings\ModelClient($httpClient, $apiKey, $baseUrl), new Llm\ModelClient($httpClient, $apiKey, $baseUrl), new Ocr\ModelClient($httpClient, $apiKey), new SpeechToText\ModelClient($httpClient, $apiKey, $baseUrl)],
-            [new Embeddings\ResultConverter(), new Llm\ResultConverter(), new Ocr\ResultConverter(), new SpeechToText\ResultConverter()],
+            // Ocr and SpeechToText models declare no endpoint in the catalog and fall through to the legacy clients.
+            [...$clients, new Ocr\ModelClient($httpClient, $apiKey), new SpeechToText\ModelClient($httpClient, $apiKey, $baseUrl)],
+            [...$clients, new Ocr\ResultConverter(), new SpeechToText\ResultConverter()],
             $modelCatalog,
             $contract ?? Contract::create([
                 new AssistantMessageNormalizer(),

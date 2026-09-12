@@ -15,9 +15,6 @@ use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 
 /**
- * Models need to be registered explicitly here to be routed to the correct ModelClient and ResultConverter
- * implementations.
- *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class ModelCatalog extends AbstractModelCatalog

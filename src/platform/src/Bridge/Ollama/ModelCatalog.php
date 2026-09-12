@@ -15,7 +15,8 @@ use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Exception\RuntimeException;
-use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -24,15 +25,25 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * @author Oskar Stark <oskarstark@googlemail.com>
  * @author Guillaume Loulier <personal@guillaumeloulier.fr>
  */
-final class ModelCatalog implements ModelCatalogInterface
+final class ModelCatalog extends AbstractModelCatalog
 {
+    /**
+     * @var array<string, Ollama>
+     */
+    private array $modelCache = [];
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
     ) {
+        $this->models = [];
     }
 
-    public function getModel(string $modelName): Ollama
+    public function getModel(string $modelName): Model
     {
+        if (isset($this->modelCache[$modelName])) {
+            return $this->modelCache[$modelName];
+        }
+
         $response = $this->httpClient->request('POST', 'api/show', [
             'json' => [
                 'model' => $modelName,
@@ -79,7 +90,7 @@ final class ModelCatalog implements ModelCatalogInterface
             $capabilities[] = Capability::OUTPUT_STRUCTURED;
         }
 
-        return new Ollama($modelName, $capabilities);
+        return $this->modelCache[$modelName] = new Ollama($modelName, $capabilities);
     }
 
     public function getModels(): array
