@@ -7,6 +7,8 @@ CHANGELOG
  * Add model information to token usage extraction
  * Add a `CompletionsConversionTrait::yieldChunkMetadata()` extension point, so a bridge can promote the
    provider-specific payload of a stream chunk to result metadata
+ * [BC BREAK] Replace the model clients and result converters with `ChatCompletionsClient` and `EmbeddingsClient` over `Transport\HttpTransport`
+ * Add `Completions\CompletionsConversionTrait::requiresStreamFinishReason()` so a provider whose streams end without a finish reason can opt out of `IncompleteStreamException`
 
 0.12
 ----

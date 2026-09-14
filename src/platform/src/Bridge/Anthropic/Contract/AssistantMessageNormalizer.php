@@ -104,7 +104,7 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer
             }
 
             if ($part instanceof ExecutableCode) {
-                // ResultConverter sets language='bash' for bash_code_execution and null for text_editor_code_execution.
+                // MessagesClient sets language='bash' for bash_code_execution and null for text_editor_code_execution.
                 $isBash = 'bash' === $part->getLanguage();
                 $block = [
                     'type' => 'server_tool_use',
@@ -156,7 +156,7 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer
 
     /**
      * A hosted web search replays as the blocks Anthropic sent for it - the `server_tool_use` call
-     * and its `web_search_tool_result` - which `ResultConverter` keeps in the result's signature.
+     * and its `web_search_tool_result` - which `MessagesClient` keeps in the result's signature.
      * A signature that is absent, unreadable, or written by another provider replays nothing, so an
      * assistant turn crossing bridges drops the search instead of sending Claude a foreign block.
      *

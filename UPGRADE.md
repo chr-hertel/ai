@@ -89,6 +89,32 @@ Platform
     }
    ```
 
+ * `Bridge\OpenAi` serves GPT through one API per platform, chosen when it is built and defaulting to
+   the Responses API as before:
+
+   ```diff
+   -$platform = Factory::createPlatform($apiKey);
+   +$platform = Factory::createPlatform($apiKey, useChatCompletions: true);
+   ```
+
+ * `Bridge\Azure` maps HTTP status codes in its transport instead of leaving them to each result
+   converter, so the mapping is now uniform across its contracts. A 404 -- an unknown deployment,
+   most commonly -- raises `Exception\ModelNotFoundException` where the embeddings contract
+   previously raised `Exception\BadRequestException`. Both implement `Exception\ExceptionInterface`,
+   but they do not share a PHP base class: `BadRequestException` is a `\RuntimeException` while
+   `ModelNotFoundException` is a `\LogicException`, so a catch on either of those -- not just one
+   naming `BadRequestException` -- has to widen to `ExceptionInterface`. `Transport\AzureTransport`
+   always names the configured deployment, so the Responses contract no longer falls back to the model
+   name when no deployment is given.
+
+ * Error responses are mapped by each bridge's transport, uniformly across its contracts, so a few
+   raise a more specific exception than before: a 404 raises `Exception\ModelNotFoundException` for
+   OpenAI's Responses and transcription contracts and for every Docker Model Runner 404, a context
+   overflow on Azure's embeddings and Whisper contracts raises `Exception\ExceedContextSizeException`
+   instead of `Exception\BadRequestException`, and Scaleway's other 400 responses raise
+   `Exception\BadRequestException` instead of a plain `\RuntimeException`. Vertex AI reports API
+   errors in Gemini's message format, still carrying the API error code.
+
 Store
 -----
 

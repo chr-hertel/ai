@@ -1,6 +1,13 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * [BC BREAK] Replace the model clients and result converters with the Anthropic `MessagesClient` over `Anthropic\Transport\BedrockTransport`, `Meta\InvokeClient` and `Nova\InvokeClient`
+ * Extract token usage for Anthropic Claude models
+ * Support the `server_tools` option for Anthropic Claude models
+
 0.10
 ----
 

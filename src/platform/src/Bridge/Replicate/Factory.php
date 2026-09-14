@@ -43,8 +43,7 @@ final class Factory
     ): ProviderInterface {
         return new Provider(
             $name,
-            [new LlamaModelClient(new Client($httpClient ?? HttpClient::create(), new Clock(), $apiKey, $baseUrl))],
-            [new LlamaResultConverter()],
+            [new MetaPredictionsClient(new Client($httpClient ?? HttpClient::create(), new Clock(), $apiKey, $baseUrl))],
             $modelCatalog,
             $contract ?? Contract::create([new LlamaMessageBagNormalizer()]),
             $eventDispatcher,

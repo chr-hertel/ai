@@ -6,6 +6,7 @@ CHANGELOG
 
  * Add model information to token usage extraction
  * Replay hosted `web_search_call` items on the next turn, for buffered and streamed results
+ * [BC BREAK] Replace the model client and result converter with `ResponsesClient`
 
 0.13
 ----

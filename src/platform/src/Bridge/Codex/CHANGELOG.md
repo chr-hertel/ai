@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add token usage to streamed results, extracted from the `turn.completed` event
+ * [BC BREAK] Replace the model client and result converter with `CliInvokeClient`
 
 0.9
 ---

@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add model information to token usage extraction
+ * [BC BREAK] Replace the model clients and result converters with `ChatCompletionsClient`, `OcrClient`, `SpeechToTextClient` and the Generic `EmbeddingsClient`
 
 0.13
 ----

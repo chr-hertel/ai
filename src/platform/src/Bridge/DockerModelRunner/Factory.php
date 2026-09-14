@@ -11,6 +11,9 @@
 
 namespace Symfony\AI\Platform\Bridge\DockerModelRunner;
 
+use Symfony\AI\Platform\Bridge\DockerModelRunner\Transport\HttpTransport;
+use Symfony\AI\Platform\Bridge\Generic\ChatCompletionsClient;
+use Symfony\AI\Platform\Bridge\Generic\EmbeddingsClient;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -40,15 +43,13 @@ class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $transport = new HttpTransport($httpClient, $baseUrl);
+
         return new Provider(
             $name,
             [
-                new Completions\ModelClient($httpClient, $baseUrl),
-                new Embeddings\ModelClient($httpClient, $baseUrl),
-            ],
-            [
-                new Embeddings\ResultConverter(),
-                new Completions\ResultConverter(),
+                new ChatCompletionsClient($transport, '/engines/v1/chat/completions', Completions::class),
+                new EmbeddingsClient($transport, '/engines/v1/embeddings', Embeddings::class),
             ],
             $modelCatalog,
             $contract,

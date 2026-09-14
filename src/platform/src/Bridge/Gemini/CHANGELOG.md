@@ -5,6 +5,9 @@ CHANGELOG
 ----
 
  * Add model information to token usage extraction
+ * [BC BREAK] Replace the model clients and result converters with `GenerateContentClient` and `BatchEmbedContentsClient`, reaching the API through a `Transport\TransportInterface` (`Transport\HttpTransport`)
+ * Accept a string payload in `GenerateContentClient`, sent as a user turn
+ * Yield `TokenUsage` from streamed `generateContent` chunks
 
 0.13
 ----

@@ -45,8 +45,7 @@ class Factory
 
         return new Provider(
             $name,
-            [new ModelClient($httpClient, $baseUrl, $apiKey, $responsesPath)],
-            [new ResultConverter()],
+            [new ResponsesClient($httpClient, $baseUrl, $apiKey, $responsesPath)],
             $modelCatalog,
             $contract ?? OpenResponsesContract::create(),
             $eventDispatcher,
