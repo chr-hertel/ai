@@ -1,6 +1,13 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Replace the model clients and result converters with `ChatCompletionsClient` and `EmbeddingsClient` over `Transport\HttpTransport`
+ * Let a bridge extend `Transport\HttpTransport` to send its own way, e.g. to sign a request, by making the HTTP client, base URL, API key and extra headers available to a subclass
+ * Add `Completions\CompletionsConversionTrait::requiresStreamFinishReason()` so a provider whose streams end without a finish reason can opt out of `IncompleteStreamException`
+
 0.14
 ----
 

@@ -45,8 +45,13 @@ final class Factory
 
         return new Provider(
             $name,
-            [new MiniMaxClient($httpClient, $apiKey, $endpoint)],
-            [new MiniMaxResultConverter($name)],
+            [
+                new ChatCompletionsClient($httpClient, $apiKey, $endpoint),
+                new SpeechClient($httpClient, $apiKey, $endpoint, $name),
+                new ImageClient($httpClient, $apiKey, $endpoint),
+                new MusicClient($httpClient, $apiKey, $endpoint),
+                new VideoClient($httpClient, $apiKey, $endpoint, $name),
+            ],
             $modelCatalog,
             $contract ?? MiniMaxContract::create(),
             $eventDispatcher,

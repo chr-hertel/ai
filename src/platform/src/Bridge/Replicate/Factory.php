@@ -44,8 +44,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new LlamaModelClient($client)],
-            [new LlamaResultConverter($name)],
+            [new MetaPredictionsClient($client, $name)],
             $modelCatalog,
             $contract ?? Contract::create([new LlamaMessageBagNormalizer()]),
             $eventDispatcher,

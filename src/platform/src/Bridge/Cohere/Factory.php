@@ -43,8 +43,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new Embeddings\ModelClient($httpClient, $apiKey, $baseUrl), new Reranker\ModelClient($httpClient, $apiKey, $baseUrl), new Llm\ModelClient($httpClient, $apiKey, $baseUrl), new SpeechToText\ModelClient($httpClient, $apiKey, $baseUrl)],
-            [new Embeddings\ResultConverter(), new Reranker\ResultConverter(), new Llm\ResultConverter(), new SpeechToText\ResultConverter()],
+            [new ChatClient($httpClient, $apiKey, $baseUrl), new EmbedClient($httpClient, $apiKey, $baseUrl), new RerankClient($httpClient, $apiKey, $baseUrl), new TranscriptionClient($httpClient, $apiKey, $baseUrl)],
             $modelCatalog,
             $contract ?? Contract::create([new SpeechToText\AudioNormalizer()]),
             $eventDispatcher,

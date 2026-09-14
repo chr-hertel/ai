@@ -45,8 +45,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new CartesiaClient($httpClient, $apiKey, $version, $baseUrl)],
-            [new CartesiaResultConverter()],
+            [new TextToSpeechClient($httpClient, $apiKey, $version, $baseUrl), new SpeechToTextClient($httpClient, $apiKey, $version, $baseUrl)],
             $modelCatalog,
             $contract ?? CartesiaContract::create(),
             $eventDispatcher,

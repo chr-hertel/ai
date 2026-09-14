@@ -15,7 +15,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Gemini\Contract\GeminiContract;
 use Symfony\AI\Platform\Bridge\Gemini\Gemini;
-use Symfony\AI\Platform\Bridge\Gemini\Gemini\ResultConverter;
+use Symfony\AI\Platform\Bridge\Gemini\GenerateContentClient;
+use Symfony\AI\Platform\Bridge\Gemini\Transport\HttpTransport;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\RawHttpResult;
@@ -24,7 +25,7 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
 
 /**
- * End-to-end replay test: feed a fixture provider response into ResultConverter,
+ * End-to-end replay test: feed a fixture provider response into GenerateContentClient,
  * build an assistant message via Message::ofAssistant($result), append the next
  * user/tool turn, and assert the byte-shape of the request that would be sent
  * back to Gemini on turn 2.
@@ -46,7 +47,7 @@ final class AssistantReplayTest extends TestCase
     {
         $httpClient = new MockHttpClient(new JsonMockResponse($providerResponse));
         $httpResponse = $httpClient->request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
-        $result = (new ResultConverter())->convert(new RawHttpResult($httpResponse));
+        $result = (new GenerateContentClient(new HttpTransport(new MockHttpClient(), 'unused')))->convert(new RawHttpResult($httpResponse));
 
         $bag = $bagBuilder($result);
         $payload = GeminiContract::create()->createRequestPayload(new Gemini('gemini-2.5-flash'), $bag);

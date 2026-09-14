@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Replace the completions result converter with `ChatCompletionsClient`
+
 0.15
 ----
 

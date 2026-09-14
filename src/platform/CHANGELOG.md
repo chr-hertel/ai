@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * Sign an encoded JSON body of a replayed HTTP cassette in its decoded form as well, so a bridge that switched between handing the payload over as a string and as an array still replays its cassettes
  * [BC BREAK] Replace `ModelClientInterface` with `ApiClientInterface`, which declares `supports()` and `request()` and extends `ResultConverterInterface`; `Provider` takes a single list of API clients instead of model clients and a parallel list of result converters
  * Add the serving provider to `InvocationEvent` and `ResultEvent`, as `ResultConvertedEvent` and `ResultErrorEvent` already have it, so a listener can attribute these events to the provider serving the call
  * Stream the string answers of `Test\MockPlatformFactory` word by word when the invocation has the `stream` option

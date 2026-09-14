@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\DeepSeek;
 
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -38,10 +39,11 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $transport = new HttpTransport($httpClient, $baseUrl, $apiKey);
+
         return new Provider(
             $name,
-            [new ModelClient($httpClient, $apiKey, $baseUrl)],
-            [new ResultConverter()],
+            [new ChatCompletionsClient($transport, '/chat/completions', DeepSeek::class, false)],
             $modelCatalog,
             $contract ?? Contract::create(),
             $eventDispatcher,

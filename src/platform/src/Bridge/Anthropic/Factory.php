@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\Anthropic;
 
 use Symfony\AI\Platform\Bridge\Anthropic\Contract\AnthropicContract;
+use Symfony\AI\Platform\Bridge\Anthropic\Transport\HttpTransport;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -46,8 +47,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new ModelClient($httpClient, $apiKey, $cacheRetention, $baseUrl)],
-            [new ResultConverter()],
+            [new MessagesClient(new HttpTransport($httpClient, $apiKey, $baseUrl), $cacheRetention)],
             $modelCatalog,
             $contract ?? AnthropicContract::create(),
             $eventDispatcher,

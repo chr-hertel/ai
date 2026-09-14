@@ -4,6 +4,8 @@ CHANGELOG
 1.0
 ---
 
+ * [BC BREAK] Replace the model client and result converter with `ResponsesClient`
+ * Add a `ResponsesClient::createRequestOptions()` extension point, so a deployment authenticating differently (AWS SigV4, say) can sign the request it sends
  * Keep the phase of an answer (e.g. `final_answer`) on the result and replay it with the text on the next turn
  * Report `commentary` phase messages as `CommentaryResult` and commentary deltas instead of as part of the answer, and replay them with their phase on the next turn
 

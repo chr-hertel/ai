@@ -21,8 +21,8 @@ use Symfony\AI\Platform\Result\ResultInterface;
  * known at runtime when "fallbacks" is used, and the price varies per provider, so
  * dropping them makes spend impossible to attribute.
  *
- * The converters returning an ObjectResult pass both into their result object instead,
- * where they are part of the documented payload. This trait serves the converters whose
+ * The clients returning an ObjectResult pass both into their result object instead,
+ * where they are part of the documented payload. This trait serves the clients whose
  * result is a plain binary or text payload with nowhere else to put them.
  *
  * @author Mathieu Santostefano <msantostefano@proton.me>

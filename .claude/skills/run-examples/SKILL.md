@@ -240,7 +240,7 @@ src/platform/src/Bridge/OpenAi/Embeddings/">
 
 ### Will run
 `cd examples && ./runner openai`  — all 17 OpenAI scripts, exercises the
-   modified `OpenAi\Embeddings\ResultConverter`
+   modified `OpenAi\EmbeddingsClient`
 
 If multiple subdirs are involved, list each on its own line. If the right
 unit is "a few specific scripts", list those instead (with a one-line "why"

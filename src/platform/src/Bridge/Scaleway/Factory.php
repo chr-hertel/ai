@@ -11,14 +11,12 @@
 
 namespace Symfony\AI\Platform\Bridge\Scaleway;
 
+use Symfony\AI\Platform\Bridge\Generic\EmbeddingsClient;
 use Symfony\AI\Platform\Bridge\OpenResponses\Contract\OpenResponsesContract;
-use Symfony\AI\Platform\Bridge\OpenResponses\ModelClient as OpenResponsesModelClient;
-use Symfony\AI\Platform\Bridge\OpenResponses\ResultConverter as OpenResponsesResultConverter;
-use Symfony\AI\Platform\Bridge\Scaleway\Embeddings\ModelClient as ScalewayEmbeddingsModelClient;
-use Symfony\AI\Platform\Bridge\Scaleway\Embeddings\ResultConverter as ScalewayEmbeddingsResponseConverter;
-use Symfony\AI\Platform\Bridge\Scaleway\Llm\ModelClient as ScalewayModelClient;
-use Symfony\AI\Platform\Bridge\Scaleway\Llm\ResultConverter as ScalewayResponseConverter;
+use Symfony\AI\Platform\Bridge\OpenResponses\ResponsesClient as OpenResponsesClient;
+use Symfony\AI\Platform\Bridge\Scaleway\Transport\HttpTransport;
 use Symfony\AI\Platform\Contract;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
 use Symfony\AI\Platform\ModelRouterInterface;
@@ -46,19 +44,20 @@ final class Factory
         string $name = 'scaleway',
         string $baseUrl = 'https://api.scaleway.ai',
     ): ProviderInterface {
+        if ('' === $apiKey) {
+            throw new InvalidArgumentException('The API key must not be empty.');
+        }
+
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
+
+        $transport = new HttpTransport($httpClient, $baseUrl, $apiKey);
 
         return new Provider(
             $name,
             [
-                new OpenResponsesModelClient($httpClient, $baseUrl, $apiKey),
-                new ScalewayModelClient($httpClient, $apiKey, $baseUrl),
-                new ScalewayEmbeddingsModelClient($httpClient, $apiKey, $baseUrl),
-            ],
-            [
-                new OpenResponsesResultConverter(),
-                new ScalewayResponseConverter(),
-                new ScalewayEmbeddingsResponseConverter(),
+                new OpenResponsesClient($httpClient, $baseUrl, $apiKey),
+                new ChatCompletionsClient($transport, modelClass: Scaleway::class, applyGatewayDefaults: false),
+                new EmbeddingsClient($transport, modelClass: Embeddings::class),
             ],
             $modelCatalog,
             $contract ?? OpenResponsesContract::create(),

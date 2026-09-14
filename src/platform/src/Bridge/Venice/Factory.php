@@ -46,8 +46,15 @@ final class Factory
 
         return new Provider(
             $name,
-            [new VeniceClient($httpClient)],
-            [new VeniceResultConverter($name)],
+            [
+                new VideoGenerationClient($httpClient, $name),
+                new ChatCompletionsClient($httpClient),
+                new ImageEditClient($httpClient),
+                new ImageGenerationClient($httpClient),
+                new TextToSpeechClient($httpClient),
+                new SpeechToTextClient($httpClient),
+                new EmbeddingsClient($httpClient),
+            ],
             $modelCatalog ?? new ModelCatalog($httpClient),
             $contract ?? VeniceContract::create(),
             $eventDispatcher,
