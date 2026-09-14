@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Replace the model clients and result converters with a `ChatCompletionsClient` extending the Generic one over `Transport\HttpTransport`, the Generic `EmbeddingsClient` and the OpenResponses `ResponsesClient`
+
 0.14
 ----
 

@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * [BC BREAK] Replace the model clients and result converters with a `ChatCompletionsClient` extending the Generic one and the Generic `EmbeddingsClient`
  * Add `Factory::createModelCatalog()` to build the API-based catalog on its own, e.g. to wrap it in a `CachedModelCatalog`
 
 0.8

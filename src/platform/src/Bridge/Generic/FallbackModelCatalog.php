@@ -20,7 +20,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
  * appropriate model subclass based on the model name.
  *
  * The Generic bridge requires models to be instances of CompletionsModel
- * or EmbeddingsModel for the corresponding ModelClient to accept them.
+ * or EmbeddingsModel for the corresponding client to accept them.
  * This catalog uses a naming convention (model name contains "embed")
  * to determine the correct type when no explicit catalog is provided.
  *

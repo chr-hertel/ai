@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Replace the model client and result converter with `MessagesClient`, reaching the API through a `Transport\TransportInterface` (`Transport\HttpTransport`)
+
 0.14
 ----
 

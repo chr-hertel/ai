@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Replace the model clients and result converters with an `AgentClient` extending the OpenResponses `ResponsesClient`
+
 0.15
 ----
 

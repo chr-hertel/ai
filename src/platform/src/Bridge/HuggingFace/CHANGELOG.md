@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * [BC BREAK] Replace `Completions\ModelClient`, `Pipeline\ModelClient` and the result converters with `ChatCompletionsClient` and a client per task extending `Pipeline\AbstractPipelineClient`, e.g. `Pipeline\ClassificationClient`
  * Add `Factory::createModelCatalog()` to build the API-based catalog on its own, e.g. to wrap it in a `CachedModelCatalog`
 
 0.15

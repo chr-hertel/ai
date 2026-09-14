@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Replace the model client and result converter with `SystemOneClient`
+
 0.15
 ----
 

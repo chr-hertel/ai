@@ -17,6 +17,7 @@ use Symfony\AI\Platform\Bridge\EdenAi\Contract\DocumentUrlNormalizer;
 use Symfony\AI\Platform\Bridge\EdenAi\Contract\ImageNormalizer;
 use Symfony\AI\Platform\Bridge\EdenAi\Contract\ImageUrlNormalizer;
 use Symfony\AI\Platform\Bridge\Generic;
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -49,27 +50,20 @@ final class Factory
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
         $jobClient = self::createJobClient($apiKey, $httpClient, $baseUrl, $name);
 
-        $modelClients = [
-            new Generic\Completions\ModelClient($httpClient, $baseUrl, $apiKey, '/v3/chat/completions'),
-            new Generic\Embeddings\ModelClient($httpClient, $baseUrl, $apiKey, '/v3/embeddings'),
-            new UniversalAi\ModelClient($httpClient, $baseUrl, $apiKey),
-            new SpeechToText\ModelClient($httpClient, $baseUrl, $apiKey),
-        ];
-        $resultConverters = [
-            new Generic\Completions\ResultConverter(),
-            new Generic\Embeddings\ResultConverter(),
-            new Ocr\ResultConverter(),
-            new DocumentParser\ResultConverter(),
-            new Tts\ResultConverter($httpClient),
-            new SpeechToText\ResultConverter($jobClient),
-            new ImageAnalysis\ResultConverter(),
-            new ImageGeneration\ResultConverter(),
-        ];
+        $transport = new HttpTransport($httpClient, $baseUrl, $apiKey);
 
         return new Provider(
             $name,
-            $modelClients,
-            $resultConverters,
+            [
+                new Generic\ChatCompletionsClient($transport, '/v3/chat/completions'),
+                new Generic\EmbeddingsClient($transport, '/v3/embeddings'),
+                new UniversalAi\OcrClient($httpClient, $baseUrl, $apiKey),
+                new UniversalAi\DocumentParserClient($httpClient, $baseUrl, $apiKey),
+                new UniversalAi\ImageAnalysisClient($httpClient, $baseUrl, $apiKey),
+                new UniversalAi\ImageGenerationClient($httpClient, $baseUrl, $apiKey),
+                new UniversalAi\TtsClient($httpClient, $baseUrl, $apiKey),
+                new UniversalAi\SpeechToTextClient($httpClient, $baseUrl, $apiKey, $jobClient),
+            ],
             $modelCatalog,
             $contract ?? Contract::create([
                 new AudioNormalizer(),

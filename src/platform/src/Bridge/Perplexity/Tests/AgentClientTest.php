@@ -1,0 +1,512 @@
+<?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Symfony\AI\Platform\Bridge\Perplexity\Tests;
+
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
+use PHPUnit\Framework\Attributes\TestWith;
+use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Bridge\OpenResponses\ResponsesModel;
+use Symfony\AI\Platform\Bridge\Perplexity\AgentClient;
+use Symfony\AI\Platform\Bridge\Perplexity\Perplexity;
+use Symfony\AI\Platform\Exception\ExceedContextSizeException;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
+use Symfony\AI\Platform\Exception\MaxOutputTokensException;
+use Symfony\AI\Platform\Exception\ModelNotFoundException;
+use Symfony\AI\Platform\Exception\RuntimeException;
+use Symfony\AI\Platform\Exception\ServerException;
+use Symfony\AI\Platform\Result\DeferredResult;
+use Symfony\AI\Platform\Result\InMemoryRawResult;
+use Symfony\AI\Platform\Result\RawHttpResult;
+use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
+use Symfony\AI\Platform\Result\Stream\Delta\ToolCallComplete;
+use Symfony\AI\Platform\Result\Stream\Delta\ToolCallStart;
+use Symfony\AI\Platform\Result\TextResult;
+use Symfony\AI\Platform\Result\ToolCallResult;
+use Symfony\Component\HttpClient\EventSourceHttpClient;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Contracts\HttpClient\ResponseInterface as HttpResponse;
+
+/**
+ * @author Mathieu Santostefano <msantostefano@proton.me>
+ */
+final class AgentClientTest extends TestCase
+{
+    public function testItThrowsExceptionWhenApiKeyIsEmpty()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The API key must not be empty.');
+
+        new AgentClient(new MockHttpClient(), '');
+    }
+
+    #[TestWith(['api-key-without-prefix'])]
+    #[TestWith(['plx-api-key'])]
+    #[TestWith(['PPLX-api-key'])]
+    #[TestWith(['pplxapikey'])]
+    #[TestWith(['pplx api-key'])]
+    #[TestWith(['pplx'])]
+    public function testItThrowsExceptionWhenApiKeyDoesNotStartWithPplx(string $invalidApiKey)
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The API key must start with "pplx-".');
+
+        new AgentClient(new MockHttpClient(), $invalidApiKey);
+    }
+
+    public function testItAcceptsValidApiKey()
+    {
+        $client = new AgentClient(new MockHttpClient(), 'pplx-valid-api-key');
+
+        $this->assertInstanceOf(AgentClient::class, $client);
+    }
+
+    public function testItWrapsHttpClientInEventSourceHttpClient()
+    {
+        $httpClient = new MockHttpClient();
+        $client = new AgentClient($httpClient, 'pplx-valid-api-key');
+
+        $this->assertInstanceOf(AgentClient::class, $client);
+    }
+
+    public function testItAcceptsEventSourceHttpClientDirectly()
+    {
+        $httpClient = new EventSourceHttpClient(new MockHttpClient());
+        $client = new AgentClient($httpClient, 'pplx-valid-api-key');
+
+        $this->assertInstanceOf(AgentClient::class, $client);
+    }
+
+    public function testItIsSupportingTheCorrectModel()
+    {
+        $client = new AgentClient(new MockHttpClient(), 'pplx-api-key');
+
+        $this->assertTrue($client->supports(new Perplexity('fast')));
+        $this->assertFalse($client->supports(new ResponsesModel('fast')));
+    }
+
+    public function testItSendsAPresetToTheAgentEndpoint()
+    {
+        $resultCallback = static function (string $method, string $url, array $options): HttpResponse {
+            self::assertSame('POST', $method);
+            self::assertSame('https://api.perplexity.ai/v1/agent', $url);
+            self::assertSame('Authorization: Bearer pplx-api-key', $options['normalized_headers']['authorization'][0]);
+            self::assertSame('{"preset":"fast","input":[{"role":"user","content":"test message"}]}', $options['body']);
+
+            return new MockResponse();
+        };
+        $httpClient = new MockHttpClient([$resultCallback]);
+        $client = new AgentClient($httpClient, 'pplx-api-key');
+        $client->request(new Perplexity('fast'), ['input' => [['role' => 'user', 'content' => 'test message']]]);
+    }
+
+    public function testItSendsAProviderPrefixedModelAsModel()
+    {
+        $resultCallback = static function (string $method, string $url, array $options): HttpResponse {
+            self::assertSame('{"tools":[{"type":"web_search"}],"model":"perplexity\/sonar","input":[{"role":"user","content":"Hello"}]}', $options['body']);
+
+            return new MockResponse();
+        };
+        $httpClient = new MockHttpClient([$resultCallback]);
+        $client = new AgentClient($httpClient, 'pplx-api-key');
+        $client->request(new Perplexity('perplexity/sonar'), ['input' => [['role' => 'user', 'content' => 'Hello']]], ['tools' => [['type' => 'web_search']]]);
+    }
+
+    #[IgnoreDeprecations]
+    #[TestWith(['sonar', 'fast'])]
+    #[TestWith(['sonar-pro', 'fast'])]
+    #[TestWith(['sonar-reasoning', 'low'])]
+    #[TestWith(['sonar-reasoning-pro', 'low'])]
+    #[TestWith(['sonar-deep-research', 'high'])]
+    public function testItSendsDeprecatedSonarModelsAsTheirReplacementPreset(string $model, string $preset)
+    {
+        $resultCallback = static function (string $method, string $url, array $options) use ($preset): HttpResponse {
+            self::assertSame('{"preset":"'.$preset.'","input":"Hello"}', $options['body']);
+
+            return new MockResponse();
+        };
+        $httpClient = new MockHttpClient([$resultCallback]);
+        $client = new AgentClient($httpClient, 'pplx-api-key');
+
+        $this->expectUserDeprecationMessage(\sprintf('Since symfony/ai-perplexity-platform 0.15: The "%s" model is deprecated, use the "%s" preset instead.', $model, $preset));
+
+        $client->request(new Perplexity($model), ['input' => 'Hello']);
+    }
+
+    public function testItRenamesMaxTokensToMaxOutputTokens()
+    {
+        $resultCallback = static function (string $method, string $url, array $options): HttpResponse {
+            self::assertSame('{"max_output_tokens":500,"preset":"fast","input":"Hello"}', $options['body']);
+
+            return new MockResponse();
+        };
+        $httpClient = new MockHttpClient([$resultCallback]);
+        $client = new AgentClient($httpClient, 'pplx-api-key');
+        $client->request(new Perplexity('fast'), ['input' => 'Hello'], ['max_tokens' => 500]);
+    }
+
+    public function testItKeepsTheResponseFormatAtTheTopLevel()
+    {
+        $responseFormat = [
+            'type' => 'json_schema',
+            'json_schema' => [
+                'name' => 'Capital',
+                'schema' => ['type' => 'object', 'properties' => ['city' => ['type' => 'string']]],
+                'strict' => true,
+            ],
+        ];
+
+        $resultCallback = static function (string $method, string $url, array $options) use ($responseFormat): HttpResponse {
+            $body = json_decode($options['body'], true);
+
+            self::assertSame($responseFormat, $body['response_format']);
+            self::assertArrayNotHasKey('text', $body);
+
+            return new MockResponse();
+        };
+        $httpClient = new MockHttpClient([$resultCallback]);
+        $client = new AgentClient($httpClient, 'pplx-api-key');
+        $client->request(new Perplexity('perplexity/sonar'), ['input' => 'Hello'], ['response_format' => $responseFormat]);
+    }
+
+    public function testCustomBaseUrlIsUsedAndTrailingSlashNormalized()
+    {
+        $resultCallback = static function (string $method, string $url): HttpResponse {
+            self::assertSame('https://perplexity.example.com/v1/agent', $url);
+
+            return new MockResponse();
+        };
+        $httpClient = new MockHttpClient([$resultCallback]);
+        $client = new AgentClient($httpClient, 'pplx-api-key', 'https://perplexity.example.com/');
+        $client->request(new Perplexity('fast'), ['input' => 'Hello']);
+    }
+
+    public function testMalformedUtf8InPayloadDoesNotAbortTheRequest()
+    {
+        $resultCallback = static function (string $method, string $url, array $options): HttpResponse {
+            self::assertSame('Content-Type: application/json', $options['normalized_headers']['content-type'][0]);
+            self::assertJson($options['body']);
+            self::assertStringContainsString('tool output \ufffd here', $options['body']);
+
+            return new MockResponse();
+        };
+        $httpClient = new MockHttpClient([$resultCallback]);
+        $client = new AgentClient($httpClient, 'pplx-api-key');
+        $client->request(new Perplexity('fast'), ['input' => [['role' => 'user', 'content' => "tool output \xB1 here"]]]);
+    }
+
+    public function testConvertTextResult()
+    {
+        $result = self::client()->convert($this->createRawResult([
+            'status' => 'completed',
+            'output' => [self::message('Hello world')],
+        ]));
+
+        $this->assertInstanceOf(TextResult::class, $result);
+        $this->assertSame('Hello world', $result->getContent());
+        $this->assertFalse($result->getMetadata()->has('search_results'));
+        $this->assertFalse($result->getMetadata()->has('citations'));
+    }
+
+    public function testConvertAttachesSearchResultsAndCitations()
+    {
+        $result = self::client()->convert($this->createRawResult([
+            'status' => 'completed',
+            'output' => [
+                self::searchResults([self::searchResult(1, 'https://example.com/paris'), self::searchResult(2, 'https://example.com/france')]),
+                self::message('Paris is the capital of France.[1][2]'),
+            ],
+        ]));
+
+        $this->assertInstanceOf(TextResult::class, $result);
+        $this->assertSame('Paris is the capital of France.[1][2]', $result->getContent());
+        $this->assertSame([self::searchResult(1, 'https://example.com/paris'), self::searchResult(2, 'https://example.com/france')], $result->getMetadata()->get('search_results'));
+        $this->assertSame(['https://example.com/paris', 'https://example.com/france'], $result->getMetadata()->get('citations'));
+    }
+
+    public function testConvertMergesSearchResultsOfEveryStep()
+    {
+        $result = self::client()->convert($this->createRawResult([
+            'status' => 'completed',
+            'output' => [
+                self::searchResults([self::searchResult(1, 'https://example.com/1')]),
+                self::searchResults([self::searchResult(2, 'https://example.com/2')]),
+                self::message('Answer.[1][2]'),
+            ],
+        ]));
+
+        $this->assertSame(['https://example.com/1', 'https://example.com/2'], $result->getMetadata()->get('citations'));
+    }
+
+    public function testConvertOrdersSearchResultsById()
+    {
+        $result = self::client()->convert($this->createRawResult([
+            'status' => 'completed',
+            'output' => [
+                self::searchResults([self::searchResult(3, 'https://example.com/3'), self::searchResult(4, 'https://example.com/4')]),
+                self::searchResults([self::searchResult(1, 'https://example.com/1'), self::searchResult(2, 'https://example.com/2')]),
+                self::message('Answer.[web:3][web:1]'),
+            ],
+        ]));
+
+        $this->assertSame([1, 2, 3, 4], array_column($result->getMetadata()->get('search_results'), 'id'));
+        $this->assertSame(['https://example.com/1', 'https://example.com/2', 'https://example.com/3', 'https://example.com/4'], $result->getMetadata()->get('citations'));
+    }
+
+    public function testStreamingOrdersSearchResultsById()
+    {
+        $laterIds = self::searchResults([self::searchResult(3, 'https://example.com/3'), self::searchResult(4, 'https://example.com/4')]);
+        $earlierIds = self::searchResults([self::searchResult(1, 'https://example.com/1'), self::searchResult(2, 'https://example.com/2')]);
+
+        $deferredResult = new DeferredResult(self::client(), $this->createStreamingRawResult([
+            ['type' => 'response.output_item.done', 'item' => $laterIds],
+            ['type' => 'response.output_item.done', 'item' => $earlierIds],
+            ['type' => 'response.output_text.delta', 'delta' => 'Answer.[web:3][web:1]'],
+            ['type' => 'response.completed', 'response' => ['status' => 'completed', 'output' => [$laterIds, $earlierIds, self::message('Answer.[web:3][web:1]')]]],
+        ]), ['stream' => true]);
+        iterator_to_array($deferredResult->asStream(), false);
+
+        $this->assertSame([1, 2, 3, 4], array_column($deferredResult->getMetadata()->get('search_results'), 'id'));
+        $this->assertSame(['https://example.com/1', 'https://example.com/2', 'https://example.com/3', 'https://example.com/4'], $deferredResult->getMetadata()->get('citations'));
+    }
+
+    public function testConvertSkipsOtherBuiltInToolOutputItems()
+    {
+        $result = self::client()->convert($this->createRawResult([
+            'status' => 'completed',
+            'output' => [
+                ['type' => 'fetch_url_results', 'contents' => [['url' => 'https://example.com', 'title' => 'Example', 'snippet' => '...']]],
+                ['type' => 'finance_results', 'results' => []],
+                ['type' => 'people_search_results', 'results' => []],
+                ['type' => 'sandbox_results', 'results' => []],
+                self::message('Done.'),
+            ],
+        ]));
+
+        $this->assertInstanceOf(TextResult::class, $result);
+        $this->assertSame('Done.', $result->getContent());
+    }
+
+    public function testConvertToolCallResult()
+    {
+        $result = self::client()->convert($this->createRawResult([
+            'status' => 'completed',
+            'output' => [[
+                'type' => 'function_call',
+                'id' => 'fc_1',
+                'call_id' => 'call_1',
+                'name' => 'get_weather',
+                'arguments' => '{"city":"Paris"}',
+                'status' => 'completed',
+            ]],
+        ]));
+
+        $this->assertInstanceOf(ToolCallResult::class, $result);
+        $this->assertSame('call_1', $result->getContent()[0]->getId());
+        $this->assertSame(['city' => 'Paris'], $result->getContent()[0]->getArguments());
+    }
+
+    public function testConvertThrowsOnFailedResponse()
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The model failed to answer.');
+
+        self::client()->convert($this->createRawResult([
+            'status' => 'failed',
+            'error' => ['message' => 'The model failed to answer.', 'type' => 'internal_error'],
+            'output' => [],
+        ]));
+    }
+
+    public function testConvertThrowsMaxOutputTokensExceptionOnTruncatedResponse()
+    {
+        $this->expectException(MaxOutputTokensException::class);
+
+        self::client()->convert($this->createRawResult([
+            'status' => 'incomplete',
+            'incomplete_details' => ['reason' => 'max_output_tokens'],
+            'output' => [],
+        ]));
+    }
+
+    public function testConvertThrowsExceedContextSizeExceptionOnContextOverflow()
+    {
+        $this->expectException(ExceedContextSizeException::class);
+        $this->expectExceptionMessage('The total length of all messages is too long.');
+
+        self::client()->convert($this->createRawResult([
+            'error' => [
+                'message' => 'The total length of all messages is too long.',
+                'type' => 'too_many_prompt_tokens',
+                'code' => 400,
+            ],
+        ], 400));
+    }
+
+    public function testConvertThrowsModelNotFoundExceptionOnNotFound()
+    {
+        $this->expectException(ModelNotFoundException::class);
+        $this->expectExceptionMessage('Unknown model.');
+
+        self::client()->convert($this->createRawResult([
+            'error' => ['message' => 'Unknown model.', 'type' => 'not_found', 'code' => 404],
+        ], 404));
+    }
+
+    public function testThrowsServerExceptionOnServerErrorStatusBeforeStreaming()
+    {
+        $converter = self::client();
+        $httpResponse = $this->createMock(HttpResponse::class);
+        $httpResponse->method('getStatusCode')->willReturn(500);
+        $httpResponse->method('getContent')->willReturn('Service Unavailable');
+
+        $this->expectException(ServerException::class);
+        $this->expectExceptionMessage('Server error (HTTP 500');
+
+        $converter->convert(new RawHttpResult($httpResponse), ['stream' => true]);
+    }
+
+    public function testStreamingYieldsTextAndPromotesSearchResults()
+    {
+        $searchResults = self::searchResults([self::searchResult(1, 'https://example.com/paris')]);
+
+        $deferredResult = new DeferredResult(self::client(), $this->createStreamingRawResult([
+            ['type' => 'response.created', 'response' => ['status' => 'in_progress', 'output' => [], 'usage' => null]],
+            ['type' => 'response.output_item.added', 'item' => ['type' => 'function_call', 'id' => 'fc_1', 'call_id' => 'call_1', 'name' => 'search_web', 'arguments' => '{"queries":["capital of France"]}', 'status' => 'completed']],
+            ['type' => 'response.reasoning.search_queries', 'call_id' => 'call_1', 'queries' => ['capital of France']],
+            ['type' => 'response.output_item.done', 'item' => $searchResults],
+            ['type' => 'response.output_item.added', 'item' => ['type' => 'message', 'role' => 'assistant', 'content' => []]],
+            ['type' => 'response.output_text.delta', 'delta' => 'Paris is the capital'],
+            ['type' => 'response.output_text.delta', 'delta' => ' of France.[1]'],
+            ['type' => 'response.output_text.done', 'text' => 'Paris is the capital of France.[1]'],
+            ['type' => 'response.completed', 'response' => ['status' => 'completed', 'output' => [$searchResults, self::message('Paris is the capital of France.[1]')]]],
+        ]), ['stream' => true]);
+
+        $deltas = iterator_to_array($deferredResult->asStream(), false);
+
+        $this->assertCount(2, $deltas);
+        $this->assertInstanceOf(TextDelta::class, $deltas[0]);
+        $this->assertSame('Paris is the capital', $deltas[0]->getText());
+        $this->assertInstanceOf(TextDelta::class, $deltas[1]);
+        $this->assertSame(' of France.[1]', $deltas[1]->getText());
+        $this->assertSame([self::searchResult(1, 'https://example.com/paris')], $deferredResult->getMetadata()->get('search_results'));
+        $this->assertSame(['https://example.com/paris'], $deferredResult->getMetadata()->get('citations'));
+    }
+
+    public function testBufferedAndStreamedCitationsAgreeWhenTheMessageCarriesUrlCitations()
+    {
+        $searchResults = self::searchResults(array_map(
+            static fn (int $id): array => self::searchResult($id, 'https://example.com/'.$id),
+            range(1, 9),
+        ));
+        $message = self::message('Answer.[3][9]');
+        $message['content'][0]['annotations'] = [
+            ['type' => 'url_citation', 'url' => 'https://example.com/3', 'title' => 'Title 3', 'start_index' => 7, 'end_index' => 10],
+            ['type' => 'url_citation', 'url' => 'https://example.com/9', 'title' => 'Title 9', 'start_index' => 10, 'end_index' => 13],
+        ];
+
+        $buffered = self::client()->convert($this->createRawResult([
+            'status' => 'completed',
+            'output' => [$searchResults, $message],
+        ]));
+
+        $streamed = new DeferredResult(self::client(), $this->createStreamingRawResult([
+            ['type' => 'response.output_item.done', 'item' => $searchResults],
+            ['type' => 'response.output_text.delta', 'delta' => 'Answer.[3][9]'],
+            ['type' => 'response.completed', 'response' => ['status' => 'completed', 'output' => [$searchResults, $message]]],
+        ]), ['stream' => true]);
+        iterator_to_array($streamed->asStream(), false);
+
+        $this->assertSame($streamed->getMetadata()->get('citations'), $buffered->getMetadata()->get('citations'));
+        $this->assertSame('https://example.com/3', $buffered->getMetadata()->get('citations')[2]);
+        $this->assertSame('https://example.com/9', $buffered->getMetadata()->get('citations')[8]);
+    }
+
+    public function testStreamingKeepsFunctionCallsDeclaredInTheRequest()
+    {
+        $functionCall = ['type' => 'function_call', 'id' => 'fc_1', 'call_id' => 'call_1', 'name' => 'get_weather', 'arguments' => '{"city":"Paris"}', 'status' => 'completed'];
+
+        $deferredResult = new DeferredResult(self::client(), $this->createStreamingRawResult([
+            ['type' => 'response.output_item.added', 'item' => $functionCall],
+            ['type' => 'response.output_item.done', 'item' => $functionCall],
+            ['type' => 'response.completed', 'response' => ['status' => 'completed', 'output' => [$functionCall]]],
+        ]), ['stream' => true, 'tools' => [['type' => 'function', 'name' => 'get_weather', 'description' => 'Get the weather']]]);
+
+        $deltas = iterator_to_array($deferredResult->asStream(), false);
+
+        $this->assertInstanceOf(ToolCallStart::class, $deltas[0]);
+        $this->assertSame('get_weather', $deltas[0]->getName());
+        $this->assertInstanceOf(ToolCallComplete::class, $deltas[1]);
+        $this->assertSame('call_1', $deltas[1]->getToolCalls()[0]->getId());
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function createRawResult(array $data, int $statusCode = 200): RawHttpResult
+    {
+        $httpResponse = $this->createMock(HttpResponse::class);
+        $httpResponse->method('getStatusCode')->willReturn($statusCode);
+        $httpResponse->method('getContent')->willReturn(json_encode($data));
+        $httpResponse->method('toArray')->willReturn($data);
+
+        return new RawHttpResult($httpResponse);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $events
+     */
+    private function createStreamingRawResult(array $events): InMemoryRawResult
+    {
+        $httpResponse = $this->createMock(HttpResponse::class);
+        $httpResponse->method('getStatusCode')->willReturn(200);
+
+        return new InMemoryRawResult(dataStream: $events, object: $httpResponse);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function message(string $text): array
+    {
+        return [
+            'type' => 'message',
+            'id' => 'msg_1',
+            'role' => 'assistant',
+            'status' => 'completed',
+            'content' => [['type' => 'output_text', 'text' => $text, 'annotations' => []]],
+        ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $results
+     *
+     * @return array<string, mixed>
+     */
+    private static function searchResults(array $results): array
+    {
+        return ['type' => 'search_results', 'queries' => ['capital of France'], 'results' => $results];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function searchResult(int $id, string $url): array
+    {
+        return ['id' => $id, 'url' => $url, 'title' => 'Title '.$id, 'snippet' => 'Snippet '.$id, 'date' => '2026-06-10', 'source' => 'web'];
+    }
+
+    private static function client(): AgentClient
+    {
+        return new AgentClient(new MockHttpClient(), 'pplx-api-key');
+    }
+}

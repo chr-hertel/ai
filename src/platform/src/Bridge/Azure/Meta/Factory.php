@@ -40,9 +40,9 @@ final class Factory
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'azure-meta',
     ): ProviderInterface {
-        $modelClient = new LlamaModelClient($httpClient ?? HttpClient::create(), $baseUrl, $apiKey);
+        $modelClient = new LlamaClient($httpClient ?? HttpClient::create(), $baseUrl, $apiKey);
 
-        return new Provider($name, [$modelClient], [new LlamaResultConverter()], $modelCatalog, $contract, $eventDispatcher);
+        return new Provider($name, [$modelClient], $modelCatalog, $contract, $eventDispatcher);
     }
 
     /**

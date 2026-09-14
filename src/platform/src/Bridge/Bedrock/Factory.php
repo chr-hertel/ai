@@ -13,13 +13,11 @@ namespace Symfony\AI\Platform\Bridge\Bedrock;
 
 use AsyncAws\BedrockRuntime\BedrockRuntimeClient;
 use Symfony\AI\Platform\Bridge\Anthropic\Contract as AnthropicContract;
-use Symfony\AI\Platform\Bridge\Bedrock\Anthropic\ClaudeModelClient;
-use Symfony\AI\Platform\Bridge\Bedrock\Anthropic\ClaudeResultConverter;
-use Symfony\AI\Platform\Bridge\Bedrock\Meta\LlamaModelClient;
-use Symfony\AI\Platform\Bridge\Bedrock\Meta\LlamaResultConverter;
+use Symfony\AI\Platform\Bridge\Anthropic\MessagesClient as AnthropicMessagesClient;
+use Symfony\AI\Platform\Bridge\Bedrock\Anthropic\Transport\BedrockTransport as AnthropicBedrockTransport;
+use Symfony\AI\Platform\Bridge\Bedrock\Meta\InvokeClient as MetaInvokeClient;
 use Symfony\AI\Platform\Bridge\Bedrock\Nova\Contract as NovaContract;
-use Symfony\AI\Platform\Bridge\Bedrock\Nova\NovaModelClient;
-use Symfony\AI\Platform\Bridge\Bedrock\Nova\NovaResultConverter;
+use Symfony\AI\Platform\Bridge\Bedrock\Nova\InvokeClient as NovaInvokeClient;
 use Symfony\AI\Platform\Bridge\Meta\Contract as LlamaContract;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Exception\RuntimeException;
@@ -57,14 +55,9 @@ final class Factory
         return new Provider(
             $name,
             [
-                new ClaudeModelClient($bedrockRuntimeClient),
-                new LlamaModelClient($bedrockRuntimeClient),
-                new NovaModelClient($bedrockRuntimeClient),
-            ],
-            [
-                new ClaudeResultConverter(),
-                new LlamaResultConverter(),
-                new NovaResultConverter(),
+                new AnthropicMessagesClient(new AnthropicBedrockTransport($bedrockRuntimeClient), 'none'),
+                new MetaInvokeClient($bedrockRuntimeClient),
+                new NovaInvokeClient($bedrockRuntimeClient),
             ],
             $modelCatalog,
             $contract ?? Contract::create([

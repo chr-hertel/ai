@@ -48,8 +48,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new HiggsfieldClient($httpClient)],
-            [new HiggsfieldResultConverter($name)],
+            [new GenerationClient($httpClient, $name)],
             $modelCatalog ?? self::createCuratedModelCatalog($httpClient),
             $contract ?? HiggsfieldContract::create(),
             $eventDispatcher,

@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\HuggingFace;
 
-use Symfony\AI\Platform\Bridge\Generic\Completions\ResultConverter as CompletionsResultConverter;
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Bridge\HuggingFace\Contract\HuggingFaceContract;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
@@ -48,25 +48,21 @@ final class Factory
         return new PlatformProvider(
             $name,
             [
-                new Completions\ModelClient($httpClient, $apiKey, $provider, $baseUrl),
-                new Pipeline\ModelClient($httpClient, $apiKey, $baseUrl),
-            ],
-            [
-                new CompletionsResultConverter(),
-                new Classification\ResultConverter(),
-                new Embeddings\ResultConverter(),
-                new FillMask\ResultConverter(),
-                new ImageSegmentation\ResultConverter(),
-                new ObjectDetection\ResultConverter(),
-                new QuestionAnswering\ResultConverter(),
-                new Reranker\ResultConverter(),
-                new SpeechRecognition\ResultConverter(),
-                new Summarization\ResultConverter(),
-                new TableQuestionAnswering\ResultConverter(),
-                new TextToImage\ResultConverter(),
-                new TokenClassification\ResultConverter(),
-                new Translation\ResultConverter(),
-                new ZeroShotClassification\ResultConverter(),
+                new ChatCompletionsClient(new HttpTransport($httpClient, $baseUrl, $apiKey), $provider),
+                new Pipeline\ClassificationClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\EmbeddingsClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\FillMaskClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\ImageSegmentationClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\ObjectDetectionClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\QuestionAnsweringClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\RerankerClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\SpeechRecognitionClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\SummarizationClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\TableQuestionAnsweringClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\TextToImageClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\TokenClassificationClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\TranslationClient($httpClient, $apiKey, $baseUrl),
+                new Pipeline\ZeroShotClassificationClient($httpClient, $apiKey, $baseUrl),
             ],
             $modelCatalog,
             $contract ?? HuggingFaceContract::create(),

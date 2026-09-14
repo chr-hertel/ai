@@ -192,7 +192,7 @@ Eden AI currently serves from its public ``/v3/models``, ``/v3/embeddings/models
     // No catalog entry needed for this one
     $result = $platform->invoke('audio/tts/elevenlabs/eleven_multilingual_v2', 'Welcome!');
 
-Expert subfeatures the bridge has no result converter for stay hidden from that catalog, so
+Expert subfeatures the bridge has no client for stay hidden from that catalog, so
 an unsupported model fails at lookup time rather than during conversion.
 
 Code Examples

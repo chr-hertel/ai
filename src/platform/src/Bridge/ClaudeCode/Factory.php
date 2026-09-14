@@ -45,8 +45,7 @@ final class Factory
     ): ProviderInterface {
         return new Provider(
             $name,
-            [new ModelClient($cliBinary, $workingDirectory, $timeout, $environment, $logger)],
-            [new ResultConverter()],
+            [new CliInvokeClient($cliBinary, $workingDirectory, $timeout, $environment, $logger)],
             $modelCatalog,
             $contract ?? ClaudeCodeContract::create(),
             $eventDispatcher,

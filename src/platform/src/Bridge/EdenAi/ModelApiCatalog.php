@@ -42,8 +42,8 @@ final class ModelApiCatalog extends AbstractModelCatalog
 {
     /**
      * Maps an expert "feature/subfeature" onto the model class handling it, mirroring the
-     * model clients and result converters the Factory registers. Subfeatures absent from
-     * this map stay hidden: the bridge has no converter able to read their output, so
+     * clients the Factory registers. Subfeatures absent from
+     * this map stay hidden: the bridge has no client able to read their output, so
      * exposing them would only produce failures at conversion time.
      *
      * @var array<string, array{class: class-string, capabilities: list<Capability>}>

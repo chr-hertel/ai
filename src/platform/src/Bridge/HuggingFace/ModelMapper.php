@@ -81,7 +81,7 @@ final class ModelMapper
                 continue;
             }
 
-            // Task pipelines run on the Hugging Face inference service only, see Pipeline\ModelClient
+            // Task pipelines run on the Hugging Face inference service only, see Pipeline\AbstractPipelineClient
             if (Provider::HF_INFERENCE === $mappingProvider && isset(self::PIPELINES[$mapping['task']])) {
                 $pipelineTask = $mapping['task'];
             }

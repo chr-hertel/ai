@@ -23,7 +23,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * LiteLLM /model/info endpoint.
  *
  * Maps each model to CompletionsModel or EmbeddingsModel based on the
- * mode field, so the Generic platform's ModelClients can route requests
+ * mode field, so the Generic platform's clients can route requests
  * correctly.
  */
 final class ModelApiCatalog extends AbstractModelCatalog

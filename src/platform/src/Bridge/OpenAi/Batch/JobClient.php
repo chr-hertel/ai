@@ -11,8 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\OpenAi\Batch;
 
-use Symfony\AI\Platform\Bridge\OpenAi\Gpt\ModelClient;
 use Symfony\AI\Platform\Bridge\OpenAi\RegionAwareTrait;
+use Symfony\AI\Platform\Bridge\OpenAi\ResponsesClient;
 use Symfony\AI\Platform\Bridge\OpenResponses\ResultConverter as OpenResponsesResultConverter;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
 use Symfony\AI\Platform\Exception\JobFailedException;
@@ -115,9 +115,9 @@ final class JobClient implements JobClientInterface
             throw new JobFailedException($status, \sprintf('The OpenAI batch "%s" has no results to fetch, its status is "%s".%s', $handle->getId(), $status->getRaw(), null !== $status->getError() ? ' '.$status->getError() : ''));
         }
 
-        $endpoint = $handle->get('endpoint', ModelClient::PATH);
+        $endpoint = $handle->get('endpoint', ResponsesClient::PATH);
 
-        if (ModelClient::PATH !== $endpoint) {
+        if (ResponsesClient::PATH !== $endpoint) {
             throw new RuntimeException(\sprintf('The OpenAI batch "%s" was submitted to "%s", which this bridge cannot convert the results of.', $handle->getId(), \is_string($endpoint) ? $endpoint : get_debug_type($endpoint)));
         }
 

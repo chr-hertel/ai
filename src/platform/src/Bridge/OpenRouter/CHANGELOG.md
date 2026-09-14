@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * [BC BREAK] Replace the model clients and result converters with `Rerank\Client`, `Speech\Client` and the Generic `ChatCompletionsClient` and `EmbeddingsClient`
  * Add `Factory::createModelCatalog()` to build the API-based catalog on its own, e.g. to wrap it in a `CachedModelCatalog`
 
 0.13

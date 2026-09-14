@@ -138,15 +138,12 @@ final class ProviderTest extends TestCase
         $catalog = $this->createMock(ModelCatalogInterface::class);
         $catalog->expects($this->once())->method('getModel')->with('qwen3:8b?think=false')->willReturn(new Model('qwen3:8b', [Capability::INPUT_MESSAGES], ['think' => false]));
 
-        $modelClient = $this->createStub(ModelClientInterface::class);
-        $modelClient->method('supports')->willReturn(true);
-        $modelClient->method('request')->willReturn($this->createStub(RawResultInterface::class));
+        $client = $this->createStub(ApiClientInterface::class);
+        $client->method('supports')->willReturn(true);
+        $client->method('request')->willReturn($this->createStub(RawResultInterface::class));
+        $client->method('convert')->willReturn(new TextResult('Hello'));
 
-        $resultConverter = $this->createStub(ResultConverterInterface::class);
-        $resultConverter->method('supports')->willReturn(true);
-        $resultConverter->method('convert')->willReturn(new TextResult('Hello'));
-
-        $provider = new Provider('ollama', [$modelClient], [$resultConverter], $catalog);
+        $provider = new Provider('ollama', [$client], $catalog);
 
         $this->assertTrue($provider->supports('qwen3:8b?think=false'));
         $provider->invoke('qwen3:8b?think=false', 'Hello');

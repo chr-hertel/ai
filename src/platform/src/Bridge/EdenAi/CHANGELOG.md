@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * [BC BREAK] Replace the model clients and result converters with `UniversalAi\OcrClient`, `UniversalAi\DocumentParserClient`, `UniversalAi\ImageAnalysisClient`, `UniversalAi\ImageGenerationClient`, `UniversalAi\TtsClient`, `UniversalAi\SpeechToTextClient` and the Generic `ChatCompletionsClient` and `EmbeddingsClient`
  * Add `Factory::createModelCatalog()` to build the API-based catalog on its own, e.g. to wrap it in a `CachedModelCatalog`
 
 0.14

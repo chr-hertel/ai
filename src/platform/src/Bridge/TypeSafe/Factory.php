@@ -41,8 +41,7 @@ final class Factory
     ): ProviderInterface {
         return new Provider(
             $name,
-            [new ModelClient($httpClient ?? HttpClient::create(), $apiKey, $baseUrl)],
-            [new ResultConverter()],
+            [new SystemOneClient($httpClient ?? HttpClient::create(), $apiKey, $baseUrl)],
             $modelCatalog,
             $contract ?? Contract::create(),
             $eventDispatcher,
