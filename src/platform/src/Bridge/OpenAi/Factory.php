@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\OpenAi;
 
 use Symfony\AI\Platform\Bridge\OpenAi\Contract\OpenAiContract;
+use Symfony\AI\Platform\Bridge\OpenAi\Transport\HttpTransport;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -33,6 +34,8 @@ final class Factory
 
     /**
      * @param non-empty-string $name
+     * @param bool             $useChatCompletions Serve GPT models through `/v1/chat/completions`
+     *                                             instead of the default `/v1/responses`
      */
     public static function createProvider(
         #[\SensitiveParameter] string $apiKey,
@@ -42,24 +45,20 @@ final class Factory
         ?string $region = null,
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'openai',
+        bool $useChatCompletions = false,
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
+
+        $transport = new HttpTransport($httpClient, $apiKey, $region);
 
         return new Provider(
             $name,
             [
-                new Gpt\ModelClient($httpClient, $apiKey, $region),
-                new Embeddings\ModelClient($httpClient, $apiKey, $region),
-                new Image\ModelClient($httpClient, $apiKey, $region),
-                new TextToSpeech\ModelClient($httpClient, $apiKey, $region),
-                new Whisper\ModelClient($httpClient, $apiKey, $region),
-            ],
-            [
-                new Gpt\ResultConverter(),
-                new Embeddings\ResultConverter(),
-                new Image\ResultConverter(),
-                new TextToSpeech\ResultConverter(),
-                new Whisper\ResultConverter(),
+                $useChatCompletions ? new ChatCompletionsClient($transport) : new ResponsesClient($transport),
+                new EmbeddingsClient($transport),
+                new ImageGenerationClient($transport),
+                new TextToSpeechClient($transport),
+                new TranscriptionClient($transport),
             ],
             $modelCatalog,
             $contract ?? OpenAiContract::create(),
@@ -79,9 +78,10 @@ final class Factory
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'openai',
         ?ModelRouterInterface $modelRouter = null,
+        bool $useChatCompletions = false,
     ): Platform {
         return new Platform(
-            [self::createProvider($apiKey, $httpClient, $modelCatalog, $contract, $region, $eventDispatcher, $name)],
+            [self::createProvider($apiKey, $httpClient, $modelCatalog, $contract, $region, $eventDispatcher, $name, $useChatCompletions)],
             $modelRouter ?? new CatalogBasedModelRouter(),
             $eventDispatcher,
         );

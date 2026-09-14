@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * [BC BREAK] Replace the model client and result converter with `PipelineClient`
+
 0.8
 ---
 

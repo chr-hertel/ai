@@ -44,8 +44,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new DecartClient($httpClient, $apiKey, $baseUrl)],
-            [new DecartResultConverter()],
+            [new GenerateClient($httpClient, $apiKey, $baseUrl), new EditClient($httpClient, $apiKey, $baseUrl)],
             $modelCatalog,
             $contract ?? DecartContract::create(),
             $eventDispatcher,

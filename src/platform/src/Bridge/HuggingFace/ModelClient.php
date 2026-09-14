@@ -11,22 +11,26 @@
 
 namespace Symfony\AI\Platform\Bridge\HuggingFace;
 
+use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\JsonBodyEncodingTrait;
 use Symfony\AI\Platform\Model;
-use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Result\RawHttpResult;
+use Symfony\AI\Platform\Result\RawResultInterface;
+use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\TokenUsage\TokenUsageExtractorInterface;
 use Symfony\Component\HttpClient\EventSourceHttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class ModelClient implements ModelClientInterface
+final class ModelClient implements ApiClientInterface
 {
     use JsonBodyEncodingTrait;
 
     private readonly EventSourceHttpClient $httpClient;
     private readonly string $baseUrl;
+    private readonly ResultConverter $resultConverter;
 
     /**
      * @param string $baseUrl Base URL of the HuggingFace inference router, with or without a trailing slash
@@ -39,6 +43,7 @@ final class ModelClient implements ModelClientInterface
     ) {
         $this->httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
         $this->baseUrl = rtrim($baseUrl, '/');
+        $this->resultConverter = new ResultConverter();
     }
 
     public function supports(Model $model): bool
@@ -59,6 +64,16 @@ final class ModelClient implements ModelClientInterface
             'auth_bearer' => $this->apiKey,
             ...$this->getPayload($model, $payload, $options, $task, $provider),
         ]));
+    }
+
+    public function convert(RawResultInterface $raw, array $options = []): ResultInterface
+    {
+        return $this->resultConverter->convert($raw, $options);
+    }
+
+    public function getTokenUsageExtractor(): ?TokenUsageExtractorInterface
+    {
+        return $this->resultConverter->getTokenUsageExtractor();
     }
 
     private function getUrl(Model $model, string $provider, ?string $task): string

@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add model information to token usage extraction
+ * [BC BREAK] Replace the model clients and result converters with `ChatClient` and `EmbedClient`
 
 0.13
 ----

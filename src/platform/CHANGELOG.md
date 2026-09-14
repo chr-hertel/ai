@@ -9,6 +9,7 @@ CHANGELOG
  * [BC BREAK] Add `TokenUsage\TokenUsageInterface::getModel()`, reporting the model a provider says consumed the tokens, so a run mixing models (a chat model and an embeddings one, say) can be priced per call; `TokenUsageAggregation::getModel()` answers only when every usage it sums up agrees on a model, and `null` otherwise. `Test\Recording\ResultSerializer` records and replays it alongside the token counts, and a cassette recorded before the field existed still replays
  * Add the serving provider to `ResultConvertedEvent` and `ResultErrorEvent`, so listeners can attribute a resolved result to the provider that produced it (e.g. to release held capacity)
  * Verify a replayed HTTP cassette request signature before serving the recorded response
+ * [BC BREAK] Replace `ModelClientInterface` with `ApiClientInterface`, which declares `supports()` and `request()` and extends `ResultConverterInterface`; `Provider` takes a single list of API clients instead of model clients and a parallel list of result converters
 
 0.13
 ----

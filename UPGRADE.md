@@ -8,6 +8,14 @@ Agent
    `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the
    retriever it reads from. Code narrowing the returned documents to the concrete class has to widen.
 
+AI Bundle
+---------
+
+ * Autoconfiguration is registered for `Platform\ApiClientInterface` under the
+   `ai.platform.api_client` tag, replacing the `ai.platform.model_client` and
+   `ai.platform.result_converter` tags, since one client now serves both halves of a contract.
+   A service tagged by hand has to be retagged.
+
 Platform
 --------
 
@@ -38,6 +46,74 @@ Platform
    -protected function convertStreamUsage(array $usage): TokenUsage
    +protected function convertStreamUsage(array $usage, ?string $model = null): TokenUsage
    ```
+
+ * A bridge now serves each API with a single `ApiClientInterface` implementation that owns
+   the request shape, the transport call and the response shape together, so the per-bridge
+   `ModelClient` and `ResultConverter` pairs are gone. Code instantiating or extending one of them has
+   to move to the client that replaced it -- `Bridge\Anthropic\ModelClient` and
+   `Bridge\Anthropic\ResultConverter` become `Bridge\Anthropic\MessagesClient`, and so on for the
+   other bridges; `Bridge\OpenAi\AbstractModelClient` and `Bridge\VertexAi\Gemini\TokenUsageExtractor` go
+   with them, and the `OUTCOME_*` constants of the Gemini and Vertex AI result converters move to
+   `Bridge\Gemini\GenerateContentClient`. `Provider` takes that one list in place of the model clients
+   and the parallel result converters it used to need:
+
+   ```diff
+    return new Provider(
+        $name,
+   -    [new AnthropicModelClient($httpClient, $apiKey)],
+   -    [new AnthropicResultConverter()],
+   +    [new MessagesClient(new HttpTransport($httpClient, $apiKey))],
+        $modelCatalog,
+    );
+   ```
+
+   A custom client implements `ApiClientInterface`, whose `supports()` decides which models it
+   serves -- by class, or by capability where one model class covers several contracts. The first
+   registered client accepting a model handles it, so the order they are passed in decides which
+   contract serves a model several of them accept. A model no client accepts raises
+   `Exception\ModelNotFoundException` from `Provider`, where some bridges threw their own exception.
+
+ * `ModelClientInterface` is removed: `ApiClientInterface` declares `supports()` and
+   `request()` itself and no longer extends it. It still extends `ResultConverterInterface`, which
+   stays a contract of its own -- a `Result\DeferredResult` only ever converts, and decorators such
+   as `StructuredOutput\ResultConverter` implement that half without having a request to send. Code
+   typed on the removed interface moves to `ApiClientInterface`:
+
+   ```diff
+   -final class MyClient implements ModelClientInterface
+   +final class MyClient implements ApiClientInterface
+    {
+        // supports() and request() are unchanged
+   +
+   +    // convert() and getTokenUsageExtractor() move in from the result converter
+    }
+   ```
+
+ * `Bridge\OpenAi` serves GPT through one API per platform, chosen when it is built and defaulting to
+   the Responses API as before:
+
+   ```diff
+   -$platform = Factory::createPlatform($apiKey);
+   +$platform = Factory::createPlatform($apiKey, useChatCompletions: true);
+   ```
+
+ * `Bridge\Azure` maps HTTP status codes in its transport instead of leaving them to each result
+   converter, so the mapping is now uniform across its contracts. A 404 -- an unknown deployment,
+   most commonly -- raises `Exception\ModelNotFoundException` where the embeddings contract
+   previously raised `Exception\BadRequestException`. Both implement `Exception\ExceptionInterface`,
+   but they do not share a PHP base class: `BadRequestException` is a `\RuntimeException` while
+   `ModelNotFoundException` is a `\LogicException`, so a catch on either of those -- not just one
+   naming `BadRequestException` -- has to widen to `ExceptionInterface`. `Transport\AzureTransport`
+   always names the configured deployment, so the Responses contract no longer falls back to the model
+   name when no deployment is given.
+
+ * Error responses are mapped by each bridge's transport, uniformly across its contracts, so a few
+   raise a more specific exception than before: a 404 raises `Exception\ModelNotFoundException` for
+   OpenAI's Responses and transcription contracts and for every Docker Model Runner 404, a context
+   overflow on Azure's embeddings and Whisper contracts raises `Exception\ExceedContextSizeException`
+   instead of `Exception\BadRequestException`, and Scaleway's other 400 responses raise
+   `Exception\BadRequestException` instead of a plain `\RuntimeException`. Vertex AI reports API
+   errors in Gemini's message format, still carrying the API error code.
 
 Store
 -----

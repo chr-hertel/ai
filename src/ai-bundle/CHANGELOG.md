@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * [BC BREAK] Replace the `ai.platform.model_client` and `ai.platform.result_converter` autoconfiguration tags with `ai.platform.api_client`, applied to `Platform\ApiClientInterface` implementations
+
 0.13
 ----
 

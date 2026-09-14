@@ -5,6 +5,8 @@ CHANGELOG
 ----
 
  * Add model information to token usage extraction
+ * [BC BREAK] Replace the model clients and result converters with `ResponsesClient`, `ChatCompletionsClient`, `EmbeddingsClient`, `ImageGenerationClient`, `TextToSpeechClient` and `TranscriptionClient`, reaching the API through a `Transport\TransportInterface` (`Transport\HttpTransport`)
+ * Add a `useChatCompletions` argument to `Factory::createProvider()` and `Factory::createPlatform()` to serve GPT models through the Chat Completions API instead of the Responses API
 
 0.11
 ----

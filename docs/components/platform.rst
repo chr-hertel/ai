@@ -1004,7 +1004,7 @@ definition, and the last user message. The system prompt is typically the
 largest and most stable region, making it the most effective caching target.
 
 The caching behavior is configured via the ``cacheRetention`` parameter on the
-:class:`Symfony\\AI\\Platform\\Bridge\\Anthropic\\ModelClient`::
+:class:`Symfony\\AI\\Platform\\Bridge\\Anthropic\\MessagesClient`::
 
     use Symfony\AI\Platform\Bridge\Anthropic\Factory;
 
@@ -1647,17 +1647,17 @@ platform the test should keep running*. They cut the pipeline at different depth
 everything down to replacing nothing but the network:
 
 * :class:`Symfony\\AI\\Platform\\Test\\InMemoryPlatform` replaces the whole platform. Routing, model
-  catalog, contract, ``ModelClient`` and ``ResultConverter`` are all skipped, and the answer is a
+  catalog, contract and the bridge's API client are all skipped, and the answer is a
   string or closure you write. Use it to test *your* code against a given answer.
 * :class:`Symfony\\AI\\Platform\\Test\\Recording\\RecordingProvider` replaces one provider, keeping the
   real ``Platform``, routing and model catalog. The answer is a real result captured once. Use it when
   a test needs a realistic answer but does not care how the bridge produced it.
 * :class:`Symfony\\AI\\Platform\\Test\\MockPlatformFactory` keeps the real ``Platform``, ``Provider``,
-  routing and contract, and fakes only the ``ModelClient`` and ``ResultConverter``. Use it when the
+  routing and contract, and fakes only the API client. Use it when the
   test is about the platform itself: model routing and resolution, non-text result types, or
   asserting on the payload the platform built.
 * :class:`Symfony\\AI\\Platform\\Test\\Replay\\CassetteHttpClient` replaces nothing but the network.
-  Contract, ``ModelClient`` and ``ResultConverter`` all run for real, against bytes recorded from the
+  Contract and the API client both run for real, against bytes recorded from the
   provider once. Use it when the test is about a bridge's internals.
 
 The lower a tool cuts, the more of the library a test actually covers, and the more setup it needs.
@@ -1794,10 +1794,9 @@ keep a reference to its :class:`Symfony\\AI\\Platform\\Test\\MockModelClient`::
     use Symfony\AI\Platform\Platform;
     use Symfony\AI\Platform\Provider;
     use Symfony\AI\Platform\Test\MockModelClient;
-    use Symfony\AI\Platform\Test\MockResultConverter;
 
     $client = new MockModelClient('ok');
-    $provider = new Provider('mock', [$client], [new MockResultConverter()], new FallbackModelCatalog());
+    $provider = new Provider('mock', [$client], new FallbackModelCatalog());
     $platform = new Platform([$provider]);
 
     $platform->invoke('gpt-4o-mini', 'Hello', ['temperature' => 0.5]);
@@ -1888,15 +1887,15 @@ cassette like any other committed fixture.
 
 .. note::
 
-    On replay the recorded result is returned verbatim, so the bridge ``ResultConverter`` runs only
+    On replay the recorded result is returned verbatim, so the bridge's result conversion runs only
     at record time. To exercise bridge internals offline, record at the HTTP boundary with
     :class:`Symfony\\AI\\Platform\\Test\\Replay\\CassetteHttpClient` instead, described next.
 
 Recording Real Responses
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-To exercise a bridge's *internals* (its Contract normalizers, ``ModelClient`` payload building and
-``ResultConverter``) against realistic data without a network, record a real HTTP response once and
+To exercise a bridge's *internals* (its Contract normalizers, the API client's payload building and
+result conversion) against realistic data without a network, record a real HTTP response once and
 replay it offline. :class:`Symfony\\AI\\Platform\\Test\\Replay\\CassetteHttpClient` is an
 ``HttpClientInterface`` you pass to any real bridge ``Factory``; because replay serves a real
 ``MockResponse``, the **real** converter runs on replay (unlike the mocks above, which bypass it).
@@ -1915,7 +1914,7 @@ generated cassette, and replay it in CI::
     $cassette = new HttpCassette(__DIR__.'/fixtures/mistral_chat.json');
 
     // cassette missing (+ real key) -> hits the live API and writes the cassette (secrets redacted)
-    // cassette exists -> serves the recorded response; the real Mistral ResultConverter runs
+    // cassette exists -> serves the recorded response; the real Mistral ChatCompletionsClient runs
     $http = new CassetteHttpClient($cassette, HttpClient::create());
 
     $platform = Factory::createPlatform($apiKey, $http);

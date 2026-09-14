@@ -19,7 +19,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Base class for bridge replay tests.
  *
  * A replay test drives the real bridge pipeline
- * (Platform -> ModelClient -> RawHttpResult -> ResultConverter) against a
+ * (Platform -> ApiClient::request() -> RawHttpResult -> convert()) against a
  * recorded {@see HttpCassette} instead of a live API, so a converter regression
  * (wrong deltas, wrong exception type, dropped content) surfaces as a failing
  * assertion. Cassettes are recorded against the real provider, or hand-seeded to

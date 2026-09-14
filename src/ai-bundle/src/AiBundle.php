@@ -53,6 +53,7 @@ use Symfony\AI\Chat\ChatInterface;
 use Symfony\AI\Chat\InMemory\Store as InMemoryMessageStore;
 use Symfony\AI\Chat\ManagedStoreInterface as ManagedMessageStoreInterface;
 use Symfony\AI\Chat\MessageStoreInterface;
+use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\ModelApiCatalog as AmazeeAiModelApiCatalog;
@@ -96,10 +97,8 @@ use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Message\Content\File;
 use Symfony\AI\Platform\Message\Template;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
-use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\PlatformInterface;
-use Symfony\AI\Platform\ResultConverterInterface;
 use Symfony\AI\Store\Bridge\AzureSearch\SearchStore as AzureSearchStore;
 use Symfony\AI\Store\Bridge\AzureSearch\StoreFactory as AzureSearchStoreFactory;
 use Symfony\AI\Store\Bridge\Cache\Store as CacheStore;
@@ -360,10 +359,8 @@ final class AiBundle extends AbstractBundle
                 ->addTag('ai.agent.output_processor', ['tagged_by' => 'interface']);
         }
 
-        $builder->registerForAutoconfiguration(ModelClientInterface::class)
-            ->addTag('ai.platform.model_client');
-        $builder->registerForAutoconfiguration(ResultConverterInterface::class)
-            ->addTag('ai.platform.result_converter');
+        $builder->registerForAutoconfiguration(ApiClientInterface::class)
+            ->addTag('ai.platform.api_client');
         $builder->registerForAutoconfiguration(SchemaProviderInterface::class)
             ->addTag('ai.platform.json_schema.provider');
 
