@@ -21,7 +21,7 @@ use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 /**
  * An {@see HttpClientInterface} that records real HTTP responses to an {@see HttpCassette} and
  * replays them offline. Pass it to any bridge `Factory` (which accepts a `?HttpClientInterface`)
- * so the real Contract, ModelClient and ResultConverter run end-to-end against recorded bytes.
+ * so the real Contract and API client run end-to-end against recorded bytes.
  *
  * By default the mode follows the cassette file (override with the explicit `$record` argument):
  *  - record (cassette missing, + a real client): performs the live request, persists status/headers/body

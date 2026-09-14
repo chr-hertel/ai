@@ -73,7 +73,7 @@ PHPStan runs at level 6 with custom extension rules for Symfony AI components. T
 ### Interface-Based Autoconfiguration
 - `InputProcessorInterface` → `ai.agent.input_processor`
 - `OutputProcessorInterface` → `ai.agent.output_processor`
-- `ModelClientInterface` → `ai.platform.model_client`
+- `ApiClientInterface` → `ai.platform.api_client`
 
 ## Debug Features
 

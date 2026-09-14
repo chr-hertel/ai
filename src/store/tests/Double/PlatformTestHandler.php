@@ -11,22 +11,21 @@
 
 namespace Symfony\AI\Store\Tests\Double;
 
+use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\FallbackModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
-use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\VectorResult;
-use Symfony\AI\Platform\ResultConverterInterface;
 use Symfony\AI\Platform\TokenUsage\TokenUsageExtractorInterface;
 use Symfony\AI\Platform\Vector\Vector;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
-final class PlatformTestHandler implements ModelClientInterface, ResultConverterInterface
+final class PlatformTestHandler implements ApiClientInterface
 {
     public int $createCalls = 0;
 
@@ -39,7 +38,7 @@ final class PlatformTestHandler implements ModelClientInterface, ResultConverter
     {
         $handler = new self($create);
 
-        return new Platform([new Provider('test', [$handler], [$handler], $modelCatalog)]);
+        return new Platform([new Provider('test', [$handler], $modelCatalog)]);
     }
 
     public function supports(Model $model): bool
