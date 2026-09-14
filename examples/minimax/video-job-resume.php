@@ -26,10 +26,10 @@ require_once dirname(__DIR__).'/bootstrap.php';
  * finish the job.
  */
 
-$provider = Factory::createProvider(env('MINI_MAX_API_KEY'), http_client());
 $storage = __DIR__.'/minimax-video-job.json';
 
 if (!is_file($storage)) {
+    $provider = Factory::createProvider(env('MINI_MAX_API_KEY'), http_client());
     $handle = $provider->invoke('MiniMax-Hailuo-02', new Text('A cat playing the piano on a stage, cinematic lighting'), [
         'duration' => 6,
         'resolution' => '768P',
@@ -44,8 +44,8 @@ if (!is_file($storage)) {
 
 $handle = JobHandle::fromString((string) file_get_contents($storage));
 
-// A worker that never invoked anything builds the client on its own: Factory::createJobClient().
-$jobClient = $provider->getJobClient();
+// Picking the job up needs no provider, only the job client of the bridge that started it.
+$jobClient = Factory::createJobClient(env('MINI_MAX_API_KEY'), http_client());
 
 $status = $jobClient->getStatus($handle);
 

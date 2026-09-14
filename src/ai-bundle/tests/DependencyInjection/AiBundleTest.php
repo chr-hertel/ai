@@ -4478,6 +4478,7 @@ class AiBundleTest extends TestCase
         $this->assertSame([MiniMaxFactory::class, 'createJobClient'], $definition->getFactory());
         $this->assertSame('minimax_key_full', $definition->getArgument(0));
         $this->assertSame('https://api.minimax.io/v2', $definition->getArgument(2));
+        $this->assertSame('minimax', $definition->getArgument(3));
         $this->assertSame([['key' => 'minimax']], $definition->getTag('ai.platform.job_client'));
 
         $this->assertTrue($container->hasAlias(JobClientInterface::class.' $minimax'));

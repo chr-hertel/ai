@@ -17,6 +17,7 @@ use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
 use Symfony\AI\Platform\Job\JobClientInterface;
 use Symfony\AI\Platform\Job\JobHandle;
+use Symfony\AI\Platform\Job\JobRunner;
 use Symfony\AI\Platform\Job\JobStateCase;
 use Symfony\AI\Platform\Job\JobStatus;
 use Symfony\AI\Platform\Model;
@@ -30,85 +31,58 @@ use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Test\MockModelCatalog;
 use Symfony\AI\Platform\Test\MockModelClient;
 use Symfony\AI\Platform\TokenUsage\TokenUsageExtractorInterface;
+use Symfony\Component\Clock\MockClock;
 
 /**
  * The round trip that makes a job a job: start it, put the handle away, and resolve it later through
- * the provider's job client - without the invocation that started it.
+ * the bridge's job client - without the invocation that started it.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
 final class JobResolutionTest extends TestCase
 {
-    public function testAHandleIsStampedWithTheProviderItCameFrom()
-    {
-        $handle = $this->platform('renamed-provider')->invoke('async-model', 'go')->asJob();
-
-        $this->assertSame('task-1', $handle->getId());
-        $this->assertSame('renamed-provider', $handle->getProvider(), 'the converter cannot know the name, the provider stamps it');
-    }
-
-    public function testAStoredHandleResolvesThroughTheProviderInAnotherProcess()
+    public function testAStoredHandleResolvesThroughTheJobClientInAnotherProcess()
     {
         // Process one: start the job, keep nothing but the serialized handle.
-        $stored = json_encode($this->platform()->invoke('async-model', 'go')->asJob(), \JSON_THROW_ON_ERROR);
+        $stored = $this->platform($this->jobStartingClient())->invoke('async-model', 'go')->asJob()->toString();
 
-        // Process two: only the string survived, the provider is built from scratch.
-        $handle = JobHandle::fromArray(json_decode($stored, true, flags: \JSON_THROW_ON_ERROR));
-        $jobClient = $this->provider('jobs', $this->jobConverter(), $this->jobClient())->getJobClient();
+        // Process two: only the string survived, the job client is built from scratch.
+        $handle = JobHandle::fromString($stored);
+        $jobClient = $this->jobClient();
 
-        $this->assertNotNull($jobClient);
+        $this->assertSame('jobs', $handle->getProvider());
         $this->assertTrue($jobClient->getStatus($handle)->is(JobStateCase::SUCCEEDED));
-        $this->assertSame('FAKE_VIDEO', $jobClient->getResult($handle)->getContent());
-    }
-
-    public function testAProviderWithoutJobsHasNoJobClient()
-    {
-        $this->assertNull($this->provider('sync-only', $this->jobConverter(), null)->getJobClient());
+        $this->assertSame('FAKE_VIDEO', (new JobRunner(new MockClock()))->wait($jobClient, $handle)->asBinary());
     }
 
     public function testAskingForAJobOnASynchronousResultFails()
     {
-        $platform = new Platform([$this->provider('sync-only', new MockModelClient('accepted'), null)]);
-
         $this->expectException(UnexpectedResultTypeException::class);
 
-        $platform->invoke('async-model', 'go')->asJob();
+        $this->platform(new MockModelClient('accepted'))->invoke('async-model', 'go')->asJob();
     }
 
-    /**
-     * Reaching for the payload on a provider that answers asynchronously is the mistake this API
-     * invites, so the error has to point at the way out rather than only name two class names.
-     */
-    public function testReachingForThePayloadOfAJobSaysWhatToDoInstead()
+    public function testReachingForThePayloadOfAJobFails()
     {
         $this->expectException(UnexpectedResultTypeException::class);
-        $this->expectExceptionMessage('The provider started a job instead of answering directly: read the handle with asJob()');
 
-        $this->platform()->invoke('async-model', 'go')->asBinary();
+        $this->platform($this->jobStartingClient())->invoke('async-model', 'go')->asBinary();
     }
 
-    private function platform(string $name = 'jobs'): Platform
+    private function platform(ApiClientInterface $client): Platform
     {
-        return new Platform([$this->provider($name, $this->jobConverter(), $this->jobClient())]);
-    }
-
-    private function provider(string $name, ApiClientInterface $client, ?JobClientInterface $jobClient): Provider
-    {
-        return new Provider(
-            $name,
+        return new Platform([new Provider(
+            'jobs',
             [$client],
             new MockModelCatalog(['async-model' => ['class' => Model::class, 'capabilities' => [Capability::INPUT_TEXT]]]),
-            null,
-            null,
-            $jobClient,
-        );
+        )]);
     }
 
     /**
      * Stands in for a bridge client whose provider answered with a task identifier instead of a
-     * payload - notably without knowing the name its provider was registered under.
+     * payload; like a bridge, it creates a complete handle, provider name included.
      */
-    private function jobConverter(): ApiClientInterface
+    private function jobStartingClient(): ApiClientInterface
     {
         return new class implements ApiClientInterface {
             public function supports(Model $model): bool
@@ -123,7 +97,7 @@ final class JobResolutionTest extends TestCase
 
             public function convert(RawResultInterface $result, array $options = []): ResultInterface
             {
-                return new JobResult(new JobHandle('task-1', ['mime_type' => 'video/mp4']));
+                return new JobResult(new JobHandle('task-1', ['mime_type' => 'video/mp4'], 'jobs'));
             }
 
             public function getTokenUsageExtractor(): ?TokenUsageExtractorInterface

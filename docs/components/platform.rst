@@ -1119,12 +1119,14 @@ handle is ``JsonSerializable`` so it also drops straight into a Messenger messag
 identifier is the provider's, so an application storing handles of several providers keys them by
 provider and id rather than by id alone.
 
-The client resolving a job belongs to the provider that issued it, so a provider hands it out through
-:method:`Symfony\\AI\\Platform\\Job\\JobProviderInterface::getJobClient`, and a bridge builds one
-directly for a process that only resolves jobs and never invokes anything::
+The client resolving a job comes from the bridge that started it, so a process that only resolves
+jobs needs neither a provider nor a platform::
 
-    $jobClient = $provider->getJobClient();                 // the provider that started the job
-    $jobClient = MiniMaxFactory::createJobClient($apiKey);  // or straight from the bridge, in a worker
+    $jobClient = MiniMaxFactory::createJobClient($apiKey);
+
+The handle states the name of the provider that issued it,
+:method:`Symfony\\AI\\Platform\\Job\\JobHandle::getProvider`, so an application resolving handles
+of several providers can pick the matching client.
 
 :method:`Symfony\\AI\\Platform\\Job\\JobClientInterface::getStatus` performs exactly one request and
 never sleeps. To simply block until the job is done, hand it to a

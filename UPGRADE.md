@@ -125,10 +125,9 @@ Platform
    +
    -$result = $platform->invoke('MiniMax-Hailuo-02', $prompt, ['duration' => 6]);
    -$result->asFile('video.mp4');
-   +$provider = MiniMaxFactory::createProvider($apiKey);
-   +$handle = $provider->invoke('MiniMax-Hailuo-02', $prompt, ['duration' => 6])->asJob();
+   +$handle = $platform->invoke('MiniMax-Hailuo-02', $prompt, ['duration' => 6])->asJob();
    +
-   +$result = (new JobRunner())->wait($provider->getJobClient(), $handle);
+   +$result = (new JobRunner())->wait(MiniMaxFactory::createJobClient($apiKey), $handle);
    +$result->asFile('video.mp4');
    ```
 
@@ -137,8 +136,8 @@ Platform
    Pass `maxDuration` (in seconds) to `wait()` to bound a single call instead, for instance inside a
    web request. A job that does not finish in time raises a `JobTimeoutException` that carries the
    handle, so the job can be picked up later instead of being lost, including from another process:
-   the client resolving it comes from `ProviderInterface::getJobClient()`, or from
-   `Bridge\MiniMax\Factory::createJobClient()` in a worker that only resolves jobs.
+   the client resolving it comes from `Bridge\MiniMax\Factory::createJobClient()`, or from the
+   `ai.platform.job_client.<name>` service in the AI Bundle.
 
    Accordingly, polling moved to the new `Bridge\MiniMax\MiniMaxJobClient`. Code building the bridge
    through `Bridge\MiniMax\Factory` is unaffected.

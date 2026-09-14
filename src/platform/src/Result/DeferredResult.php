@@ -156,8 +156,8 @@ final class DeferredResult
      * Returns the handle of the asynchronous job the provider started for this invocation.
      *
      * Does not wait for the job: the handle is a reference that can be stored and resolved later,
-     * possibly in another process, via `Platform::getJobClient()`. To block until the job finishes,
-     * hand the handle to a {@see \Symfony\AI\Platform\Job\JobRunner}.
+     * possibly in another process, through a {@see \Symfony\AI\Platform\Job\JobClientInterface}. To
+     * block until the job finishes, hand the handle to a {@see \Symfony\AI\Platform\Job\JobRunner}.
      *
      * @throws ExceptionInterface when the provider answered with a result instead of a job
      */

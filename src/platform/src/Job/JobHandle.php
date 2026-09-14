@@ -18,8 +18,9 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
  *
  * The point of this object is that it survives the process that started the job: it holds no client,
  * no connection and no closure, only the data needed to ask the provider about the job again. Put it
- * in a database row or a Messenger message, pick it up in a worker, and resolve it through
- * `Platform::getJobClient($handle->getProvider())`.
+ * in a database row or a Messenger message, pick it up in a worker, and resolve it through the job
+ * client of the bridge that started it - picked by {@see getProvider()} when several providers are
+ * involved.
  *
  * The `data` map is provider-specific and opaque to the platform - a bridge stores in it whatever its
  * own {@see JobClientInterface} needs to poll and download (endpoint paths, file identifiers, the
@@ -32,9 +33,8 @@ final class JobHandle implements \JsonSerializable
     /**
      * @param string               $id          the job identifier as issued by the provider
      * @param array<string, mixed> $data        provider-specific data needed to poll and fetch the job
-     * @param string|null          $provider    the platform-level provider name; filled in by `Provider`
-     *                                          after conversion, since a converter does not know under
-     *                                          which name its provider was registered
+     * @param string|null          $provider    the name of the provider that issued the job, stated by
+     *                                          the bridge creating the handle
      * @param int|null             $maxDuration how long, in seconds, this kind of job may reasonably
      *                                          take at this provider - the bridge knows that video
      *                                          generation runs for minutes where speech takes seconds,
@@ -61,8 +61,8 @@ final class JobHandle implements \JsonSerializable
     }
 
     /**
-     * The provider name to resolve this handle against, or null while the handle has not passed
-     * through a `Provider` yet.
+     * The name of the provider to resolve this handle against, or null when the bridge did not
+     * state one.
      */
     public function getProvider(): ?string
     {
@@ -91,14 +91,6 @@ final class JobHandle implements \JsonSerializable
     public function getMaxDuration(): ?int
     {
         return $this->maxDuration;
-    }
-
-    /**
-     * Returns a copy bound to the given provider name.
-     */
-    public function withProvider(string $provider): self
-    {
-        return new self($this->id, $this->data, $provider, $this->maxDuration);
     }
 
     /**

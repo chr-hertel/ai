@@ -5,7 +5,7 @@ CHANGELOG
 ----
 
  * [BC BREAK] Replace the `ai.platform.model_client` and `ai.platform.result_converter` autoconfiguration tags with `ai.platform.api_client`, applied to `Platform\ApiClientInterface` implementations
- * Register `ai.platform.job_runner` (autowired as `Platform\Job\JobRunner`) using the application clock and, for a platform running asynchronous jobs, its `ai.platform.job_client.<name>` client tagged `ai.platform.job_client`; render an asynchronous job in the profiler as the handle it carries instead of as a result
+ * Register `ai.platform.job_runner` (autowired as `Platform\Job\JobRunner`) using the application clock and, for a platform running asynchronous jobs, its `ai.platform.job_client.<name>` client, built by the bridge factory and tagged `ai.platform.job_client`; render an asynchronous job in the profiler as the handle it carries instead of as a result
 
 0.13
 ----

@@ -34,7 +34,8 @@ $handle = $provider->invoke('speech-2.6-hd', new Text('The real danger is not th
     ],
 ])->asJob();
 
-$result = (new JobRunner())->wait($provider->getJobClient(), $handle);
+$jobClient = Factory::createJobClient(env('MINI_MAX_API_KEY'), http_client());
+$result = (new JobRunner())->wait($jobClient, $handle);
 
 // MiniMax delivers the asynchronous result as a tar bundling the mp3 with a `.titles` and an
 // `.extra` file; the bridge unpacks the audio, so this is the same mp3 the synchronous endpoint

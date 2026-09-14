@@ -13,7 +13,6 @@ namespace Symfony\AI\Platform\Bridge\MiniMax;
 
 use Symfony\AI\Platform\Bridge\MiniMax\Contract\MiniMaxContract;
 use Symfony\AI\Platform\Contract;
-use Symfony\AI\Platform\Job\JobProviderInterface;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
 use Symfony\AI\Platform\Platform;
@@ -29,9 +28,6 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class Factory
 {
     /**
-     * The intersection is part of the contract: this bridge answers some invocations with a job, so
-     * the provider it builds always hands out the client resolving them.
-     *
      * @param non-empty-string $name
      */
     public static function createProvider(
@@ -42,35 +38,38 @@ final class Factory
         ?Contract $contract = null,
         ?EventDispatcherInterface $eventDispatcher = null,
         string $name = 'minimax',
-    ): ProviderInterface&JobProviderInterface {
+    ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
+        $jobClient = self::createJobClient($apiKey, $httpClient, $endpoint, $name);
 
         return new Provider(
             $name,
             [
                 new ChatCompletionsClient($httpClient, $apiKey, $endpoint),
-                new SpeechClient($httpClient, $apiKey, $endpoint),
+                new SpeechClient($httpClient, $apiKey, $endpoint, $jobClient),
                 new ImageClient($httpClient, $apiKey, $endpoint),
                 new MusicClient($httpClient, $apiKey, $endpoint),
-                new VideoClient($httpClient, $apiKey, $endpoint),
+                new VideoClient($httpClient, $apiKey, $endpoint, $jobClient),
             ],
             $modelCatalog,
             $contract ?? MiniMaxContract::create(),
             $eventDispatcher,
-            self::createJobClient($apiKey, $httpClient, $endpoint),
         );
     }
 
     /**
-     * The client resolving the jobs this bridge hands out, for a caller that holds a handle but not
-     * the provider that issued it - typically a worker picking up a stored handle.
+     * The client resolving the jobs this bridge hands out - typically in a worker picking up a
+     * stored handle, without a provider or platform at hand.
+     *
+     * @param string $name the provider name stated on the handles this client creates
      */
     public static function createJobClient(
         #[\SensitiveParameter] string $apiKey,
         ?HttpClientInterface $httpClient = null,
         string $endpoint = 'https://api.minimax.io/v1',
+        string $name = 'minimax',
     ): MiniMaxJobClient {
-        return new MiniMaxJobClient($httpClient ?? new EventSourceHttpClient(), $apiKey, $endpoint);
+        return new MiniMaxJobClient($httpClient ?? new EventSourceHttpClient(), $apiKey, $endpoint, $name);
     }
 
     /**

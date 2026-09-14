@@ -14,7 +14,6 @@ namespace Symfony\AI\Platform\Bridge\MiniMax;
 use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\RuntimeException;
-use Symfony\AI\Platform\Job\JobHandle;
 use Symfony\AI\Platform\JsonBodyEncodingTrait;
 use Symfony\AI\Platform\Result\HttpStatusErrorHandlingTrait;
 use Symfony\AI\Platform\Result\JobResult;
@@ -125,23 +124,23 @@ abstract class AbstractMiniMaxClient implements ApiClientInterface
     /**
      * MiniMax answered with a task identifier instead of a payload, so the invocation produces a
      * reference to that task rather than a result. Resolving it - polling, and downloading the file
-     * it produces - is the job of {@see MiniMaxJobClient}; the handle carries what that client needs
-     * to know about the endpoint the task came from.
+     * it produces - is the job of {@see MiniMaxJobClient}, which therefore creates the handle; the
+     * handle carries what that client needs to know about the endpoint the task came from.
      *
      * @param array<string, mixed> $data
      * @param int                  $maxDuration   how long this endpoint may reasonably take, in seconds
      * @param string|null          $archiveMember file extension to unpack from the downloaded tar,
      *                                            or null when the download is the payload itself
      */
-    protected function startJob(array $data, string $queryPath, string $mimeType, int $maxDuration, ?string $archiveMember = null): JobResult
+    protected function startJob(MiniMaxJobClient $jobClient, array $data, string $queryPath, string $mimeType, int $maxDuration, ?string $archiveMember = null): JobResult
     {
         $taskId = $data['task_id'] ?? throw new RuntimeException('The MiniMax response does not contain a task identifier.');
 
-        return new JobResult(new JobHandle((string) $taskId, [
+        return new JobResult($jobClient->createHandle((string) $taskId, [
             'query_path' => $queryPath,
             'mime_type' => $mimeType,
             'archive_member' => $archiveMember,
             'file_id' => $data['file_id'] ?? null,
-        ], maxDuration: $maxDuration));
+        ], $maxDuration));
     }
 }

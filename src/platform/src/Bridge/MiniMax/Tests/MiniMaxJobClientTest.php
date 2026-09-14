@@ -31,6 +31,19 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  */
 final class MiniMaxJobClientTest extends TestCase
 {
+    public function testItCreatesHandlesForTheProviderItServes()
+    {
+        $handle = (new MiniMaxJobClient(new MockHttpClient(), 'key', provider: 'minimax-eu'))
+            ->createHandle('123', ['query_path' => 'query/video_generation'], 600);
+
+        $this->assertSame('123', $handle->getId());
+        $this->assertSame('minimax-eu', $handle->getProvider());
+        $this->assertSame('query/video_generation', $handle->get('query_path'));
+        $this->assertSame(600, $handle->getMaxDuration());
+
+        $this->assertSame('minimax', (new MiniMaxJobClient(new MockHttpClient(), 'key'))->createHandle('123', [], 600)->getProvider());
+    }
+
     public function testItOnlySupportsHandlesCarryingAQueryPath()
     {
         $jobClient = new MiniMaxJobClient(new MockHttpClient(), 'key');

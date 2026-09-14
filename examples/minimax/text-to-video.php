@@ -28,7 +28,8 @@ echo 'Started job '.$handle->getId().', waiting for it to finish...'.\PHP_EOL;
 
 // Waiting is explicit, but how long is not something the caller has to know: the handle states that
 // video generation may run for minutes, and the runner honours that unless it is told otherwise.
-$result = (new JobRunner())->wait($provider->getJobClient(), $handle);
+$jobClient = Factory::createJobClient(env('MINI_MAX_API_KEY'), http_client());
+$result = (new JobRunner())->wait($jobClient, $handle);
 
 $result->asFile(__DIR__.'/minimax-video.mp4');
 

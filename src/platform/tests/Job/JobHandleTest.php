@@ -40,7 +40,6 @@ final class JobHandleTest extends TestCase
     {
         $handle = new JobHandle('task-1', [], null, 600);
 
-        $this->assertSame(600, $handle->withProvider('minimax')->getMaxDuration());
         $this->assertSame(600, $handle->withData(['file_id' => '1'])->getMaxDuration());
     }
 
@@ -52,15 +51,10 @@ final class JobHandleTest extends TestCase
         new JobHandle('task-1', [], null, 0);
     }
 
-    public function testItIsNotBoundToAProviderUntilStamped()
+    public function testItCarriesTheProviderItWasCreatedFor()
     {
-        $handle = new JobHandle('task-1');
-
-        $this->assertNull($handle->getProvider());
-        $this->assertSame('minimax', $handle->withProvider('minimax')->getProvider());
-
-        // the original stays untouched
-        $this->assertNull($handle->getProvider());
+        $this->assertNull((new JobHandle('task-1'))->getProvider());
+        $this->assertSame('minimax', (new JobHandle('task-1', [], 'minimax'))->withData(['file_id' => '1'])->getProvider());
     }
 
     public function testWithDataMergesIntoTheExistingData()

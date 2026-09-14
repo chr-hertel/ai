@@ -25,24 +25,12 @@ use Symfony\AI\Platform\Job\JobHandle;
 final class JobResult extends BaseResult
 {
     public function __construct(
-        private JobHandle $handle,
+        private readonly JobHandle $handle,
     ) {
     }
 
     public function getContent(): JobHandle
     {
         return $this->handle;
-    }
-
-    /**
-     * Binds the handle to the provider it came from.
-     *
-     * A `ResultConverter` does not know under which name its provider was registered - the name is a
-     * `Provider` constructor argument - so `Provider` stamps it onto the handle once the result has
-     * been converted, the same way it stamps the raw result.
-     */
-    public function bindProvider(string $provider): void
-    {
-        $this->handle = $this->handle->withProvider($provider);
     }
 }

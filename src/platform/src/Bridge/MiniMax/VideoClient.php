@@ -15,6 +15,7 @@ use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * @author Guillaume Loulier <personal@guillaumeloulier.fr>
@@ -27,6 +28,19 @@ final class VideoClient extends AbstractMiniMaxClient
      * know that video generation runs an order of magnitude longer than speech synthesis.
      */
     private const MAX_DURATION = 600;
+
+    private readonly MiniMaxJobClient $jobClient;
+
+    public function __construct(
+        HttpClientInterface $httpClient,
+        #[\SensitiveParameter] string $apiKey,
+        string $endpoint = 'https://api.minimax.io/v1',
+        ?MiniMaxJobClient $jobClient = null,
+    ) {
+        parent::__construct($httpClient, $apiKey, $endpoint);
+
+        $this->jobClient = $jobClient ?? new MiniMaxJobClient($httpClient, $apiKey, $endpoint);
+    }
 
     public function supports(Model $model): bool
     {
@@ -52,6 +66,6 @@ final class VideoClient extends AbstractMiniMaxClient
 
         $this->throwOnBusinessError($data);
 
-        return $this->startJob($data, 'query/video_generation', 'video/mp4', self::MAX_DURATION);
+        return $this->startJob($this->jobClient, $data, 'query/video_generation', 'video/mp4', self::MAX_DURATION);
     }
 }

@@ -28,7 +28,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * MiniMax answers such a request with a `task_id`, exposes the task under an endpoint-specific query
  * path, and delivers the payload as a file that has to be looked up and downloaded separately. Both
  * the query path and the expected MIME type are carried in the {@see JobHandle}, put there by
- * {@see SpeechClient} and {@see VideoClient} which know the endpoint the task came from.
+ * {@see SpeechClient} and {@see VideoClient} which know the endpoint the task came from. They create
+ * the handle through this client, which names the provider it serves.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
@@ -54,7 +55,17 @@ final class MiniMaxJobClient implements JobClientInterface
         private readonly HttpClientInterface $httpClient,
         #[\SensitiveParameter] private readonly string $apiKey,
         private readonly string $endpoint = 'https://api.minimax.io/v1',
+        private readonly string $provider = 'minimax',
     ) {
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @param int                  $maxDuration how long the task may reasonably take, in seconds
+     */
+    public function createHandle(string $taskId, array $data, int $maxDuration): JobHandle
+    {
+        return new JobHandle($taskId, $data, $this->provider, $maxDuration);
     }
 
     public function supports(JobHandle $handle): bool

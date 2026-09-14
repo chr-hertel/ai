@@ -127,6 +127,7 @@ final class MiniMaxResultConverterTest extends TestCase
 
         $handle = $result->getContent();
         $this->assertSame('123', $handle->getId());
+        $this->assertSame('minimax', $handle->getProvider());
         $this->assertSame('query/t2a_async_query_v2', $handle->get('query_path'));
         $this->assertSame('audio/mpeg', $handle->get('mime_type'));
         $this->assertSame('mp3', $handle->get('archive_member'), 'the async endpoint delivers a tar the job client has to unpack');
@@ -201,6 +202,7 @@ final class MiniMaxResultConverterTest extends TestCase
 
         $handle = $result->getContent();
         $this->assertSame('789', $handle->getId());
+        $this->assertSame('minimax', $handle->getProvider());
         $this->assertSame('query/video_generation', $handle->get('query_path'));
         $this->assertSame('video/mp4', $handle->get('mime_type'));
         $this->assertNull($handle->get('archive_member'), 'video is downloaded as-is');
