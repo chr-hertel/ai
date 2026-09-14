@@ -54,7 +54,7 @@ final class AssistantMessageNormalizerTest extends TestCase
         $message = Message::ofAssistant(new Thinking('Let me check the clock.'), new Text('It is 10:00.'));
 
         // Mistral rejects `reasoning_content` with a 422 and reads the reasoning back from the
-        // content list instead, which is also the shape its ResultConverter parses
+        // content list instead, which is also the shape its ChatCompletionsClient parses
         $this->assertSame([
             'role' => 'assistant',
             'content' => [

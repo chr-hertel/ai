@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * [BC BREAK] Replace the model clients and result converters with `Rerank\Client`, `Speech\Client` and the Generic `ChatCompletionsClient` and `EmbeddingsClient`
+
 0.13
 ----
 

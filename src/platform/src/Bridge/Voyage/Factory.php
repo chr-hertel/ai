@@ -44,8 +44,10 @@ final class Factory
 
         return new Provider(
             $name,
-            [new ModelClient($httpClient, $apiKey, $baseUrl)],
-            [new ResultConverter()],
+            [
+                new EmbeddingsClient($httpClient, $apiKey, $baseUrl),
+                new MultimodalEmbeddingsClient($httpClient, $apiKey, $baseUrl),
+            ],
             $modelCatalog,
             $contract ?? VoyageContract::create(),
             $eventDispatcher,

@@ -12,7 +12,8 @@
 namespace Symfony\AI\Platform\Bridge\Anthropic\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Platform\Bridge\Anthropic\ResultConverter;
+use Symfony\AI\Platform\Bridge\Anthropic\MessagesClient;
+use Symfony\AI\Platform\Bridge\Anthropic\Transport\HttpTransport;
 use Symfony\AI\Platform\Exception\RateLimitExceededException;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\RawHttpResult;
@@ -34,7 +35,7 @@ final class ResultConverterRateLimitTest extends TestCase
         ]);
 
         $httpResponse = $httpClient->request('POST', 'https://api.anthropic.com/v1/messages');
-        $handler = new ResultConverter();
+        $handler = new MessagesClient(new HttpTransport(new MockHttpClient(), 'unused'));
 
         $this->expectException(RateLimitExceededException::class);
         $this->expectExceptionMessage('Rate limit exceeded. This request would exceed the rate limit for your organization');
@@ -56,7 +57,7 @@ final class ResultConverterRateLimitTest extends TestCase
         ]);
 
         $httpResponse = $httpClient->request('POST', 'https://api.anthropic.com/v1/messages');
-        $handler = new ResultConverter();
+        $handler = new MessagesClient(new HttpTransport(new MockHttpClient(), 'unused'));
 
         $this->expectException(RateLimitExceededException::class);
         $this->expectExceptionMessage('Rate limit exceeded. This request would exceed the rate limit for your organization');
@@ -76,7 +77,7 @@ final class ResultConverterRateLimitTest extends TestCase
         ]);
 
         $httpResponse = $httpClient->request('POST', 'https://api.anthropic.com/v1/messages');
-        $handler = new ResultConverter();
+        $handler = new MessagesClient(new HttpTransport(new MockHttpClient(), 'unused'));
 
         $this->expectException(RateLimitExceededException::class);
         $this->expectExceptionMessage('Rate limit exceeded. API Error [rate_limit_error]: "This request would exceed the rate limit for your organization"');
@@ -88,7 +89,7 @@ final class ResultConverterRateLimitTest extends TestCase
     {
         $httpResponse = $this->createStub(ResponseInterface::class);
         $httpResponse->method('getStatusCode')->willReturn(200);
-        $handler = new ResultConverter();
+        $handler = new MessagesClient(new HttpTransport(new MockHttpClient(), 'unused'));
 
         $streamResult = $handler->convert(new InMemoryRawResult([], [[
             'type' => 'error',

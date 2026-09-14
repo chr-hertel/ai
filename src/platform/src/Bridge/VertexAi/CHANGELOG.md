@@ -5,6 +5,8 @@ CHANGELOG
 ----
 
  * Add model information to token usage extraction
+ * [BC BREAK] Replace the model clients and result converters with the Gemini `GenerateContentClient` and `PredictEmbeddingsClient` over `Transport\VertexAiTransport`
+ * Report tool-use prompt tokens in token usage
 
 0.13
 ----

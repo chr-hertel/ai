@@ -52,8 +52,10 @@ final class Factory
 
         return new Provider(
             $name,
-            [new DeepgramClient($httpClient)],
-            [new DeepgramResultConverter($httpClient)],
+            [
+                new SpeakClient($httpClient),
+                new ListenClient($httpClient),
+            ],
             new ModelCatalog($httpClient),
             $contract ?? DeepgramContract::create(),
             $eventDispatcher,

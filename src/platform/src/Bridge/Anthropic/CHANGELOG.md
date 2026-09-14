@@ -6,6 +6,7 @@ CHANGELOG
 
  * Add model information to token usage extraction
  * Replay a hosted web search on the next turn, buffered and streamed, by keeping the `server_tool_use` call and its `web_search_tool_result` together; a search initiated from code execution throws instead, because its surrounding blocks are not converted
+ * [BC BREAK] Replace the model client and result converter with `MessagesClient`, reaching the API through a `Transport\TransportInterface` (`Transport\HttpTransport`)
 
 0.12
 ----

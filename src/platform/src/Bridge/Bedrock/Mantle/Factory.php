@@ -12,27 +12,26 @@
 namespace Symfony\AI\Platform\Bridge\Bedrock\Mantle;
 
 use AsyncAws\Core\Credentials\CredentialProvider;
+use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\Bridge\Anthropic\Contract\AnthropicContract;
-use Symfony\AI\Platform\Bridge\Anthropic\ResultConverter as AnthropicResultConverter;
+use Symfony\AI\Platform\Bridge\Anthropic\MessagesClient;
 use Symfony\AI\Platform\Bridge\Bedrock\Mantle\Messages\ModelCatalog as MessagesModelCatalog;
-use Symfony\AI\Platform\Bridge\Bedrock\Mantle\Messages\ModelClient as MessagesModelClient;
 use Symfony\AI\Platform\Bridge\Bedrock\Mantle\Responses\ModelCatalog as ResponsesModelCatalog;
-use Symfony\AI\Platform\Bridge\Generic\Completions\ResultConverter as CompletionsResultConverter;
+use Symfony\AI\Platform\Bridge\Bedrock\Mantle\Transport\HttpTransport;
+use Symfony\AI\Platform\Bridge\Bedrock\Mantle\Transport\MessagesTransport;
+use Symfony\AI\Platform\Bridge\Generic\ChatCompletionsClient;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\OpenResponses\Contract\OpenResponsesContract;
 use Symfony\AI\Platform\Bridge\OpenResponses\ResponsesModel;
-use Symfony\AI\Platform\Bridge\OpenResponses\ResultConverter as ResponsesResultConverter;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
-use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
 use Symfony\AI\Platform\ModelRouterInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\ProviderInterface;
-use Symfony\AI\Platform\ResultConverterInterface;
 use Symfony\Component\HttpClient\EventSourceHttpClient;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -111,7 +110,7 @@ final class Factory
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
         $baseUrl = \sprintf('https://bedrock-mantle.%s.api.aws', $region);
 
-        [$modelClient, $resultConverter, $defaultCatalog, $defaultContract, $defaultName] = match ($api) {
+        [$client, $defaultCatalog, $defaultContract, $defaultName] = match ($api) {
             'responses' => self::createResponsesRoute($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $path),
             'messages' => self::createMessagesRoute($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $cacheRetention, $workspace),
             'completions' => self::createCompletionsRoute($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $path),
@@ -119,8 +118,7 @@ final class Factory
 
         return new Provider(
             $name ?? $defaultName,
-            [$modelClient],
-            [$resultConverter],
+            [$client],
             $modelCatalog ?? $defaultCatalog,
             $contract ?? $defaultContract,
             $eventDispatcher,
@@ -157,7 +155,7 @@ final class Factory
     }
 
     /**
-     * @return array{ModelClientInterface, ResultConverterInterface, ModelCatalogInterface, Contract|null, non-empty-string}
+     * @return array{ApiClientInterface, ModelCatalogInterface, Contract|null, non-empty-string}
      */
     private static function createCompletionsRoute(
         EventSourceHttpClient $httpClient,
@@ -167,13 +165,14 @@ final class Factory
         ?CredentialProvider $credentialProvider,
         ?string $path,
     ): array {
-        if (!class_exists(CompletionsModel::class) || !class_exists(CompletionsResultConverter::class)) {
+        if (!class_exists(CompletionsModel::class) || !class_exists(ChatCompletionsClient::class)) {
             throw new RuntimeException('For using the Bedrock Mantle Chat Completions API, the symfony/ai-generic-platform package is required. Try running "composer require symfony/ai-generic-platform".');
         }
 
+        $transport = new HttpTransport($httpClient, $baseUrl, $region, $apiKey, $credentialProvider);
+
         return [
-            new ModelClient($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $path ?? '/v1/chat/completions'),
-            new CompletionsResultConverter(),
+            new ChatCompletionsClient($transport, $path ?? '/v1/chat/completions', CompletionsModel::class, applyGatewayDefaults: false),
             new ModelCatalog(),
             null,
             'bedrock-mantle',
@@ -181,7 +180,7 @@ final class Factory
     }
 
     /**
-     * @return array{ModelClientInterface, ResultConverterInterface, ModelCatalogInterface, Contract, non-empty-string}
+     * @return array{ApiClientInterface, ModelCatalogInterface, Contract, non-empty-string}
      */
     private static function createResponsesRoute(
         EventSourceHttpClient $httpClient,
@@ -191,13 +190,12 @@ final class Factory
         ?CredentialProvider $credentialProvider,
         ?string $path,
     ): array {
-        if (!class_exists(OpenResponsesContract::class) || !class_exists(ResponsesModel::class) || !class_exists(ResponsesResultConverter::class)) {
+        if (!class_exists(OpenResponsesContract::class) || !class_exists(ResponsesModel::class)) {
             throw new RuntimeException('For using the Bedrock Mantle Responses API, the symfony/ai-open-responses-platform package is required. Try running "composer require symfony/ai-open-responses-platform".');
         }
 
         return [
-            new ModelClient($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $path ?? '/openai/v1/responses', ResponsesModel::class),
-            new ResponsesResultConverter(),
+            new ResponsesClient($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $path ?? '/openai/v1/responses'),
             new ResponsesModelCatalog(),
             OpenResponsesContract::create(),
             'bedrock-mantle-responses',
@@ -207,7 +205,7 @@ final class Factory
     /**
      * @param 'none'|'short'|'long'|null $cacheRetention
      *
-     * @return array{ModelClientInterface, ResultConverterInterface, ModelCatalogInterface, Contract, non-empty-string}
+     * @return array{ApiClientInterface, ModelCatalogInterface, Contract, non-empty-string}
      */
     private static function createMessagesRoute(
         EventSourceHttpClient $httpClient,
@@ -219,8 +217,10 @@ final class Factory
         ?string $workspace,
     ): array {
         return [
-            new MessagesModelClient($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $cacheRetention ?? 'short', $workspace),
-            new AnthropicResultConverter(),
+            new MessagesClient(
+                new MessagesTransport($httpClient, $baseUrl, $region, $apiKey, $credentialProvider, $workspace),
+                $cacheRetention ?? 'short',
+            ),
             new MessagesModelCatalog(),
             AnthropicContract::create(),
             'bedrock-mantle-messages',

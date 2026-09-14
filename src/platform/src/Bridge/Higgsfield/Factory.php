@@ -47,7 +47,7 @@ final class Factory
         ?EventDispatcherInterface $eventDispatcher = null,
         ?ClockInterface $clock = null,
         string $name = 'higgsfield',
-        int $pollingInterval = HiggsfieldClient::DEFAULT_POLLING_INTERVAL,
+        int $pollingInterval = GenerationClient::DEFAULT_POLLING_INTERVAL,
     ): ProviderInterface {
         $httpClient = ScopingHttpClient::forBaseUri($httpClient ?? HttpClient::create(), $baseUrl ?? self::DEFAULT_BASE_URL, [
             'headers' => [
@@ -57,8 +57,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new HiggsfieldClient($httpClient, $clock ?? new Clock(), $pollingInterval)],
-            [new HiggsfieldResultConverter()],
+            [new GenerationClient($httpClient, $clock ?? new Clock(), $pollingInterval)],
             $modelCatalog ?? new CuratedModelCatalog(new ModelCatalog($httpClient)),
             $contract ?? HiggsfieldContract::create(),
             $eventDispatcher,
@@ -79,7 +78,7 @@ final class Factory
         ?EventDispatcherInterface $eventDispatcher = null,
         ?ClockInterface $clock = null,
         string $name = 'higgsfield',
-        int $pollingInterval = HiggsfieldClient::DEFAULT_POLLING_INTERVAL,
+        int $pollingInterval = GenerationClient::DEFAULT_POLLING_INTERVAL,
         ?ModelRouterInterface $modelRouter = null,
     ): Platform {
         return new Platform(

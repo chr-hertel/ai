@@ -6,6 +6,7 @@ CHANGELOG
 
  * Add the environmental footprint Albert reports next to the token usage as `carbon` result metadata,
    on buffered and streamed results alike
+ * [BC BREAK] Replace the completions result converter with `ChatCompletionsClient`
 
 0.12
 ----

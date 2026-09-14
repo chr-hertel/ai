@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\Fireworks;
 
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
 use Symfony\AI\Platform\ModelRouterInterface;
@@ -40,10 +41,15 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $transport = new HttpTransport($httpClient, self::DEFAULT_INFERENCE_ENDPOINT, $apiKey);
+
         return new Provider(
             $name,
-            [new FireworksClient($httpClient, $apiKey)],
-            [new FireworksResultConverter()],
+            [
+                new RerankClient($transport),
+                new EmbeddingsClient($transport),
+                new ChatCompletionsClient($transport),
+            ],
             new ModelCatalog($httpClient, $apiKey),
             $contract ?? Contract::create(),
             $eventDispatcher,

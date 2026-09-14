@@ -192,7 +192,7 @@ final class MiniMaxJobClientTest extends TestCase
     }
 
     /**
-     * The behaviour the result converter used to implement itself, now assembled from the two pieces:
+     * The behaviour the speech and video clients used to implement themselves, now assembled from the two pieces:
      * a job client that answers one question per call, and a runner that owns the waiting.
      */
     public function testItDrivesAJobToCompletionTogetherWithTheRunner()

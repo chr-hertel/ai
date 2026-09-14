@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add model information to token usage extraction
+ * [BC BREAK] Replace the model clients and result converters with the Generic `ChatCompletionsClient` and `EmbeddingsClient` over `Transport\HttpTransport`
 
 0.11
 ----

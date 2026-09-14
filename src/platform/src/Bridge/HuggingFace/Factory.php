@@ -46,7 +46,6 @@ final class Factory
         return new PlatformProvider(
             $name,
             [new ModelClient($httpClient, $provider, $apiKey, $baseUrl)],
-            [new ResultConverter()],
             $modelCatalog,
             $contract ?? HuggingFaceContract::create(),
             $eventDispatcher,

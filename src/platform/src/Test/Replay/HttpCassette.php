@@ -403,29 +403,11 @@ final class HttpCassette
         return $headers;
     }
 
-    /**
-     * A JSON body signs the same whether it was passed encoded ("body") or as an array ("json").
-     */
-    private static function normalizeBody(mixed $body): mixed
-    {
-        if (!\is_string($body) || '' === $body) {
-            return $body;
-        }
-
-        try {
-            $decoded = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return $body;
-        }
-
-        return \is_array($decoded) ? $decoded : $body;
-    }
-
     private static function signature(string $method, string $url, mixed $query, mixed $body): string
     {
         $normalized = [
             'query' => $query,
-            'body' => self::normalizeBody($body),
+            'body' => $body,
         ];
 
         if (\is_array($normalized['query'])) {
@@ -437,6 +419,55 @@ final class HttpCassette
         }
 
         return hash('xxh128', $method.'|'.$url.'|'.json_encode($normalized, \JSON_PRESERVE_ZERO_FRACTION));
+    }
+
+    /**
+     * Whether the request signs as recorded, either as it goes over the wire or with its JSON body
+     * decoded: a bridge that hands the payload to the HTTP client as an encoded string where it used
+     * to pass an array signs the same, since {@see signature()} sorts an array body. The query stays
+     * part of the hash either way.
+     */
+    private function signatureMatches(string $recorded, string $method, string $url, mixed $query, mixed $body): bool
+    {
+        if ($recorded === self::signature($method, $url, $query, $body)) {
+            return true;
+        }
+
+        if (!\is_string($body)) {
+            return false;
+        }
+
+        $decoded = json_decode($body, true);
+
+        return \is_array($decoded) && $recorded === self::signature($method, $url, $query, $decoded);
+    }
+
+    /**
+     * Whether the request carries the recorded JSON body, compared as JSON rather than as bytes: a
+     * bridge that reorders its payload, or hands it to the HTTP client as an array where it used to
+     * pass an encoded string, sends the same request and keeps replaying its cassettes. Only the
+     * body is compared this way, so this is reserved for requests without a query of their own,
+     * which the cassette does not store and the signature is the only witness of.
+     *
+     * @param array<string, mixed> $recordedRequest
+     */
+    private static function jsonBodyMatches(array $recordedRequest, string $method, string $url, mixed $query, mixed $body): bool
+    {
+        if (null !== $query && [] !== $query) {
+            return false;
+        }
+
+        if (($recordedRequest['method'] ?? null) !== $method || ($recordedRequest['url'] ?? null) !== $url) {
+            return false;
+        }
+
+        if (!\array_key_exists('body', $recordedRequest)) {
+            return false;
+        }
+
+        $recordedBody = self::normalizeJsonBody($recordedRequest['body']);
+
+        return null !== $recordedBody && $recordedBody === self::normalizeJsonBody($body);
     }
 
     /**
@@ -452,7 +483,7 @@ final class HttpCassette
         if (isset($recordedRequest[self::REQUEST_SIGNATURE_V2]) && \is_string($recordedRequest[self::REQUEST_SIGNATURE_V2])) {
             $query = self::requestQuery($options);
 
-            if ($recordedRequest[self::REQUEST_SIGNATURE_V2] === self::signature($method, $url, $query, $body)) {
+            if ($this->signatureMatches($recordedRequest[self::REQUEST_SIGNATURE_V2], $method, $url, $query, $body)) {
                 return;
             }
 
@@ -465,7 +496,11 @@ final class HttpCassette
             // that redact to the same form are indistinguishable here - by construction, since the
             // cassette no longer holds what would tell them apart.
             $body = $this->redactor()->redact($body);
-            if ($recordedRequest[self::REQUEST_SIGNATURE_V2] === self::signature($method, $url, $query, $body)) {
+            if ($this->signatureMatches($recordedRequest[self::REQUEST_SIGNATURE_V2], $method, $url, $query, $body)) {
+                return;
+            }
+
+            if (self::jsonBodyMatches($recordedRequest, $method, $url, $query, $body)) {
                 return;
             }
 
