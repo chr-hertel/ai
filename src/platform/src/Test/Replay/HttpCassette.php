@@ -249,11 +249,29 @@ final class HttpCassette
         return $headers;
     }
 
+    /**
+     * A JSON body signs the same whether it was passed encoded ("body") or as an array ("json").
+     */
+    private static function normalizeBody(mixed $body): mixed
+    {
+        if (!\is_string($body) || '' === $body) {
+            return $body;
+        }
+
+        try {
+            $decoded = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return $body;
+        }
+
+        return \is_array($decoded) ? $decoded : $body;
+    }
+
     private static function signature(string $method, string $url, mixed $query, mixed $body): string
     {
         $normalized = [
             'query' => $query,
-            'body' => $body,
+            'body' => self::normalizeBody($body),
         ];
 
         if (\is_array($normalized['query'])) {

@@ -16,10 +16,8 @@ use Symfony\AI\Platform\Event\ResultConvertedEvent;
 use Symfony\AI\Platform\Event\ResultErrorEvent;
 use Symfony\AI\Platform\Event\ResultEvent;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
-use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
-use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -37,14 +35,12 @@ final class Provider implements ProviderInterface
     private ?Model $resolvedModel = null;
 
     /**
-     * @param non-empty-string                   $name
-     * @param iterable<ModelClientInterface>     $modelClients
-     * @param iterable<ResultConverterInterface> $resultConverters
+     * @param non-empty-string             $name
+     * @param iterable<ApiClientInterface> $clients
      */
     public function __construct(
         private readonly string $name,
-        private readonly iterable $modelClients,
-        private readonly iterable $resultConverters,
+        private readonly iterable $clients,
         private readonly ModelCatalogInterface $modelCatalog,
         private ?Contract $contract = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
@@ -60,8 +56,8 @@ final class Provider implements ProviderInterface
     public function supports(string|Model $model): bool
     {
         if ($model instanceof Model) {
-            foreach ($this->modelClients as $modelClient) {
-                if ($modelClient->supports($model)) {
+            foreach ($this->clients as $client) {
+                if ($client->supports($model)) {
                     return true;
                 }
             }
@@ -105,7 +101,9 @@ final class Provider implements ProviderInterface
             $options['tools'] = $this->contract->createToolOption($options['tools'], $model);
         }
 
-        $result = $this->convertResult($model, $this->doInvoke($model, $payload, $options), $options);
+        $client = $this->resolveClient($model);
+
+        $result = new DeferredResult($client, $client->request($model, $payload, $options), $options);
 
         $resultEvent = new ResultEvent($model, $result, $options, $input);
         $this->eventDispatcher?->dispatch($resultEvent);
@@ -136,32 +134,14 @@ final class Provider implements ProviderInterface
         return $this->modelCatalog;
     }
 
-    /**
-     * @param array<string, mixed>|string $payload
-     * @param array<string, mixed>        $options
-     */
-    private function doInvoke(Model $model, array|string $payload, array $options = []): RawResultInterface
+    private function resolveClient(Model $model): ApiClientInterface
     {
-        foreach ($this->modelClients as $modelClient) {
-            if ($modelClient->supports($model)) {
-                return $modelClient->request($model, $payload, $options);
+        foreach ($this->clients as $client) {
+            if ($client->supports($model)) {
+                return $client;
             }
         }
 
-        throw new ModelNotFoundException(\sprintf('No ModelClient registered for model "%s" (%s) in provider "%s".', $model->getName(), $model::class, $this->name));
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    private function convertResult(Model $model, RawResultInterface $result, array $options): DeferredResult
-    {
-        foreach ($this->resultConverters as $resultConverter) {
-            if ($resultConverter->supports($model)) {
-                return new DeferredResult($resultConverter, $result, $options);
-            }
-        }
-
-        throw new RuntimeException(\sprintf('No ResultConverter registered for model "%s" (%s) in provider "%s".', $model->getName(), $model::class, $this->name));
+        throw new ModelNotFoundException(\sprintf('No client registered for model "%s" (%s) in provider "%s".', $model->getName(), $model::class, $this->name));
     }
 }
