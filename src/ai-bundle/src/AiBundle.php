@@ -59,6 +59,7 @@ use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
 use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
+use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
 use Symfony\AI\Platform\Bridge\Anthropic\Factory as AnthropicFactory;
@@ -115,10 +116,8 @@ use Symfony\AI\Platform\ModelCatalog\CachedModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\CompositeModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\InMemoryModelCatalog;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
-use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\PlatformInterface;
-use Symfony\AI\Platform\ResultConverterInterface;
 use Symfony\AI\Store\Bridge\AzureSearch\SearchStore as AzureSearchStore;
 use Symfony\AI\Store\Bridge\AzureSearch\StoreFactory as AzureSearchStoreFactory;
 use Symfony\AI\Store\Bridge\Cache\Store as CacheStore;
@@ -403,10 +402,8 @@ final class AiBundle extends AbstractBundle
                 ->addTag('ai.agent.output_processor', ['tagged_by' => 'interface']);
         }
 
-        $builder->registerForAutoconfiguration(ModelClientInterface::class)
-            ->addTag('ai.platform.model_client');
-        $builder->registerForAutoconfiguration(ResultConverterInterface::class)
-            ->addTag('ai.platform.result_converter');
+        $builder->registerForAutoconfiguration(ApiClientInterface::class)
+            ->addTag('ai.platform.api_client');
         $builder->registerForAutoconfiguration(SchemaProviderInterface::class)
             ->addTag('ai.platform.json_schema.provider');
 
