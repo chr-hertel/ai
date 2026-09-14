@@ -28,7 +28,7 @@ use Symfony\AI\Platform\Result\ResultInterface;
  * runs replay it offline and the inner provider is never called. The mode can be forced with the
  * explicit `$record` constructor argument.
  *
- * On replay the result is rebuilt from the cassette, so a bridge's `ResultConverter` runs live only
+ * On replay the result is rebuilt from the cassette, so a bridge's result conversion runs live only
  * at record time. A test that must exercise bridge internals offline needs to record at the HTTP
  * boundary instead.
  *

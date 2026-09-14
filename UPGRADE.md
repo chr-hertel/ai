@@ -8,6 +8,14 @@ Agent
    `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the
    retriever it reads from. Code narrowing the returned documents to the concrete class has to widen.
 
+AI Bundle
+---------
+
+ * Autoconfiguration is registered for `Platform\ApiClientInterface` under the
+   `ai.platform.api_client` tag, replacing the `ai.platform.model_client` and
+   `ai.platform.result_converter` tags, since one client now serves both halves of a contract.
+   A service tagged by hand has to be retagged.
+
 Platform
 --------
 
@@ -62,6 +70,46 @@ Platform
    ```diff
    -$converter = new MiniMaxResultConverter($httpClient, $apiKey, $endpoint, $clock);
    +$converter = new MiniMaxResultConverter($jobClient);
+ * A bridge now serves each API with a single `ApiClientInterface` implementation that owns
+   the request shape, the transport call and the response shape together, so the per-bridge
+   `ModelClient` and `ResultConverter` pairs are gone. Code instantiating or extending one of them has
+   to move to the client that replaced it -- `Bridge\Anthropic\ModelClient` and
+   `Bridge\Anthropic\ResultConverter` become `Bridge\Anthropic\MessagesClient`, and so on for the
+   other bridges; `Bridge\OpenAi\AbstractModelClient` and `Bridge\VertexAi\Gemini\TokenUsageExtractor` go
+   with them, and the `OUTCOME_*` constants of the Gemini and Vertex AI result converters move to
+   `Bridge\Gemini\GenerateContentClient`. `Provider` takes that one list in place of the model clients
+   and the parallel result converters it used to need:
+
+   ```diff
+    return new Provider(
+        $name,
+   -    [new AnthropicModelClient($httpClient, $apiKey)],
+   -    [new AnthropicResultConverter()],
+   +    [new MessagesClient(new HttpTransport($httpClient, $apiKey))],
+        $modelCatalog,
+    );
+   ```
+
+   A custom client implements `ApiClientInterface`, whose `supports()` decides which models it
+   serves -- by class, or by capability where one model class covers several contracts. The first
+   registered client accepting a model handles it, so the order they are passed in decides which
+   contract serves a model several of them accept. A model no client accepts raises
+   `Exception\ModelNotFoundException` from `Provider`, where some bridges threw their own exception.
+
+ * `ModelClientInterface` is removed: `ApiClientInterface` declares `supports()` and
+   `request()` itself and no longer extends it. It still extends `ResultConverterInterface`, which
+   stays a contract of its own -- a `Result\DeferredResult` only ever converts, and decorators such
+   as `StructuredOutput\ResultConverter` implement that half without having a request to send. Code
+   typed on the removed interface moves to `ApiClientInterface`:
+
+   ```diff
+   -final class MyClient implements ModelClientInterface
+   +final class MyClient implements ApiClientInterface
+    {
+        // supports() and request() are unchanged
+   +
+   +    // convert() and getTokenUsageExtractor() move in from the result converter
+    }
    ```
 
 Store
