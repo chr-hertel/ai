@@ -57,9 +57,13 @@ final class ChatCompletionsClient extends AbstractMiniMaxClient
             return new StreamResult($this->convertStream($result));
         }
 
+        $data = $result->getData();
+
+        $this->throwOnBusinessError($data);
+
         return $this->withFinishReason(
-            new TextResult($result->getData()['choices'][0]['message']['content']),
-            FinishReasonMapper::map($result->getData()['choices'][0]['finish_reason'] ?? null),
+            new TextResult($data['choices'][0]['message']['content']),
+            FinishReasonMapper::map($data['choices'][0]['finish_reason'] ?? null),
         );
     }
 

@@ -10,6 +10,7 @@ CHANGELOG
  * Add the serving provider to `ResultConvertedEvent` and `ResultErrorEvent`, so listeners can attribute a resolved result to the provider that produced it (e.g. to release held capacity)
  * Verify a replayed HTTP cassette request signature before serving the recorded response
  * [BC BREAK] Replace `ModelClientInterface` with `ApiClientInterface`, which declares `supports()` and `request()` and extends `ResultConverterInterface`; `Provider` takes a single list of API clients instead of model clients and a parallel list of result converters
+ * Add asynchronous job support: providers that answer a request with a job identifier instead of a result now return a `Result\JobResult`, whose `Job\JobHandle` is serializable and can be resolved in another process through the job client built by the bridge factory. Adds `Job\JobClientInterface`, `Job\JobStatus`/`Job\JobStateCase`, `Job\JobRunner` (the only polling loop in the component), `Exception\JobFailedException`, `Exception\JobTimeoutException`, `DeferredResult::asJob()` and `JobHandle::toString()`/`fromString()`
 
 0.13
 ----

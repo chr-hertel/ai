@@ -15,6 +15,7 @@ use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * @author Guillaume Loulier <personal@guillaumeloulier.fr>
@@ -22,13 +23,24 @@ use Symfony\AI\Platform\Result\ResultInterface;
  */
 final class VideoClient extends AbstractMiniMaxClient
 {
-    use AsyncTaskTrait;
-
     /**
-     * Maximum number of polls before giving up on a video task; video generation is
-     * considerably slower than audio and routinely runs for several minutes (~10 minutes).
+     * How long MiniMax may reasonably take, carried in the job handle so a caller does not have to
+     * know that video generation runs an order of magnitude longer than speech synthesis.
      */
-    private const MAX_VIDEO_POLLS = 600;
+    private const MAX_DURATION = 600;
+
+    private readonly MiniMaxJobClient $jobClient;
+
+    public function __construct(
+        HttpClientInterface $httpClient,
+        #[\SensitiveParameter] string $apiKey,
+        string $endpoint = 'https://api.minimax.io/v1',
+        ?MiniMaxJobClient $jobClient = null,
+    ) {
+        parent::__construct($httpClient, $apiKey, $endpoint);
+
+        $this->jobClient = $jobClient ?? new MiniMaxJobClient($httpClient, $apiKey, $endpoint);
+    }
 
     public function supports(Model $model): bool
     {
@@ -50,6 +62,10 @@ final class VideoClient extends AbstractMiniMaxClient
     {
         $this->guardHttpStatus($result);
 
-        return $this->handleAsyncTask($result->getData(), 'query/video_generation', 'video/mp4', self::MAX_VIDEO_POLLS);
+        $data = $result->getData();
+
+        $this->throwOnBusinessError($data);
+
+        return $this->startJob($this->jobClient, $data, 'query/video_generation', 'video/mp4', self::MAX_DURATION);
     }
 }
