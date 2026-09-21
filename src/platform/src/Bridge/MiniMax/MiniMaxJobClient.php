@@ -28,8 +28,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * MiniMax answers such a request with a `task_id`, exposes the task under an endpoint-specific query
  * path, and delivers the payload as a file that has to be looked up and downloaded separately. Both
  * the query path and the expected MIME type are carried in the {@see JobHandle}, put there by
- * {@see MiniMaxResultConverter} which knows the endpoint the task came from. It creates the handle
- * through this client, which names the provider it serves.
+ * {@see SpeechClient} and {@see VideoClient} which know the endpoint the task came from. They create
+ * the handle through this client, which names the provider it serves.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

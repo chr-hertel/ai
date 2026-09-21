@@ -20,7 +20,7 @@ tool with no extra parameters)::
 
 The bridge maps each recognized name to Anthropic's versioned tool ``type``. Only ``web_search`` and
 ``code_execution`` are mapped, because those are the only server tools whose result blocks
-:class:`Symfony\\AI\\Platform\\Bridge\\Anthropic\\ResultConverter` currently understands. An unrecognized name
+:class:`Symfony\\AI\\Platform\\Bridge\\Anthropic\\MessagesClient` currently understands. An unrecognized name
 throws :class:`Symfony\\AI\\Platform\\Exception\\InvalidArgumentException`.
 
 Available Server Tools
@@ -57,7 +57,7 @@ escape hatch.
     From ``web_search_20260209`` on, Anthropic runs the search from inside code execution to filter the
     results, and provisions that itself, so ``code_execution`` is not declared alongside it. Two consequences:
     the response then also carries code execution blocks that
-    :class:`Symfony\\AI\\Platform\\Bridge\\Anthropic\\ResultConverter` does not convert, and ``allowed_callers``
+    :class:`Symfony\\AI\\Platform\\Bridge\\Anthropic\\MessagesClient` does not convert, and ``allowed_callers``
     defaults to code execution, so a model without programmatic tool calling needs
     ``'allowed_callers' => ['direct']`` or the API answers 400.
 

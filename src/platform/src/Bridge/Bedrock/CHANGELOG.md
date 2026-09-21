@@ -4,7 +4,10 @@ CHANGELOG
 0.14
 ----
 
- * Add support for the Bedrock Mantle Chat Completions, Responses, and Anthropic Messages APIs
+ * Add support for the Bedrock Mantle Chat Completions, Responses, and Anthropic Messages APIs, served by the shared `Generic\ChatCompletionsClient`, `Mantle\ResponsesClient` and Anthropic `MessagesClient` over `Mantle\Transport\HttpTransport` and `Mantle\Transport\MessagesTransport`
+ * [BC BREAK] Replace the model clients and result converters with the Anthropic `MessagesClient` over `Anthropic\Transport\BedrockTransport`, `Meta\InvokeClient` and `Nova\InvokeClient`
+ * Extract token usage for Anthropic Claude models
+ * Support the `server_tools` option for Anthropic Claude models
 
 0.10
 ----

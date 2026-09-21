@@ -11,11 +11,14 @@
 
 namespace Symfony\AI\Platform\Bridge\Azure\OpenAi;
 
-use Symfony\AI\Platform\Bridge\Azure\Responses\ModelClient as ResponsesModelClient;
-use Symfony\AI\Platform\Bridge\Generic\Embeddings;
+use Symfony\AI\Platform\Bridge\Azure\Transport\AzureTransport;
+use Symfony\AI\Platform\Bridge\Generic\EmbeddingsModel;
 use Symfony\AI\Platform\Bridge\OpenAi\Contract\OpenAiContract;
+use Symfony\AI\Platform\Bridge\OpenAi\EmbeddingsClient;
+use Symfony\AI\Platform\Bridge\OpenAi\ResponsesClient;
+use Symfony\AI\Platform\Bridge\OpenAi\TranscriptionClient;
 use Symfony\AI\Platform\Bridge\OpenAi\Whisper;
-use Symfony\AI\Platform\Bridge\OpenResponses\ResultConverter as ResponsesResultConverter;
+use Symfony\AI\Platform\Bridge\OpenResponses\ResponsesModel;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -48,14 +51,15 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $transport = new AzureTransport($httpClient, $baseUrl, $deployment, $apiVersion, $apiKey);
+
         return new Provider(
             $name,
             [
-                new ResponsesModelClient($httpClient, $baseUrl, $apiKey, $deployment),
-                new EmbeddingsModelClient($httpClient, $baseUrl, $deployment, $apiVersion, $apiKey),
-                new WhisperModelClient($httpClient, $baseUrl, $deployment, $apiVersion, $apiKey),
+                new ResponsesClient($transport, ResponsesModel::class),
+                new EmbeddingsClient($transport, EmbeddingsModel::class),
+                new TranscriptionClient($transport, Whisper::class),
             ],
-            [new ResponsesResultConverter(), new Embeddings\ResultConverter(), new Whisper\ResultConverter()],
             $modelCatalog,
             $contract ?? OpenAiContract::create(),
             $eventDispatcher,

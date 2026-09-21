@@ -1,6 +1,12 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * [BC BREAK] Replace the model clients and result converters with the OpenAI `ResponsesClient`, `EmbeddingsClient` and `TranscriptionClient` over `Transport\AzureTransport`, and `Meta\LlamaClient`
+ * [BC BREAK] Throw `ModelNotFoundException` instead of `BadRequestException` on a 404 response
+
 0.11
 ----
 

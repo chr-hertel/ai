@@ -52,8 +52,14 @@ final class Factory
 
         return new Provider(
             $name,
-            [new TogetherClient($httpClient)],
-            [new TogetherResultConverter()],
+            [
+                new ChatCompletionsClient($httpClient),
+                new EmbeddingsClient($httpClient),
+                new TextToSpeechClient($httpClient),
+                new TranscriptionClient($httpClient),
+                new ImageGenerationClient($httpClient),
+                new RerankClient($httpClient),
+            ],
             new ModelCatalog($httpClient),
             $contract ?? TogetherContract::create(),
             $eventDispatcher,

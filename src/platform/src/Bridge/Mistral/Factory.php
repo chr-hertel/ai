@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\Mistral;
 
+use Symfony\AI\Platform\Bridge\Generic\EmbeddingsClient;
+use Symfony\AI\Platform\Bridge\Generic\Transport\HttpTransport;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\AssistantMessageNormalizer;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\AudioNormalizer;
 use Symfony\AI\Platform\Bridge\Mistral\Contract\DocumentNormalizer;
@@ -47,10 +49,11 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
+        $transport = new HttpTransport($httpClient, $baseUrl, $apiKey, ['Accept' => 'application/json']);
+
         return new Provider(
             $name,
-            [new Embeddings\ModelClient($httpClient, $apiKey, $baseUrl), new Llm\ModelClient($httpClient, $apiKey, $baseUrl), new Ocr\ModelClient($httpClient, $apiKey), new SpeechToText\ModelClient($httpClient, $apiKey, $baseUrl)],
-            [new Embeddings\ResultConverter(), new Llm\ResultConverter(), new Ocr\ResultConverter(), new SpeechToText\ResultConverter()],
+            [new EmbeddingsClient($transport, modelClass: Embeddings::class, tokenUsageExtractor: new Embeddings\TokenUsageExtractor()), new ChatCompletionsClient($transport, modelClass: Mistral::class, applyGatewayDefaults: false), new OcrClient($httpClient, $apiKey), new SpeechToTextClient($httpClient, $apiKey, $baseUrl)],
             $modelCatalog,
             $contract ?? Contract::create([
                 new AssistantMessageNormalizer(),

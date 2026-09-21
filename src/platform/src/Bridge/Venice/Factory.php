@@ -55,8 +55,15 @@ final class Factory
 
         return new Provider(
             $name,
-            [new VeniceClient($httpClient, $clock ?? new MonotonicClock())],
-            [new VeniceResultConverter()],
+            [
+                new VideoGenerationClient($httpClient, $clock ?? new MonotonicClock()),
+                new ChatCompletionsClient($httpClient),
+                new ImageEditClient($httpClient),
+                new ImageGenerationClient($httpClient),
+                new TextToSpeechClient($httpClient),
+                new SpeechToTextClient($httpClient),
+                new EmbeddingsClient($httpClient),
+            ],
             new ModelCatalog($httpClient),
             $contract ?? VeniceContract::create(),
             $eventDispatcher,

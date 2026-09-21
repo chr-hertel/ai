@@ -17,7 +17,7 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
 
 /**
- * @author Johannes Wachter <johannes@sulu.io>
+ * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class FactoryTest extends TestCase
 {

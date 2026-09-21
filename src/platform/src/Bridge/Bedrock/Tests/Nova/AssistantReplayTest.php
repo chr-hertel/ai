@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\Bedrock\Tests\Nova;
 
+use AsyncAws\BedrockRuntime\BedrockRuntimeClient;
 use AsyncAws\BedrockRuntime\Result\InvokeModelResponse;
 use AsyncAws\Core\Test\ResultMockFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -20,8 +21,8 @@ use Symfony\AI\Platform\Bridge\Bedrock\Nova\Contract\MessageBagNormalizer;
 use Symfony\AI\Platform\Bridge\Bedrock\Nova\Contract\ToolCallMessageNormalizer;
 use Symfony\AI\Platform\Bridge\Bedrock\Nova\Contract\ToolNormalizer;
 use Symfony\AI\Platform\Bridge\Bedrock\Nova\Contract\UserMessageNormalizer;
+use Symfony\AI\Platform\Bridge\Bedrock\Nova\InvokeClient;
 use Symfony\AI\Platform\Bridge\Bedrock\Nova\Nova;
-use Symfony\AI\Platform\Bridge\Bedrock\Nova\NovaResultConverter;
 use Symfony\AI\Platform\Bridge\Bedrock\RawBedrockResult;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Message\Message;
@@ -29,7 +30,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\ToolCall;
 
 /**
- * End-to-end replay test: feed a fixture Bedrock Nova response into NovaResultConverter,
+ * End-to-end replay test: feed a fixture Bedrock Nova response into InvokeClient,
  * build an assistant message via Message::ofAssistant($result), append the next
  * user/tool turn, and assert the byte-shape of the request that would be sent
  * back to Bedrock on turn 2.
@@ -53,7 +54,7 @@ final class AssistantReplayTest extends TestCase
         $invokeResponse = ResultMockFactory::create(InvokeModelResponse::class, [
             'body' => json_encode($providerResponse),
         ]);
-        $result = (new NovaResultConverter())->convert(new RawBedrockResult($invokeResponse));
+        $result = (new InvokeClient(new BedrockRuntimeClient()))->convert(new RawBedrockResult($invokeResponse));
 
         $contract = Contract::create([
             new AssistantMessageNormalizer(),

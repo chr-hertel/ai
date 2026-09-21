@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Bridge\Deepgram\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Bridge\Deepgram\ListenClient;
 use Symfony\AI\Platform\Bridge\Deepgram\ModelCatalog;
+use Symfony\AI\Platform\Bridge\Deepgram\SpeakClient;
 use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
@@ -69,6 +71,7 @@ final class ModelCatalogTest extends TestCase
             Capability::TEXT_TO_SPEECH,
             Capability::OUTPUT_AUDIO,
         ], $model->getCapabilities());
+        $this->assertTrue((new SpeakClient(new MockHttpClient()))->supports($model));
     }
 
     public function testCatalogReturnsSpeechToTextModel()
@@ -96,6 +99,7 @@ final class ModelCatalogTest extends TestCase
             Capability::SPEECH_TO_TEXT,
             Capability::OUTPUT_TEXT,
         ], $model->getCapabilities());
+        $this->assertTrue((new ListenClient(new MockHttpClient()))->supports($model));
     }
 
     public function testLookupByCanonicalNameAndShortName()

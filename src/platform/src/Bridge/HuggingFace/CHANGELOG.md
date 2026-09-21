@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * [BC BREAK] Merge the result converter into `ModelClient`, now an `ApiClientInterface` implementation
+
 0.11
 ----
 

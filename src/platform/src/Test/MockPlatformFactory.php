@@ -47,7 +47,6 @@ final class MockPlatformFactory
         return new Provider(
             $name,
             [new MockModelClient($responses)],
-            [new MockResultConverter()],
             $modelCatalog,
             $contract,
             $eventDispatcher,
