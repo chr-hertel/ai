@@ -78,6 +78,7 @@ A demo application (`composer create-project symfony/ai-demo`) with 8 scenarios:
 - [Mate Troubleshooting](https://symfony.com/doc/current/ai/components/mate/troubleshooting.html): Troubleshooting Mate setup, discovery and tool calls
 - [AI Bundle](https://symfony.com/doc/current/ai/bundles/ai-bundle.html): Symfony framework integration for Platform, Agent, Store, and Chat
 - [MCP Bundle](https://symfony.com/doc/current/ai/bundles/mcp-bundle.html): Symfony integration for the official MCP SDK
+- [OpenTelemetry Bridge](https://symfony.com/doc/current/ai/bridges/open-telemetry.html): Tracing of platform calls, agent runs, tool calls and retrievals with OpenTelemetry GenAI semantic conventions
 
 ## Cookbook
 
@@ -121,6 +122,9 @@ Symfony framework integration for Platform, Agent, Store, and Chat components. I
 
 ### MCP Bundle
 Symfony integration for the official MCP SDK (`mcp/sdk`). Install with `composer require symfony/mcp-bundle`. Supports MCP capabilities (tools, prompts, resources, resource templates) as a server via HTTP and STDIO transports, definitions via attributes, and both server and client modes.
+
+### OpenTelemetry Bridge
+Traces platform calls, agent runs, tool calls and retrievals with OpenTelemetry, following the GenAI semantic conventions. Install with `composer require symfony/ai-open-telemetry-bridge`. Depends on `open-telemetry/api` only and works with any OTLP backend (Langfuse, Arize Phoenix, Datadog, Grafana Tempo, Jaeger). Prompt and completion content is only captured on opt-in. Experimental.
 
 ## Supported AI Platforms
 
