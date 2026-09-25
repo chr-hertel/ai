@@ -82,6 +82,9 @@ The `speech` agent demonstrates two composition features:
 - **Memory**: `memory.service: 'App\...'` — a class implementing the memory contract; contributes context, not callable by the model.
 - **`tools: false`** disables tool use entirely for the agent.
 
+### Telemetry (OpenTelemetry → Arize Phoenix)
+Tracing comes from `symfony/ai-open-telemetry-bridge` (path repository on `../src/open-telemetry-bridge`), there is no telemetry code in `src/`. The `tracing` section of `config/packages/ai.yaml` makes the AI Bundle decorate every platform, agent, toolbox and retriever and export via its `exporter` shortcut to `OTEL_EXPORTER_OTLP_ENDPOINT` (a no-op while empty). The `phoenix` service of `compose.yaml` is a single-container Arize Phoenix with SQLite (UI and OTLP on :6006, no auth); it only accepts `http/protobuf`, the exporter's default, and files the traces under the `openinference.project.name` resource attribute ("Symfony AI Demo"). `.env.test` blanks the endpoint so tests never export.
+
 ## Configuration Notes
 
 - `composer.json` pins Symfony recipes to `8.0.*` — new bundles installed via Flex will target 8.0.
