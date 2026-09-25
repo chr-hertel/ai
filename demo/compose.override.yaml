@@ -16,3 +16,7 @@ services:
       ports:
           - "8432:5432"
 ###< doctrine/doctrine-bundle ###
+
+  langfuse-web:
+    ports:
+      - "3000:3000"

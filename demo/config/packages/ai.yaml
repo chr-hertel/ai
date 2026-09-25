@@ -169,6 +169,10 @@ ai:
         blog:
             store: 'ai.store.postgres.symfony_blog'
             vectorizer: 'ai.vectorizer.openai'
+    tracing:
+        enabled: true
+        tracer_provider: 'app.telemetry.tracer_provider'
+        capture_content: '%env(bool:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT)%'
 
 services:
     _defaults:

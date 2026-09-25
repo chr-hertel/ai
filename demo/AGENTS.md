@@ -82,6 +82,9 @@ The `speech` agent demonstrates two composition features:
 - **Memory**: `memory.service: 'App\...'` — a class implementing the memory contract; contributes context, not callable by the model.
 - **`tools: false`** disables tool use entirely for the agent.
 
+### Telemetry (OpenTelemetry → Langfuse)
+Tracing comes from `symfony/ai-open-telemetry-bridge` (path repository on `../src/open-telemetry-bridge`), while `src/Telemetry/` holds the app-side SDK setup. The `tracing` section of `config/packages/ai.yaml` makes the AI Bundle decorate every platform, agent, toolbox and retriever, using the `app.telemetry.tracer_provider` service. Export uses the standard `OTEL_EXPORTER_OTLP_*` variables and is a no-op while the endpoint is empty. The `langfuse-*` services of `compose.yaml` are a local Langfuse v4 (UI on :3000, project and keys created on boot); `.env.test` blanks the endpoint so tests never export. Langfuse's OTLP endpoint needs `http/json`: its protobuf response body breaks the PHP exporter.
+
 ## Configuration Notes
 
 - `composer.json` pins Symfony recipes to `8.0.*` — new bundles installed via Flex will target 8.0.

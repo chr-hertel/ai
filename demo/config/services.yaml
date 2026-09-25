@@ -30,3 +30,12 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+    # Application-side OpenTelemetry setup, used by the "tracing" section of config/packages/ai.yaml
+    app.telemetry.tracer_provider:
+        class: OpenTelemetry\API\Trace\TracerProviderInterface
+        factory: ['App\Telemetry\TracerProviderFactory', 'create']
+        arguments:
+            - '%env(OTEL_EXPORTER_OTLP_ENDPOINT)%'
+            - '%env(OTEL_EXPORTER_OTLP_HEADERS)%'
+            - '%env(OTEL_SERVICE_NAME)%'
