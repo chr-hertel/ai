@@ -1,0 +1,68 @@
+{
+    "name": "symfony/ai-open-telemetry-bridge",
+    "description": "OpenTelemetry tracing for Symfony AI, following the GenAI semantic conventions.",
+    "license": "MIT",
+    "type": "symfony-bridge",
+    "keywords": [
+        "ai",
+        "llm",
+        "opentelemetry",
+        "telemetry",
+        "observability",
+        "tracing",
+        "langfuse"
+    ],
+    "authors": [
+        {
+            "name": "Christopher Hertel",
+            "email": "mail@christopher-hertel.de"
+        },
+        {
+            "name": "Symfony Community",
+            "homepage": "https://symfony.com/contributors"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "open-telemetry/api": "^1.0",
+        "symfony/ai-platform": "^0.13"
+    },
+    "require-dev": {
+        "open-telemetry/sdk": "^1.0",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.5.53",
+        "symfony/ai-agent": "^0.13",
+        "symfony/ai-store": "^0.13"
+    },
+    "suggest": {
+        "symfony/ai-agent": "To trace agent runs and tool calls",
+        "symfony/ai-store": "To trace retrievals"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Symfony\\AI\\OpenTelemetryBridge\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Symfony\\AI\\OpenTelemetryBridge\\Tests\\": "tests/",
+            "Symfony\\AI\\PHPStan\\": "../../.phpstan/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": false,
+            "tbachert/spi": false
+        },
+        "sort-packages": true
+    },
+    "extra": {
+        "thanks": {
+            "name": "symfony/ai",
+            "url": "https://github.com/symfony/ai"
+        }
+    }
+}
