@@ -3,6 +3,12 @@
     "description": "Symfony AI Demo Application",
     "license": "MIT",
     "type": "project",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../src/open-telemetry-bridge"
+        }
+    ],
     "require": {
         "php": ">=8.4",
         "ext-ctype": "*",
@@ -12,6 +18,8 @@
         "league/commonmark": "^2.7.1",
         "mrmysql/youtube-transcript": "^0.0.5",
         "nyholm/psr7": "^1.8",
+        "open-telemetry/exporter-otlp": "^1.4",
+        "open-telemetry/sdk": "^1.15",
         "php-http/discovery": "^1.20",
         "symfony/ai-agent": "^0.14",
         "symfony/ai-bundle": "^0.14",
@@ -21,6 +29,7 @@
         "symfony/ai-mcp-tool": "^0.14",
         "symfony/ai-mistral-platform": "^0.14",
         "symfony/ai-open-ai-platform": "^0.14",
+        "symfony/ai-open-telemetry-bridge": "dev-main",
         "symfony/ai-postgres-store": "^0.14",
         "symfony/ai-similarity-search-tool": "^0.14",
         "symfony/ai-store": "^0.14",
@@ -101,7 +110,8 @@
             "php-http/discovery": true,
             "symfony/ai-mate-composer-plugin": true,
             "symfony/flex": true,
-            "symfony/runtime": true
+            "symfony/runtime": true,
+            "tbachert/spi": true
         },
         "sort-packages": true
     },
