@@ -9,26 +9,19 @@
  * file that was distributed with this source code.
  */
 
-namespace App\Telemetry;
+namespace Symfony\AI\AiBundle\Tracing;
 
 use OpenTelemetry\API\Trace\TracerProviderInterface;
 use OpenTelemetry\SDK\Trace\TracerProviderInterface as SdkTracerProviderInterface;
-use Symfony\Component\Console\ConsoleEvents;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * Exports the batched spans once the response is sent or the command finished.
+ * Exports the batched spans once the response is sent or the command finished, also in long-running workers.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-#[AsEventListener(KernelEvents::TERMINATE)]
-#[AsEventListener(ConsoleEvents::TERMINATE)]
 final class FlushTracesListener
 {
     public function __construct(
-        #[Autowire(service: 'app.telemetry.tracer_provider')]
         private readonly TracerProviderInterface $tracerProvider,
     ) {
     }

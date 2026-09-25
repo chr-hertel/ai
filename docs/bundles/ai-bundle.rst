@@ -1459,14 +1459,38 @@ runs, tool calls and retrievals with OpenTelemetry, in every environment:
                 toolbox: true
                 retriever: true
 
-The bundle does not export anything by itself: exporter, endpoint and sampling are part of your OpenTelemetry setup,
-see :doc:`the bridge documentation </bridges/open-telemetry>` for an example with Langfuse. Disabled kinds of spans
-are not decorated at all, so they cost nothing.
+Disabled kinds of spans are not decorated at all, so they cost nothing.
 
 .. caution::
 
     With ``capture_content`` enabled, user input and model output are sent to your tracing backend. Only enable it
     for backends that are allowed to store that data.
+
+Exporting without an OpenTelemetry Setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your application has no OpenTelemetry setup yet, the ``exporter`` option sends the spans to any OTLP endpoint
+instead of a ``tracer_provider``, for example to `Langfuse`_. It requires the OpenTelemetry SDK and exporter:
+
+.. code-block:: terminal
+
+    $ composer require open-telemetry/sdk open-telemetry/exporter-otlp
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            exporter:
+                # "/v1/traces" is appended, an empty endpoint disables the export
+                endpoint: '%env(OTEL_EXPORTER_OTLP_ENDPOINT)%'
+                headers:
+                    Authorization: 'Basic %env(LANGFUSE_AUTH)%'
+
+The spans are sent as JSON over HTTP in batches, once the response is sent or the command finished. There is nothing
+else to configure: for sampling, other protocols or a tracer provider shared with the rest of your application, set up
+OpenTelemetry yourself and pass its ``tracer_provider`` instead.
 
 Message stores
 --------------
@@ -1588,3 +1612,4 @@ When only STT is configured (no TTS), the agent returns the same result type as 
 .. _`Symfony AI Chat`: https://github.com/symfony/ai-chat
 .. _`Symfony AI Platform`: https://github.com/symfony/ai-platform
 .. _`Symfony AI Store`: https://github.com/symfony/ai-store
+.. _`Langfuse`: https://langfuse.com/

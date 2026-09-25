@@ -44,6 +44,8 @@ use Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
+use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
+use Symfony\AI\AiBundle\Tracing\OtlpTracerProviderFactory;
 use Symfony\AI\Chat\ChatInterface;
 use Symfony\AI\Chat\ManagedStoreInterface as ManagedMessageStoreInterface;
 use Symfony\AI\Chat\MessageStoreInterface;
@@ -10231,6 +10233,59 @@ class AiBundleTest extends TestCase
         $this->assertEquals([new Reference('app.tracer_provider'), 'getTracer'], $container->getDefinition('ai.tracing.tracer')->getFactory());
         $this->assertTrue($container->getParameter('.ai.tracing.capture_content'));
         $this->assertSame(['platform', 'agent'], $container->getParameter('.ai.tracing.instrument'));
+    }
+
+    public function testTracingExporterBuildsAnOtlpTracerProvider()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'exporter' => [
+                        'endpoint' => 'http://localhost:3000/api/public/otel',
+                        'headers' => ['Authorization' => 'Basic cGs6c2s='],
+                    ],
+                ],
+            ],
+        ]);
+
+        $tracerProvider = $container->getDefinition('ai.tracing.tracer_provider');
+        $this->assertSame([OtlpTracerProviderFactory::class, 'create'], $tracerProvider->getFactory());
+        $this->assertSame(['http://localhost:3000/api/public/otel', ['Authorization' => 'Basic cGs6c2s=']], $tracerProvider->getArguments());
+        $this->assertEquals([new Reference('ai.tracing.tracer_provider'), 'getTracer'], $container->getDefinition('ai.tracing.tracer')->getFactory());
+
+        $listener = $container->getDefinition('ai.tracing.flush_listener');
+        $this->assertSame(FlushTracesListener::class, $listener->getClass());
+        $this->assertEquals([new Reference('ai.tracing.tracer_provider')], $listener->getArguments());
+        $this->assertSame([['event' => 'kernel.terminate'], ['event' => 'console.terminate']], $listener->getTag('kernel.event_listener'));
+    }
+
+    public function testTracingWithoutExporterDoesNotFlush()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => ['tracer_provider' => 'app.tracer_provider'],
+            ],
+        ]);
+
+        $this->assertFalse($container->hasDefinition('ai.tracing.flush_listener'), 'Flushing an own tracer provider is up to the application');
+    }
+
+    public function testTracingRejectsTracerProviderAndExporterTogether()
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Configure either "tracer_provider" or "exporter" for tracing, not both.');
+
+        $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'tracer_provider' => 'app.tracer_provider',
+                    'exporter' => ['endpoint' => 'http://localhost:3000/api/public/otel'],
+                ],
+            ],
+        ]);
     }
 
     public function testTracingDecoratorSitsBetweenTheProfilerAndTheSpeechAgent()

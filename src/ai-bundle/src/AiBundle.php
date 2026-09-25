@@ -17,6 +17,8 @@ use Google\Auth\FetchAuthTokenInterface;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\API\Trace\TracerProviderInterface;
+use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
+use OpenTelemetry\SDK\Trace\TracerProvider;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
@@ -48,6 +50,8 @@ use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
+use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
+use Symfony\AI\AiBundle\Tracing\OtlpTracerProviderFactory;
 use Symfony\AI\Chat\Bridge\Cache\MessageStore as CacheMessageStore;
 use Symfony\AI\Chat\Bridge\Cloudflare\MessageStore as CloudflareMessageStore;
 use Symfony\AI\Chat\Bridge\Doctrine\DoctrineDbalMessageStore;
@@ -2968,7 +2972,7 @@ final class AiBundle extends AbstractBundle
     }
 
     /**
-     * @param array{tracer_provider: string|null, capture_content: bool, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
+     * @param array{tracer_provider: string|null, exporter?: array{endpoint: string, headers: array<string, string>}, capture_content: bool, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
      */
     private function processTracingConfig(array $config, ContainerBuilder $container): void
     {
@@ -2977,7 +2981,21 @@ final class AiBundle extends AbstractBundle
         }
 
         $tracerProvider = $config['tracer_provider'];
-        if (null === $tracerProvider) {
+        if (isset($config['exporter'])) {
+            if (!ContainerBuilder::willBeAvailable('open-telemetry/exporter-otlp', OtlpHttpTransportFactory::class, ['symfony/ai-bundle'])
+                || !ContainerBuilder::willBeAvailable('open-telemetry/sdk', TracerProvider::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Tracing exporter configuration requires "open-telemetry/sdk" and "open-telemetry/exporter-otlp" packages. Try running "composer require open-telemetry/sdk open-telemetry/exporter-otlp".');
+            }
+
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([OtlpTracerProviderFactory::class, 'create'])
+                ->setArguments([$config['exporter']['endpoint'], $config['exporter']['headers']]));
+
+            $container->setDefinition('ai.tracing.flush_listener', new Definition(FlushTracesListener::class, [new Reference($tracerProvider)]))
+                ->addTag('kernel.event_listener', ['event' => 'kernel.terminate'])
+                ->addTag('kernel.event_listener', ['event' => 'console.terminate']);
+        } elseif (null === $tracerProvider) {
             $tracerProvider = 'ai.tracing.tracer_provider';
             $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
                 ->setFactory([Globals::class, 'tracerProvider']));

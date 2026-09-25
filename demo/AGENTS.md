@@ -83,7 +83,7 @@ The `speech` agent demonstrates two composition features:
 - **`tools: false`** disables tool use entirely for the agent.
 
 ### Telemetry (OpenTelemetry → Langfuse)
-Tracing comes from `symfony/ai-open-telemetry-bridge` (path repository on `../src/open-telemetry-bridge`), while `src/Telemetry/` holds the app-side SDK setup. The `tracing` section of `config/packages/ai.yaml` makes the AI Bundle decorate every platform, agent, toolbox and retriever, using the `app.telemetry.tracer_provider` service. Export uses the standard `OTEL_EXPORTER_OTLP_*` variables and is a no-op while the endpoint is empty. The `langfuse-*` services of `compose.yaml` are a local Langfuse v4 (UI on :3000, project and keys created on boot); `.env.test` blanks the endpoint so tests never export. Langfuse's OTLP endpoint needs `http/json`: its protobuf response body breaks the PHP exporter.
+Tracing comes from `symfony/ai-open-telemetry-bridge` (path repository on `../src/open-telemetry-bridge`), there is no telemetry code in `src/`. The `tracing` section of `config/packages/ai.yaml` makes the AI Bundle decorate every platform, agent, toolbox and retriever and export via its `exporter` shortcut to `OTEL_EXPORTER_OTLP_ENDPOINT` (a no-op while empty), authenticated with `LANGFUSE_AUTH`. The `langfuse-*` services of `compose.yaml` are a local Langfuse v4 (UI on :3000, project and keys created on boot); `.env.test` blanks the endpoint so tests never export. The bundle's exporter sends `http/json`, since Langfuse's protobuf response body breaks the PHP exporter.
 
 ## Configuration Notes
 

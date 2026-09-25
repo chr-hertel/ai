@@ -105,7 +105,7 @@ The `OTEL_*` variables in `.env` point to that Langfuse. Point them to any other
 > tracing backend. Only enable it for backends that are allowed to store that data.
 
 The spans come from `symfony/ai-open-telemetry-bridge`, enabled by the `tracing` section of
-`config/packages/ai.yaml`. The SDK and exporter setup lives in `src/Telemetry/`.
+`config/packages/ai.yaml`, which also exports them to Langfuse.
 
 ## Testing
 

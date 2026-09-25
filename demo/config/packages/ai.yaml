@@ -171,8 +171,12 @@ ai:
             vectorizer: 'ai.vectorizer.openai'
     tracing:
         enabled: true
-        tracer_provider: 'app.telemetry.tracer_provider'
         capture_content: '%env(bool:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT)%'
+        exporter:
+            endpoint: '%env(OTEL_EXPORTER_OTLP_ENDPOINT)%'
+            headers:
+                Authorization: 'Basic %env(LANGFUSE_AUTH)%'
+                x-langfuse-ingestion-version: '4'
 
 services:
     _defaults:
