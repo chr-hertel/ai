@@ -109,12 +109,46 @@ identifier is recorded as ``user.id``, which backends like Langfuse and Arize Ph
     User identifiers are often email addresses, which are personal data. Only record them for backends that are
     allowed to store that data.
 
+Symfony Integration
+-------------------
+
+With the AI Bundle, enable tracing in its configuration and every platform, agent, toolbox and retriever gets
+decorated:
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            # service ID of the tracer provider of your OpenTelemetry setup, the global one when omitted
+            tracer_provider: 'app.tracer_provider'
+
+With ``capture_user: true``, the bundle records the identifier of the authenticated Symfony user. Without an
+OpenTelemetry setup of your own, the bundle can also export to an OTLP endpoint directly. See
+:ref:`the AI Bundle documentation <ai-bundle-tracing>` for all options.
+
 Exporting to Langfuse
 ---------------------
 
 `Langfuse`_ ingests OTLP over HTTP on ``/api/public/otel``, authenticated with the project's public and secret key.
-It does not support gRPC. With the PHP SDK, use the JSON protocol and disable response compression, as the PSR-18
-client of ``symfony/http-client`` already decodes compressed responses::
+It does not support gRPC. With the AI Bundle, use its ``exporter`` option:
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            exporter:
+                endpoint: 'https://cloud.langfuse.com/api/public/otel'
+                headers:
+                    # base64 of "<public key>:<secret key>"
+                    Authorization: 'Basic %env(LANGFUSE_AUTH)%'
+                protocol: 'http/json'
+
+Without the bundle, use the JSON protocol and disable response compression, as the PSR-18 client of
+``symfony/http-client`` already decodes compressed responses::
 
     use OpenTelemetry\API\Common\Time\Clock;
     use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
