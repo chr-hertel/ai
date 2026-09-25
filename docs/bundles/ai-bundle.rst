@@ -1430,6 +1430,44 @@ agents, chats, message stores and stores that took part in the request.
     separate web server - Panther, for instance - cannot reach the collector through the container,
     and are not covered by the trait.
 
+.. _ai-bundle-tracing:
+
+Tracing
+-------
+
+With the :doc:`OpenTelemetry bridge </bridges/open-telemetry>` installed, the bundle traces platform calls, agent
+runs, tool calls and retrievals with OpenTelemetry, in every environment:
+
+.. code-block:: terminal
+
+    $ composer require symfony/ai-open-telemetry-bridge
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            # service ID of the tracer provider, the one registered in OpenTelemetry\API\Globals when omitted
+            tracer_provider: 'app.tracer_provider'
+            # record prompts, completions, tool arguments and tool results
+            capture_content: false
+            # disable single kinds of spans, all enabled by default
+            instrument:
+                platform: true
+                agent: true
+                toolbox: true
+                retriever: true
+
+The bundle does not export anything by itself: exporter, endpoint and sampling are part of your OpenTelemetry setup,
+see :doc:`the bridge documentation </bridges/open-telemetry>` for an example with Langfuse. Disabled kinds of spans
+are not decorated at all, so they cost nothing.
+
+.. caution::
+
+    With ``capture_content`` enabled, user input and model output are sent to your tracing backend. Only enable it
+    for backends that are allowed to store that data.
+
 Message stores
 --------------
 

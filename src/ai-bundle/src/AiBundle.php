@@ -14,6 +14,9 @@ namespace Symfony\AI\AiBundle;
 use AsyncAws\S3Vectors\S3VectorsClient;
 use Google\Auth\ApplicationDefaultCredentials;
 use Google\Auth\FetchAuthTokenInterface;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\TracerInterface;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
@@ -40,6 +43,7 @@ use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass;
+use Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
@@ -59,6 +63,8 @@ use Symfony\AI\Chat\InMemory\Store as InMemoryMessageStore;
 use Symfony\AI\Chat\ManagedStoreInterface as ManagedMessageStoreInterface;
 use Symfony\AI\Chat\MessageStoreInterface;
 use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
+use Symfony\AI\OpenTelemetryBridge\Platform\TracingPlatform;
+use Symfony\AI\OpenTelemetryBridge\SemanticConvention\GenAiAttributes;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\ModelApiCatalog as AmazeeAiModelApiCatalog;
@@ -201,6 +207,7 @@ final class AiBundle extends AbstractBundle
         parent::build($container);
 
         $container->addCompilerPass(new DebugCompilerPass());
+        $container->addCompilerPass(new TracingCompilerPass());
         $container->addCompilerPass(new ProcessorCompilerPass());
         $container->addCompilerPass(new SchemaProviderValidationPass());
     }
@@ -350,6 +357,10 @@ final class AiBundle extends AbstractBundle
             if (1 === \count($config['retriever']) && isset($retrieverName)) {
                 $builder->setAlias(RetrieverInterface::class, 'ai.retriever.'.$retrieverName);
             }
+        }
+
+        if ($config['tracing']['enabled']) {
+            $this->processTracingConfig($config['tracing'], $builder);
         }
 
         if (ContainerBuilder::willBeAvailable('symfony/ai-agent', Agent::class, ['symfony/ai-bundle'])) {
@@ -1695,7 +1706,8 @@ final class AiBundle extends AbstractBundle
                     null !== $config['speech']['speech_to_text_platform'] ? new Reference($config['speech']['speech_to_text_platform']) : null,
                     null !== $config['speech']['text_to_speech_platform'] ? new Reference($config['speech']['text_to_speech_platform']) : null,
                 ])
-                ->setDecoratedService($agentId, priority: -1024);
+                // Inside the tracing decorator, so speech-to-text and text-to-speech are part of the traced run
+                ->setDecoratedService($agentId, priority: -512);
         }
     }
 
@@ -2953,6 +2965,30 @@ final class AiBundle extends AbstractBundle
         $definition->addTag('ai.indexer', ['name' => $name]);
         $container->setDefinition($serviceId, $definition);
         $container->registerAliasForArgument($serviceId, IndexerInterface::class, (new Target((string) $name))->getParsedName());
+    }
+
+    /**
+     * @param array{tracer_provider: string|null, capture_content: bool, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
+     */
+    private function processTracingConfig(array $config, ContainerBuilder $container): void
+    {
+        if (!ContainerBuilder::willBeAvailable('symfony/ai-open-telemetry-bridge', TracingPlatform::class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException('Tracing configuration requires "symfony/ai-open-telemetry-bridge" package. Try running "composer require symfony/ai-open-telemetry-bridge".');
+        }
+
+        $tracerProvider = $config['tracer_provider'];
+        if (null === $tracerProvider) {
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([Globals::class, 'tracerProvider']));
+        }
+
+        $container->setDefinition('ai.tracing.tracer', (new Definition(TracerInterface::class))
+            ->setFactory([new Reference($tracerProvider), 'getTracer'])
+            ->setArguments(['symfony/ai', null, GenAiAttributes::SCHEMA_URL]));
+
+        $container->setParameter('.ai.tracing.capture_content', $config['capture_content']);
+        $container->setParameter('.ai.tracing.instrument', array_keys(array_filter($config['instrument'])));
     }
 
     /**

@@ -31,6 +31,10 @@
         {
             "type": "path",
             "url": "../platform/src/Bridge/Venice"
+        },
+        {
+            "type": "path",
+            "url": "../open-telemetry-bridge"
         }
     ],
     "authors": [
@@ -115,6 +119,7 @@
         "symfony/ai-open-responses-platform": "^0.13",
         "symfony/ai-open-router-platform": "^0.13",
         "symfony/ai-open-search-store": "^0.13",
+        "symfony/ai-open-telemetry-bridge": "dev-main",
         "symfony/ai-ovh-platform": "^0.13",
         "symfony/ai-perplexity-platform": "^0.13",
         "symfony/ai-pinecone-store": "^0.13",
