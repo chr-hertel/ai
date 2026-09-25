@@ -7,6 +7,10 @@
         {
             "type": "path",
             "url": "../src/agent/src/Bridge/Mcp"
+        },
+        {
+            "type": "path",
+            "url": "../src/open-telemetry-bridge"
         }
     ],
     "require": {
@@ -18,6 +22,8 @@
         "league/commonmark": "^2.7.1",
         "mrmysql/youtube-transcript": "^0.0.5",
         "nyholm/psr7": "^1.8",
+        "open-telemetry/exporter-otlp": "^1.4",
+        "open-telemetry/sdk": "^1.15",
         "php-http/discovery": "^1.20",
         "symfony/ai-agent": "^0.13",
         "symfony/ai-bundle": "^0.13",
@@ -27,6 +33,7 @@
         "symfony/ai-mcp-tool": "dev-main",
         "symfony/ai-mistral-platform": "^0.13",
         "symfony/ai-open-ai-platform": "^0.13",
+        "symfony/ai-open-telemetry-bridge": "dev-main",
         "symfony/ai-postgres-store": "^0.13",
         "symfony/ai-similarity-search-tool": "^0.13",
         "symfony/ai-store": "^0.13",
@@ -45,8 +52,8 @@
         "symfony/mime": "^8.1",
         "symfony/monolog-bundle": "^4.0",
         "symfony/runtime": "^8.1",
-        "symfony/twig-bundle": "^8.1",
         "symfony/translation": "^8.1",
+        "symfony/twig-bundle": "^8.1",
         "symfony/uid": "^8.1",
         "symfony/ux-dropzone": "^3.0",
         "symfony/ux-icons": "^3.0",

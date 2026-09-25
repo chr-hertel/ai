@@ -31,6 +31,10 @@
         {
             "type": "path",
             "url": "../platform/src/Bridge/Venice"
+        },
+        {
+            "type": "path",
+            "url": "../open-telemetry-bridge"
         }
     ],
     "authors": [
@@ -60,6 +64,8 @@
     },
     "require-dev": {
         "google/auth": "^1.47",
+        "open-telemetry/exporter-otlp": "^1.0",
+        "open-telemetry/sdk": "^1.0",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
@@ -115,6 +121,7 @@
         "symfony/ai-open-responses-platform": "^0.13",
         "symfony/ai-open-router-platform": "^0.13",
         "symfony/ai-open-search-store": "^0.13",
+        "symfony/ai-open-telemetry-bridge": "dev-main",
         "symfony/ai-ovh-platform": "^0.13",
         "symfony/ai-perplexity-platform": "^0.13",
         "symfony/ai-pinecone-store": "^0.13",
@@ -162,7 +169,8 @@
     "config": {
         "allow-plugins": {
             "codewithkyrian/platform-package-installer": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "tbachert/spi": false
         },
         "sort-packages": true
     },

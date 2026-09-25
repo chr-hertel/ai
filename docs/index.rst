@@ -18,6 +18,7 @@ AI capabilities to your application:
 * :doc:`Mate Component </components/mate>`: CLI that gives coding agents project-aware tools for your application
 * :doc:`AI Bundle </bundles/ai-bundle>`: Symfony integration bringing all components together
 * :doc:`MCP Bundle </bundles/mcp-bundle>`: Integration for the Model Context Protocol SDK
+* :doc:`OpenTelemetry Bridge </bridges/open-telemetry>`: Tracing of platform calls, agent runs and tool calls with OpenTelemetry
 
 Quick Start
 -----------
@@ -108,4 +109,5 @@ Documentation
 
     components/index
     bundles/index
+    bridges/index
     cookbook/index

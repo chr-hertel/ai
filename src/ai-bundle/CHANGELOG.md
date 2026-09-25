@@ -4,6 +4,7 @@ CHANGELOG
 0.14
 ----
 
+ * Add `tracing` configuration to trace platforms, agents, toolboxes and retrievers with OpenTelemetry through `symfony/ai-open-telemetry-bridge`, exporting to an OTLP endpoint with the `exporter` option
  * Add `edenai` platform configuration for the Eden AI bridge, including the `ai.platform.job_client.edenai` service for its asynchronous speech-to-text jobs
  * Add `typesafe` platform configuration for the TypeSafe bridge
  * Register the OpenAI job client as `ai.platform.job_client.openai`, tagged and autowired by argument name, so a stored batch handle can be resolved from a worker
