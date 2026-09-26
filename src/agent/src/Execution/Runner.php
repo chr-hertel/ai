@@ -180,6 +180,8 @@ final class Runner
 
             $toolCallResult = $this->extractToolCallResult($result);
             if (null === $toolCallResult || null === $this->toolExecutor) {
+                yield new Progress('turn', 'Completed a turn.', new Turn($model, $result));
+
                 break;
             }
 
@@ -203,6 +205,8 @@ final class Runner
                     $sources = $sources->merge($toolResult->getSources());
                 }
             }
+
+            yield new Progress('turn', 'Completed a turn.', new Turn($model, $result, array_values($toolResults)));
 
             $event = new ToolCallsExecuted($toolResults);
             $this->eventDispatcher?->dispatch($event);
