@@ -14,15 +14,19 @@ namespace Symfony\AI\Agent\Tests\Execution;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Runner;
+use Symfony\AI\Agent\Execution\Turn;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Execution\UpdateInterface;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Source\Source;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
+use Symfony\AI\Platform\FinishReason\FinishReason;
+use Symfony\AI\Platform\FinishReason\FinishReasonCase;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\File;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -52,6 +56,7 @@ use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\TokenUsage\TokenUsageAggregation;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class RunnerTest extends TestCase
 {
@@ -889,7 +894,86 @@ final class RunnerTest extends TestCase
             $updates,
         );
 
-        $this->assertSame(['model_request', 'tool_call', 'model_request', 'result'], $stages);
+        $this->assertSame(['model_request', 'tool_call', 'turn', 'model_request', 'turn', 'result'], $stages);
+    }
+
+    public function testEachTurnKeepsItsOwnResultMetadataAndToolResults()
+    {
+        $toolCall = new ToolCall('call_1', 'tool', []);
+        $toolResult = new ToolResult($toolCall, 'Tool responded');
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox
+            ->expects($this->once())
+            ->method('execute')
+            ->willReturn($toolResult);
+
+        $round = new ToolCallResult([$toolCall]);
+        $round->getMetadata()->add('finish_reason', new FinishReason(FinishReasonCase::TOOL_CALL, 'tool_calls'));
+        $round->getMetadata()->add('token_usage', new TokenUsage(totalTokens: 10));
+
+        $final = new TextResult('Final content after tool');
+        $final->getMetadata()->add('finish_reason', new FinishReason(FinishReasonCase::STOP, 'stop'));
+        $final->getMetadata()->add('token_usage', new TokenUsage(totalTokens: 5));
+
+        $turns = $this->collectTurns($this->createRunner($this->platform($round, $final), $toolbox), new MessageBag());
+
+        $this->assertCount(2, $turns);
+
+        $this->assertSame('gpt-4', $turns[0]->getModel());
+        $this->assertSame($round, $turns[0]->getResult());
+        $this->assertSame([$toolResult], $turns[0]->getToolResults());
+        $this->assertTrue($turns[0]->getMetadata()->get('finish_reason')->is(FinishReasonCase::TOOL_CALL));
+
+        $this->assertSame($final, $turns[1]->getResult());
+        $this->assertFalse($turns[1]->hasToolResults());
+        $this->assertTrue($turns[1]->getMetadata()->get('finish_reason')->is(FinishReasonCase::STOP));
+
+        $usage = $turns[1]->getMetadata()->get('token_usage');
+        $this->assertInstanceOf(TokenUsage::class, $usage);
+        $this->assertSame(5, $usage->getTotalTokens());
+    }
+
+    public function testAStreamedRoundIsRecordedAsTheResultItWasConsumedInto()
+    {
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+
+        $stream = new StreamResult((static function () {
+            yield new TextDelta('Hello ');
+            yield new TextDelta('world!');
+        })());
+
+        $turns = $this->collectTurns($this->createRunner($this->platform($stream), $toolbox), new MessageBag());
+
+        $this->assertCount(1, $turns);
+        $this->assertInstanceOf(TextResult::class, $turns[0]->getResult());
+        $this->assertSame('Hello world!', $turns[0]->getResult()->getContent());
+    }
+
+    public function testNoFinalTurnIsRecordedWhenAListenerProvidesTheResult()
+    {
+        $toolCall = new ToolCall('call_1', 'tool', []);
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturn(new ToolResult($toolCall, 'Tool responded'));
+
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(ToolCallsExecuted::class, static function (ToolCallsExecuted $event): void {
+            $event->setResult(new TextResult('Listener result'));
+        });
+
+        $runner = new Runner(
+            $this->platform(new ToolCallResult([$toolCall])),
+            $toolbox,
+            new SequentialToolExecutor($toolbox),
+            eventDispatcher: $dispatcher,
+        );
+
+        $turns = $this->collectTurns($runner, new MessageBag());
+
+        $this->assertCount(1, $turns);
+        $this->assertInstanceOf(ToolCallResult::class, $turns[0]->getResult());
+        $this->assertTrue($turns[0]->hasToolResults());
     }
 
     public function testItYieldsEveryStreamedDeltaAsAProgressUpdate()
@@ -965,6 +1049,21 @@ final class RunnerTest extends TestCase
     private function collectUpdates(Runner $runner, MessageBag $messages, array $options = []): array
     {
         return iterator_to_array($runner->run('gpt-4', $messages, $options), false);
+    }
+
+    /**
+     * @return list<Turn>
+     */
+    private function collectTurns(Runner $runner, MessageBag $messages): array
+    {
+        $turns = [];
+        foreach ($runner->run('gpt-4', $messages, []) as $update) {
+            if ($update instanceof Progress && 'turn' === $update->getStage() && $update->getPayload() instanceof Turn) {
+                $turns[] = $update->getPayload();
+            }
+        }
+
+        return $turns;
     }
 
     private function createRunner(

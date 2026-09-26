@@ -22,9 +22,9 @@ use Symfony\AI\Agent\Execution\UpdateType;
 final class Progress implements UpdateInterface
 {
     /**
-     * @param non-empty-string $stage   machine-readable stage, e.g. "model_request", "tool_call", "delta"
+     * @param non-empty-string $stage   machine-readable stage, e.g. "model_request", "tool_call", "turn", "delta"
      * @param string           $message human-readable description
-     * @param mixed            $payload stage-specific payload (e.g. the ToolCall, a streamed delta, the handoff Decision, ...)
+     * @param mixed            $payload stage-specific payload (e.g. the ToolCall, a completed Turn, a streamed delta, the handoff Decision, ...)
      */
     public function __construct(
         private readonly string $stage,

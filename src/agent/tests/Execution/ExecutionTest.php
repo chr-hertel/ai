@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\Turn;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
@@ -38,6 +39,41 @@ final class ExecutionTest extends TestCase
         });
 
         $this->assertSame($result, $execution->getResult());
+    }
+
+    public function testGetTurnsDrivesTheExecutionAndReturnsItsTurns()
+    {
+        $first = new Turn('gpt-4', new TextResult('First'));
+        $second = new Turn('gpt-4', new TextResult('Second'));
+
+        $execution = new Execution(static function () use ($first, $second): \Generator {
+            yield new Progress('turn', 'Completed a turn.', $first);
+            yield new Progress('tool_call', 'Executing tool "clock".');
+            yield new Progress('turn', 'Completed a turn.', $second);
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+
+        $this->assertSame([$first, $second], $execution->getTurns());
+        $this->assertSame('Done', $execution->getContent());
+    }
+
+    public function testGetTurnsReturnsTheTurnsCompletedSoFarWhileIterating()
+    {
+        $turn = new Turn('gpt-4', new TextResult('First'));
+
+        $execution = new Execution(static function () use ($turn): \Generator {
+            yield new Progress('turn', 'Completed a turn.', $turn);
+            yield new Progress('model_request', 'Invoking model.');
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+
+        foreach ($execution as $update) {
+            if ($update instanceof Progress && 'model_request' === $update->getStage()) {
+                $this->assertSame([$turn], $execution->getTurns());
+            }
+        }
+
+        $this->assertSame([$turn], $execution->getTurns());
     }
 
     public function testItIsIterable()

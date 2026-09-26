@@ -90,6 +90,25 @@ result::
 The callbacks are invoked however the execution is consumed - iterated, streamed or read as a result - so they are a
 way to observe a run whose result is handled elsewhere.
 
+Every round of the tool-calling loop is recorded as a :class:`Symfony\\AI\\Agent\\Execution\\Turn`: the model's
+result, the results of the tools it requested, and the round's own metadata. While the final result carries the
+metadata aggregated over all rounds, e.g. the total token usage, a turn keeps what belongs to its single model request,
+like its finish reason. ``getTurns()`` drives the execution to completion and returns them::
+
+    $execution = $agent->call('What time is it?');
+
+    foreach ($execution->getTurns() as $turn) {
+        echo 'Finished with: '.$turn->getMetadata()->get('finish_reason').\PHP_EOL;
+
+        foreach ($turn->getToolResults() as $toolResult) {
+            echo $toolResult->getToolCall()->getName().': '.$toolResult->getResult().\PHP_EOL;
+        }
+    }
+
+Each turn is also reported as a ``Progress`` update of the ``turn`` stage, carrying the ``Turn`` as payload, as soon as
+the round completes. See the
+`execution-turns.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-turns.php>`_ example.
+
 Like the platform's ``DeferredResult``, the execution offers typed accessors that narrow the result to what you
 expect - ``asText()``, ``asObject()``, ``asBinary()``, ``asFile()``, ``asDataUri()`` and ``asToolCalls()`` - and throw
 when the agent produced something else. A multi-part result containing a single part of the expected type, e.g. a reasoning part
