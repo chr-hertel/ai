@@ -22,6 +22,9 @@ Each core component has bridges in `src/<component>/src/Bridge/` that provide in
 - **AI Bundle** (`src/ai-bundle/`): Symfony integration for Platform, Store, and Agent components
 - **MCP Bundle** (`src/mcp-bundle/`): Symfony integration for official MCP SDK
 
+### Top-level Bridges
+- **OpenTelemetry Bridge** (`src/open-telemetry-bridge/`): Tracing decorators for Platform, Agent, Toolbox and Retriever following the OpenTelemetry GenAI semantic conventions
+
 ### Supporting Directories
 - **Examples** (`examples/`): Standalone examples demonstrating component usage across different AI platforms
 - **Demo** (`demo/`): Full Symfony web application showcasing components working together
