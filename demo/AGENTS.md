@@ -82,6 +82,9 @@ The `speech` agent demonstrates two composition features:
 - **Memory**: `memory.service: 'App\...'` — a class implementing the memory contract; contributes context, not callable by the model.
 - **`tools: false`** disables tool use entirely for the agent.
 
+### Telemetry (OpenTelemetry → Jaeger)
+Tracing comes from `symfony/ai-open-telemetry-bridge` (path repository on `../src/open-telemetry-bridge`), there is no telemetry code in `src/`. The `tracing` section of `config/packages/ai.yaml` makes the AI Bundle decorate every platform, agent, toolbox and retriever and export via its `exporter` shortcut to `OTEL_EXPORTER_OTLP_ENDPOINT` (a no-op while empty). The `jaeger` service of `compose.yaml` is Jaeger v2 all-in-one (OTLP on :4318, UI on :16686) with Badger storage configured in `docker/jaeger.yaml`; its volume is mounted on `/tmp` so the image's non-root user can write to it. Jaeger shows the span tree and all attributes but has no GenAI views. Its HTTP API for scripts is `/api/v3/…` (OTLP JSON); the old `/api/…` endpoints are gone. `.env.test` blanks the endpoint so tests never export.
+
 ## Configuration Notes
 
 - `composer.json` pins Symfony recipes to `8.0.*` — new bundles installed via Flex will target 8.0.
