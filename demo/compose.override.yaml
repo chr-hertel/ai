@@ -16,3 +16,11 @@ services:
       ports:
           - "8432:5432"
 ###< doctrine/doctrine-bundle ###
+
+  tempo:
+    ports:
+      - "4318:4318"
+
+  grafana:
+    ports:
+      - "3000:3000"
