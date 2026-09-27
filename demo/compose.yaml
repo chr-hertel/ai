@@ -18,7 +18,17 @@ services:
       # - ./docker/db/data:/var/lib/postgresql/data:rw
 ###< doctrine/doctrine-bundle ###
 
+  # Jaeger as the OpenTelemetry tracing backend, UI on port 16686
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    command: ['--config', '/etc/jaeger/config.yaml']
+    volumes:
+      - ./docker/jaeger.yaml:/etc/jaeger/config.yaml:ro
+      # On /tmp, so the volume inherits its permissions and Jaeger's non-root user can write to it
+      - jaeger_data:/tmp
+
 volumes:
 ###> doctrine/doctrine-bundle ###
   database_data:
 ###< doctrine/doctrine-bundle ###
+  jaeger_data:
