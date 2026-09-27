@@ -82,6 +82,9 @@ The `speech` agent demonstrates two composition features:
 - **Memory**: `memory.service: 'App\...'` — a class implementing the memory contract; contributes context, not callable by the model.
 - **`tools: false`** disables tool use entirely for the agent.
 
+### Telemetry (OpenTelemetry → Grafana)
+Tracing comes from `symfony/ai-open-telemetry-bridge` (path repository on `../src/open-telemetry-bridge`), there is no telemetry code in `src/`. The `tracing` section of `config/packages/ai.yaml` makes the AI Bundle decorate every platform, agent, toolbox and retriever and export via its `exporter` shortcut to `OTEL_EXPORTER_OTLP_ENDPOINT` (a no-op while empty). `compose.yaml` runs Tempo (OTLP on :4318), Prometheus and Grafana (:3000, anonymous admin); their configs live in `docker/`. Tempo's metrics generator writes span metrics to Prometheus, with the GenAI attributes as labels (`gen_ai_request_model`, `gen_ai_agent_name`, `gen_ai_tool_name`, …); the provisioned dashboard `docker/grafana/dashboards/symfony-ai.json` is built on them. Grafana knows nothing about GenAI: no token or cost views, those are span attributes. `.env.test` blanks the endpoint so tests never export.
+
 ## Configuration Notes
 
 - `composer.json` pins Symfony recipes to `8.0.*` — new bundles installed via Flex will target 8.0.
