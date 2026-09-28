@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `tracing` configuration to trace platforms, agents, toolboxes and retrievers with OpenTelemetry through `symfony/ai-open-telemetry-bridge`, exporting to an OTLP endpoint with the `exporter` option and recording the authenticated user with `capture_user`
+
 0.14
 ----
 

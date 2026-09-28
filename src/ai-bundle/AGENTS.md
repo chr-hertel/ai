@@ -18,6 +18,7 @@ Symfony integration bundle providing DI configuration for AI components (Platfor
 ### Key Components
 - `AiBundle.php`: Main bundle with service configuration
 - `ProcessorCompilerPass.php`: Processor registration
+- `TracingCompilerPass.php`: OpenTelemetry decorators for `ai.tracing`, via `symfony/ai-open-telemetry-bridge`
 - Security system with `IsGrantedToolAttributeListener`
 - Profiler data collector and traceable decorators
 
