@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `Execution\Execution::getTurns()` returning the `Execution\Turn`s of an execution - each model result with the results of the tools it requested and a snapshot of its own metadata - also reported live as `Progress` updates of the `turn` stage
+
 0.14
 ----
 

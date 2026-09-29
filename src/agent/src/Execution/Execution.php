@@ -65,6 +65,11 @@ final class Execution implements \IteratorAggregate, ResultInterface
 
     private ?ResultInterface $result = null;
 
+    /**
+     * @var list<Turn>
+     */
+    private array $turns = [];
+
     private readonly Metadata $metadata;
 
     private readonly Cancellation $cancellation;
@@ -157,6 +162,21 @@ final class Execution implements \IteratorAggregate, ResultInterface
         throw new RuntimeException('The agent execution finished without producing a result.');
     }
 
+    /**
+     * Drives the execution to completion and returns its turns, each model result with the results of the tools it
+     * requested - or the turns completed so far, while the execution is being iterated.
+     *
+     * @return list<Turn>
+     */
+    public function getTurns(): array
+    {
+        if (!$this->consumed) {
+            $this->getResult();
+        }
+
+        return $this->turns;
+    }
+
     public function getContent(): string|iterable|object|null
     {
         if ($this->streamed) {
@@ -246,6 +266,10 @@ final class Execution implements \IteratorAggregate, ResultInterface
                 }
 
                 if ($update instanceof Progress) {
+                    if ('turn' === $update->getStage() && $update->getPayload() instanceof Turn) {
+                        $this->turns[] = $update->getPayload();
+                    }
+
                     foreach ($this->progressCallbacks as $callback) {
                         $callback($update);
                     }
