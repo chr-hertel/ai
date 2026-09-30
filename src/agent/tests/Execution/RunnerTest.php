@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Execution\UpdateInterface;
+use Symfony\AI\Agent\Toolbox\CommentaryToolbox;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Source\Source;
@@ -32,11 +33,15 @@ use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\ToolCallMessage;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\BinaryResult;
+use Symfony\AI\Platform\Result\CommentaryResult;
 use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ObjectResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\Stream\Delta\CommentaryComplete;
+use Symfony\AI\Platform\Result\Stream\Delta\CommentaryDelta;
+use Symfony\AI\Platform\Result\Stream\Delta\CommentaryStart;
 use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 use Symfony\AI\Platform\Result\Stream\Delta\ThinkingDelta;
 use Symfony\AI\Platform\Result\Stream\Delta\ThinkingSignature;
@@ -909,6 +914,85 @@ final class RunnerTest extends TestCase
             ->willReturn(new ToolResult($toolCall, 'Test response'));
 
         $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Final response'));
+        $updates = $this->collectUpdates($this->createRunner($platform, $toolbox), new MessageBag());
+
+        $stages = array_map(
+            static fn (UpdateInterface $update): string => $update instanceof Progress ? $update->getStage() : $update->getType()->value,
+            $updates,
+        );
+
+        $this->assertSame(['model_request', 'tool_call', 'model_request', 'result'], $stages);
+    }
+
+    public function testCommentaryOfAToolCallIsStreamedBeforeTheToolRuns()
+    {
+        $toolCall = new ToolCall('id1', 'weather', ['city' => 'Berlin', 'commentary' => 'Checking the weather in Berlin.']);
+        $inner = $this->createMock(ToolboxInterface::class);
+        // the commentary is looked up in the tools offered to the model, not in a fresh listing
+        $inner->expects($this->once())->method('getTools')->willReturn([new Tool(new ExecutionReference('Weather'), 'weather', 'Current weather')]);
+        $inner
+            ->expects($this->once())
+            ->method('execute')
+            ->with(new ToolCall('id1', 'weather', ['city' => 'Berlin']))
+            ->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, 'Sunny'));
+
+        $stream = new StreamResult((static function () use ($toolCall) {
+            yield new ToolCallComplete([$toolCall]);
+        })());
+
+        $messages = new MessageBag();
+        $updates = $this->collectUpdates($this->createRunner($this->platform($stream, new TextResult('It is sunny.')), new CommentaryToolbox($inner)), $messages);
+
+        $progress = array_values(array_filter($updates, static fn (UpdateInterface $update): bool => $update instanceof Progress && 'model_request' !== $update->getStage()));
+        $this->assertEquals([
+            new Progress('delta', 'Received a streamed delta.', new CommentaryStart()),
+            new Progress('delta', 'Received a streamed delta.', new CommentaryDelta('Checking the weather in Berlin.')),
+            new Progress('delta', 'Received a streamed delta.', new CommentaryComplete('Checking the weather in Berlin.')),
+            new Progress('tool_call', 'Executing tool "weather".', $toolCall),
+        ], $progress);
+
+        // the model gets its tool call back as it made it
+        $assistantMessage = $messages->getMessages()[0];
+        $this->assertInstanceOf(AssistantMessage::class, $assistantMessage);
+        $this->assertSame([$toolCall], $assistantMessage->getToolCalls());
+    }
+
+    public function testCommentaryOfAToolCallIsReportedAsProgressWithoutStreaming()
+    {
+        $toolCall = new ToolCall('id1', 'weather', ['city' => 'Berlin', 'commentary' => 'Checking the weather in Berlin.']);
+        $inner = $this->createMock(ToolboxInterface::class);
+        $inner->method('getTools')->willReturn([new Tool(new ExecutionReference('Weather'), 'weather', 'Current weather')]);
+        $inner->method('execute')->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, 'Sunny'));
+
+        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('It is sunny.'));
+        $updates = $this->collectUpdates($this->createRunner($platform, new CommentaryToolbox($inner)), new MessageBag());
+
+        $this->assertEquals(new Progress('commentary', 'The model commented on its next step.', new CommentaryResult('Checking the weather in Berlin.')), $updates[1]);
+        $this->assertInstanceOf(Progress::class, $updates[2]);
+        $this->assertSame('tool_call', $updates[2]->getStage());
+    }
+
+    public function testNativeCommentaryIsReportedAsProgressWithoutStreaming()
+    {
+        $toolCall = new ToolCall('id1', 'weather', ['city' => 'Berlin']);
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturn(new ToolResult($toolCall, 'Sunny'));
+
+        $result = new MultiPartResult([new CommentaryResult('Checking the weather in Berlin.'), new ToolCallResult([$toolCall])]);
+        $updates = $this->collectUpdates($this->createRunner($this->platform($result, new TextResult('It is sunny.')), $toolbox), new MessageBag());
+
+        $this->assertEquals(new Progress('commentary', 'The model commented on its next step.', new CommentaryResult('Checking the weather in Berlin.')), $updates[1]);
+    }
+
+    public function testArgumentOfAToolWithoutCommentaryIsNoCommentary()
+    {
+        $toolCall = new ToolCall('id1', 'review', ['commentary' => 'Looks good to me.']);
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([new Tool(new ExecutionReference('Review'), 'review', 'Reviews code')]);
+        $toolbox->expects($this->once())->method('execute')->with($toolCall)->willReturn(new ToolResult($toolCall, 'Posted'));
+
+        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Done.'));
         $updates = $this->collectUpdates($this->createRunner($platform, $toolbox), new MessageBag());
 
         $stages = array_map(

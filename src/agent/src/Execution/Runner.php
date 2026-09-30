@@ -18,6 +18,7 @@ use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Agent\Toolbox\ToolCallCommentary;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Message\AssistantMessage;
@@ -27,9 +28,13 @@ use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Result\CommentaryResult;
 use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ObjectResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\Stream\Delta\CommentaryComplete;
+use Symfony\AI\Platform\Result\Stream\Delta\CommentaryDelta;
+use Symfony\AI\Platform\Result\Stream\Delta\CommentaryStart;
 use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 use Symfony\AI\Platform\Result\Stream\Delta\ToolCallComplete;
 use Symfony\AI\Platform\Result\StreamResult;
@@ -94,6 +99,7 @@ final class Runner
                 $result = $deferredResult->getResult();
 
                 $assistantMessage = null;
+                $streamed = $result instanceof StreamResult;
                 if ($result instanceof StreamResult) {
                     $streamedResult = yield from $this->consumeStream($result, $cancellation);
                     if (null === $streamedResult) {
@@ -124,6 +130,7 @@ final class Runner
 
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
+            yield from $this->reportCommentary($result, $toolCalls, $options, $streamed);
             $toolResults = yield from $this->toolExecutor->execute($toolCalls);
 
             $messages->add($assistantMessage ?? Message::ofAssistant($result));
@@ -308,6 +315,45 @@ final class Runner
             if (\in_array($toolCall->getName(), $registeredTools, true) && !\in_array($toolCall->getName(), $allowedTools, true)) {
                 throw ToolNotFoundException::notFoundForToolCall($toolCall);
             }
+        }
+    }
+
+    /**
+     * Reports what the model said about its next step before the requested tools run.
+     *
+     * Streamed, a native commentary already passed by as deltas, so only the commentary a toolbox
+     * requested as tool call argument, see {@see ToolCallCommentary}, is streamed the same way.
+     *
+     * @param list<ToolCall>       $toolCalls
+     * @param array<string, mixed> $options   the invocation options, carrying the tools the model was offered
+     *
+     * @return \Generator<int, Progress, mixed, void>
+     */
+    private function reportCommentary(ResultInterface $result, array $toolCalls, array $options, bool $streamed): \Generator
+    {
+        $commentaries = [];
+        if (!$streamed && $result instanceof MultiPartResult) {
+            foreach ($result->getContent() as $part) {
+                if ($part instanceof CommentaryResult) {
+                    $commentaries[] = $part->getContent();
+                }
+            }
+        }
+
+        // the offered tools rather than a fresh listing, their schema is the one the model filled in
+        $tools = array_filter(\is_array($options['tools'] ?? null) ? $options['tools'] : [], static fn (mixed $tool): bool => $tool instanceof Tool);
+        $commentaries = [...$commentaries, ...ToolCallCommentary::extract($tools, $toolCalls)];
+
+        foreach ($commentaries as $commentary) {
+            if (!$streamed) {
+                yield new Progress('commentary', 'The model commented on its next step.', new CommentaryResult($commentary));
+
+                continue;
+            }
+
+            yield new Progress('delta', 'Received a streamed delta.', new CommentaryStart());
+            yield new Progress('delta', 'Received a streamed delta.', new CommentaryDelta($commentary));
+            yield new Progress('delta', 'Received a streamed delta.', new CommentaryComplete($commentary));
         }
     }
 

@@ -722,6 +722,54 @@ If you want to expose the underlying error to the LLM, you can throw a custom ex
         }
     }
 
+Tool Call Commentary
+~~~~~~~~~~~~~~~~~~~~
+
+Some platforms, like the OpenAI Responses API, let the model narrate its next step next to a tool call
+("commentary"), so the user sees what happens while a tool runs. For platforms without such a phase, e.g. Ollama or
+chat completion APIs, the :class:`Symfony\\AI\\Agent\\Toolbox\\CommentaryToolbox` simulates it: it adds a
+required ``commentary`` argument to every tool, which the model fills with a user-facing note, and strips it again
+before the tool gets executed - the tools themselves stay unchanged::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Toolbox\CommentaryToolbox;
+    use Symfony\AI\Platform\Result\Stream\Delta\CommentaryDelta;
+    use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
+
+    $toolbox = new CommentaryToolbox($innerToolbox);
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
+
+    foreach ($agent->call($messages, ['stream' => true])->getContent() as $delta) {
+        if ($delta instanceof CommentaryDelta) {
+            // e.g. "Let me check the current time for you."
+        }
+
+        if ($delta instanceof TextDelta) {
+            // the answer
+        }
+    }
+
+Streamed, the commentary arrives as ``CommentaryStart``, ``CommentaryDelta`` and ``CommentaryComplete`` deltas right
+before the tool runs, just like the native commentary of the OpenAI Responses API. Without streaming, the agent reports
+it as a ``Progress`` update of the ``commentary`` stage carrying a
+:class:`Symfony\\AI\\Platform\\Result\\CommentaryResult`, for native and simulated commentary alike.
+
+The name and description of the argument can be passed as second and third constructor argument. A tool that already
+has a parameter of that name is offered unchanged, without commentary, and a warning is logged to the logger passed as
+fourth argument. The tool call keeps the argument in the conversation, so the model sees its own commentary on the
+next turn.
+
+Any toolbox can request commentary this way: the agent reports the argument named by the
+:class:`Symfony\\AI\\Agent\\Toolbox\\ToolCallCommentary` metadata key of a tool, while stripping it before
+execution stays the toolbox's job::
+
+    use Symfony\AI\Agent\Toolbox\ToolCallCommentary;
+    use Symfony\AI\Platform\Tool\Tool;
+
+    new Tool($reference, 'weather', 'Current weather', $parameters, [
+        ToolCallCommentary::METADATA_KEY => 'commentary',
+    ]);
+
 Tool Sources
 ~~~~~~~~~~~~
 
