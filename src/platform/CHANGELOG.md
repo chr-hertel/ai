@@ -4,6 +4,7 @@ CHANGELOG
 0.14
 ----
 
+ * Add `Commentary\CommentaryPlatform` simulating the commentary phase of the OpenAI Responses API for platforms without it: the model narrates each tool call in an additional argument, which is taken out of the tool calls and reported as `Result\CommentaryResult`, or streamed as `CommentaryStart`/`CommentaryDelta`/`CommentaryComplete` deltas
  * Add the Eden AI bridge, covering the gateway's OpenAI-compatible chat and embeddings endpoints and its expert models: OCR, document parsing, text-to-speech, asynchronous speech-to-text, image analysis and image generation
  * Add the TypeSafe bridge, evaluating typed questions (noul, choice and score) against a state with the Jev models
  * Add `Result\BatchResult`, `Result\BatchItem` and `Result\BatchItemCase`, the outcome of a batch of requests as one item per request, reached through `DeferredResult::asBatch()`; a successful item carries the ordinary result its request would have produced synchronously, and one without a result states whether it errored or was never sent because the batch was canceled or expired

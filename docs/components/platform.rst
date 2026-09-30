@@ -1028,6 +1028,51 @@ You can check if a model supports thinking before enabling it::
         $options['thinking'] = ['type' => 'enabled', 'budget_tokens' => 10000];
     }
 
+Simulating Commentary
+---------------------
+
+The OpenAI Responses API lets the model narrate its next step next to a tool call
+("commentary"), so the user sees what happens while a tool runs. For platforms without such a
+phase, e.g. Ollama or chat completion APIs,
+:class:`Symfony\\AI\\Platform\\Commentary\\CommentaryPlatform` simulates it: it adds a
+required ``commentary`` argument to every tool passed with the ``tools`` option and takes it out
+of the tool calls of the result again, reporting it the way a native commentary phase does::
+
+    use Symfony\AI\Platform\Commentary\CommentaryPlatform;
+    use Symfony\AI\Platform\Result\Stream\Delta\CommentaryDelta;
+    use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
+
+    $platform = new CommentaryPlatform($innerPlatform);
+
+    $result = $platform->invoke('llama3.2', $messages, ['tools' => $tools, 'stream' => true]);
+
+    foreach ($result->asStream() as $delta) {
+        if ($delta instanceof CommentaryDelta) {
+            // e.g. "Let me check the current time for you."
+        }
+
+        if ($delta instanceof TextDelta) {
+            // the answer
+        }
+    }
+
+Streamed, the commentary arrives as ``CommentaryStart``, ``CommentaryDelta`` and
+``CommentaryComplete`` deltas right before the ``ToolCallComplete`` delta. Without streaming, the
+result is a :class:`Symfony\\AI\\Platform\\Result\\MultiPartResult` with a
+:class:`Symfony\\AI\\Platform\\Result\\CommentaryResult` in front of the tool calls. Either
+way, the tool calls come without the argument, so the tools themselves stay unchanged. As the
+decorator works on the ``tools`` option, it also works for an agent built on top of the platform.
+
+The name and description of the argument can be passed as second and third constructor argument.
+A tool that already has a parameter of that name is offered unchanged, without commentary, and a
+warning is logged to the logger passed as fourth argument.
+
+.. note::
+
+    The commentary is one note per tool call, delivered once the call is complete. A streamed
+    result is wrapped by the decorator, so listeners added to the inner stream, e.g. for streamed
+    structured output, are not visible on the result.
+
 Prompt Caching (Anthropic)
 --------------------------
 
