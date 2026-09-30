@@ -928,7 +928,8 @@ final class RunnerTest extends TestCase
     {
         $toolCall = new ToolCall('id1', 'weather', ['city' => 'Berlin', 'commentary' => 'Checking the weather in Berlin.']);
         $inner = $this->createMock(ToolboxInterface::class);
-        $inner->method('getTools')->willReturn([new Tool(new ExecutionReference('Weather'), 'weather', 'Current weather')]);
+        // the commentary is looked up in the tools offered to the model, not in a fresh listing
+        $inner->expects($this->once())->method('getTools')->willReturn([new Tool(new ExecutionReference('Weather'), 'weather', 'Current weather')]);
         $inner
             ->expects($this->once())
             ->method('execute')

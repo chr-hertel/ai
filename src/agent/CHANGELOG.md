@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add `Toolbox\CommentaryToolbox` simulating the commentary phase of the OpenAI Responses API: the model narrates each tool call in an additional argument, which is stripped before execution and reported as `CommentaryStart`/`CommentaryDelta`/`CommentaryComplete` deltas when streaming, or as a `Progress` update of the `commentary` stage otherwise
+ * Add `Toolbox\ToolCallCommentary`, the tool metadata contract any toolbox can use to have the agent report a tool call argument as commentary
  * Report the native commentary of a non-streamed tool call round as a `Progress` update of the `commentary` stage
  * Add `Execution::cancel()` to stop an active execution and cancel its active HTTP response
  * `MultiAgent` and `SpeechAgent` now forward the `Progress` updates of the executions they delegate to, and `MultiAgent` reports its routing as a `Progress` update of the `handoff` stage carrying the orchestrator's `MultiAgent\Handoff\Decision` as payload

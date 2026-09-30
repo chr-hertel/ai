@@ -39,11 +39,6 @@ final class ToolConfigurationException extends InvalidArgumentException implemen
         ));
     }
 
-    public static function commentaryArgumentCollision(string $toolName, string $argument): self
-    {
-        return new self(\sprintf('Tool "%s" already has a parameter named "%s", pass another argument name to the CommentaryToolbox.', $toolName, $argument));
-    }
-
     public static function invalidMapToolArguments(string $toolClass, string $methodName, string $reason): self
     {
         return new self(\sprintf('Invalid #[MapToolArguments] usage on "%s::%s": %s', $toolClass, $methodName, $reason));

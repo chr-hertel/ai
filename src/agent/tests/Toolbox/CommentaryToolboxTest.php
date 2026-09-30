@@ -12,11 +12,12 @@
 namespace Symfony\AI\Agent\Tests\Toolbox;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\AI\Agent\Toolbox\CommentaryToolbox;
-use Symfony\AI\Agent\Toolbox\Exception\ToolConfigurationException;
 use Symfony\AI\Agent\Toolbox\Source\Source;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Agent\Toolbox\ToolCallCommentary;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Tool\ExecutionReference;
@@ -46,7 +47,7 @@ final class CommentaryToolboxTest extends TestCase
             'required' => ['city', 'commentary'],
             'additionalProperties' => false,
         ], $tool->getParameters());
-        $this->assertSame(['category' => 'forecast', CommentaryToolbox::METADATA_KEY => 'commentary'], $tool->getMetadata());
+        $this->assertSame(['category' => 'forecast', ToolCallCommentary::METADATA_KEY => 'commentary'], $tool->getMetadata());
         $this->assertSame('weather', $tool->getName());
         $this->assertSame('Current weather', $tool->getDescription());
     }
@@ -65,21 +66,30 @@ final class CommentaryToolboxTest extends TestCase
         ], $toolbox->getTools()[0]->getParameters());
     }
 
-    public function testCollidingParameterNameIsRejected()
+    public function testToolWithCollidingParameterIsOfferedWithoutCommentary()
     {
-        $toolbox = new CommentaryToolbox($this->createToolbox([
-            new Tool(new ExecutionReference('Review'), 'review', 'Reviews code', [
-                'type' => 'object',
-                'properties' => ['commentary' => ['type' => 'string', 'description' => 'The review']],
-                'required' => ['commentary'],
-                'additionalProperties' => false,
-            ]),
-        ]));
+        $review = new Tool(new ExecutionReference('Review'), 'review', 'Reviews code', [
+            'type' => 'object',
+            'properties' => ['commentary' => ['type' => 'string', 'description' => 'The review']],
+            'required' => ['commentary'],
+            'additionalProperties' => false,
+        ]);
+        $toolCall = new ToolCall('call_1', 'review', ['commentary' => 'Looks good to me.']);
 
-        $this->expectException(ToolConfigurationException::class);
-        $this->expectExceptionMessage('Tool "review" already has a parameter named "commentary"');
+        $inner = $this->createMock(ToolboxInterface::class);
+        $inner->method('getTools')->willReturn([$review]);
+        // the tool's own argument must reach it
+        $inner->expects($this->once())->method('execute')->with($toolCall)->willReturn(new ToolResult($toolCall, 'Posted'));
 
-        $toolbox->getTools();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('warning')
+            ->with('Tool "{tool}" already has a parameter named "{argument}", it is offered without commentary.', ['tool' => 'review', 'argument' => 'commentary']);
+
+        $toolbox = new CommentaryToolbox($inner, logger: $logger);
+
+        $this->assertSame([$review], $toolbox->getTools());
+        $this->assertSame('Posted', $toolbox->execute($toolCall)->getResult());
     }
 
     public function testCommentaryArgumentIsStrippedBeforeExecution()

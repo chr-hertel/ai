@@ -14,11 +14,11 @@ namespace Symfony\AI\Agent\Execution;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
-use Symfony\AI\Agent\Toolbox\CommentaryToolbox;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Agent\Toolbox\ToolCallCommentary;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Message\AssistantMessage;
@@ -130,7 +130,7 @@ final class Runner
 
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
-            yield from $this->reportCommentary($result, $toolCalls, $streamed);
+            yield from $this->reportCommentary($result, $toolCalls, $options, $streamed);
             $toolResults = yield from $this->toolExecutor->execute($toolCalls);
 
             $messages->add($assistantMessage ?? Message::ofAssistant($result));
@@ -321,14 +321,15 @@ final class Runner
     /**
      * Reports what the model said about its next step before the requested tools run.
      *
-     * Streamed, a native commentary already passed by as deltas, so only the commentary a
-     * {@see CommentaryToolbox} requested as tool call argument is streamed the same way.
+     * Streamed, a native commentary already passed by as deltas, so only the commentary a toolbox
+     * requested as tool call argument, see {@see ToolCallCommentary}, is streamed the same way.
      *
-     * @param list<ToolCall> $toolCalls
+     * @param list<ToolCall>       $toolCalls
+     * @param array<string, mixed> $options   the invocation options, carrying the tools the model was offered
      *
      * @return \Generator<int, Progress, mixed, void>
      */
-    private function reportCommentary(ResultInterface $result, array $toolCalls, bool $streamed): \Generator
+    private function reportCommentary(ResultInterface $result, array $toolCalls, array $options, bool $streamed): \Generator
     {
         $commentaries = [];
         if (!$streamed && $result instanceof MultiPartResult) {
@@ -339,7 +340,9 @@ final class Runner
             }
         }
 
-        $commentaries = [...$commentaries, ...$this->toolCallCommentaries($toolCalls)];
+        // the offered tools rather than a fresh listing, their schema is the one the model filled in
+        $tools = array_filter(\is_array($options['tools'] ?? null) ? $options['tools'] : [], static fn (mixed $tool): bool => $tool instanceof Tool);
+        $commentaries = [...$commentaries, ...ToolCallCommentary::extract($tools, $toolCalls)];
 
         foreach ($commentaries as $commentary) {
             if (!$streamed) {
@@ -352,40 +355,6 @@ final class Runner
             yield new Progress('delta', 'Received a streamed delta.', new CommentaryDelta($commentary));
             yield new Progress('delta', 'Received a streamed delta.', new CommentaryComplete($commentary));
         }
-    }
-
-    /**
-     * @param list<ToolCall> $toolCalls
-     *
-     * @return list<string>
-     */
-    private function toolCallCommentaries(array $toolCalls): array
-    {
-        if (!$this->toolbox instanceof ToolboxInterface) {
-            return [];
-        }
-
-        $arguments = [];
-        foreach ($this->toolbox->getTools() as $tool) {
-            $argument = $tool->getMetadataValue(CommentaryToolbox::METADATA_KEY);
-            if (\is_string($argument)) {
-                $arguments[$tool->getName()] = $argument;
-            }
-        }
-
-        $commentaries = [];
-        foreach ($toolCalls as $toolCall) {
-            if (!isset($arguments[$toolCall->getName()])) {
-                continue;
-            }
-
-            $commentary = $toolCall->getArguments()[$arguments[$toolCall->getName()]] ?? null;
-            if (\is_string($commentary) && '' !== trim($commentary)) {
-                $commentaries[] = $commentary;
-            }
-        }
-
-        return $commentaries;
     }
 
     private function extractToolCallResult(ResultInterface $result): ?ToolCallResult

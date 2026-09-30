@@ -11,7 +11,8 @@
 
 namespace Symfony\AI\Agent\Toolbox;
 
-use Symfony\AI\Agent\Toolbox\Exception\ToolConfigurationException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Tool\Tool;
 
@@ -23,23 +24,28 @@ use Symfony\AI\Platform\Tool\Tool;
  * stay untouched, and the agent reports the note as commentary - the same deltas a platform with a
  * native commentary phase streams.
  *
+ * A tool that already has a parameter of that name is offered unchanged, without commentary.
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class CommentaryToolbox implements ToolboxInterface
 {
-    /**
-     * Tool metadata key naming the argument that carries the commentary of a tool call.
-     */
-    public const METADATA_KEY = 'commentary_argument';
-
     public const DEFAULT_ARGUMENT = 'commentary';
 
     public const DEFAULT_DESCRIPTION = 'A short note for the user on why you are calling this tool and what you expect from it, written in the language of the conversation. It is shown to the user while the tool runs.';
+
+    /**
+     * Names of the tools whose own parameter is named like the commentary argument, so it must not be stripped.
+     *
+     * @var array<string, true>
+     */
+    private array $undecoratedTools = [];
 
     public function __construct(
         private readonly ToolboxInterface $innerToolbox,
         private readonly string $argument = self::DEFAULT_ARGUMENT,
         private readonly string $description = self::DEFAULT_DESCRIPTION,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -51,7 +57,7 @@ final class CommentaryToolbox implements ToolboxInterface
     public function execute(ToolCall $toolCall): ToolResult
     {
         $arguments = $toolCall->getArguments();
-        if (!\array_key_exists($this->argument, $arguments)) {
+        if (!\array_key_exists($this->argument, $arguments) || isset($this->undecoratedTools[$toolCall->getName()])) {
             return $this->innerToolbox->execute($toolCall);
         }
 
@@ -70,8 +76,16 @@ final class CommentaryToolbox implements ToolboxInterface
         $parameters = $tool->getParameters() ?? ['type' => 'object', 'properties' => [], 'required' => [], 'additionalProperties' => false];
 
         if (isset($parameters['properties'][$this->argument])) {
-            throw ToolConfigurationException::commentaryArgumentCollision($tool->getName(), $this->argument);
+            $this->undecoratedTools[$tool->getName()] = true;
+            $this->logger->warning('Tool "{tool}" already has a parameter named "{argument}", it is offered without commentary.', [
+                'tool' => $tool->getName(),
+                'argument' => $this->argument,
+            ]);
+
+            return $tool;
         }
+
+        unset($this->undecoratedTools[$tool->getName()]);
 
         $parameters['properties'][$this->argument] = ['type' => 'string', 'description' => $this->description];
         $parameters['required'] = [...$parameters['required'] ?? [], $this->argument];
@@ -81,7 +95,7 @@ final class CommentaryToolbox implements ToolboxInterface
             $tool->getName(),
             $tool->getDescription(),
             $parameters,
-            [...$tool->getMetadata(), self::METADATA_KEY => $this->argument],
+            [...$tool->getMetadata(), ToolCallCommentary::METADATA_KEY => $this->argument],
         );
     }
 }

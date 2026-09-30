@@ -754,9 +754,21 @@ before the tool runs, just like the native commentary of the OpenAI Responses AP
 it as a ``Progress`` update of the ``commentary`` stage carrying a
 :class:`Symfony\\AI\\Platform\\Result\\CommentaryResult`, for native and simulated commentary alike.
 
-The name and description of the argument can be passed as second and third constructor argument, e.g. if a tool
-already has a ``commentary`` parameter. The tool call keeps the argument in the conversation, so the model sees its
-own commentary on the next turn.
+The name and description of the argument can be passed as second and third constructor argument. A tool that already
+has a parameter of that name is offered unchanged, without commentary, and a warning is logged to the logger passed as
+fourth argument. The tool call keeps the argument in the conversation, so the model sees its own commentary on the
+next turn.
+
+Any toolbox can request commentary this way: the agent reports the argument named by the
+:class:`Symfony\\AI\\Agent\\Toolbox\\ToolCallCommentary` metadata key of a tool, while stripping it before
+execution stays the toolbox's job::
+
+    use Symfony\AI\Agent\Toolbox\ToolCallCommentary;
+    use Symfony\AI\Platform\Tool\Tool;
+
+    new Tool($reference, 'weather', 'Current weather', $parameters, [
+        ToolCallCommentary::METADATA_KEY => 'commentary',
+    ]);
 
 Tool Sources
 ~~~~~~~~~~~~
