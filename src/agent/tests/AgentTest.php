@@ -38,6 +38,7 @@ use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
+use Symfony\AI\Platform\Result\Stream\Delta\ToolCallComplete;
 use Symfony\AI\Platform\Result\StreamResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
@@ -266,6 +267,36 @@ final class AgentTest extends TestCase
         $actualResult = $agent->call($messages, $options)->getResult();
 
         $this->assertSame($result, $actualResult);
+    }
+
+    public function testStreamedAnswerMarksTheToolCallRoundsWithTheirToolCallComplete()
+    {
+        $toolCall = new ToolCall('id1', 'weather', ['city' => 'Berlin']);
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturn(new ToolResult($toolCall, 'Sunny'));
+
+        $rounds = [
+            static function () use ($toolCall) {
+                yield new TextDelta('Let me check the weather.');
+                yield new ToolCallComplete([$toolCall]);
+            },
+            static function () {
+                yield new TextDelta('It is sunny.');
+            },
+        ];
+        $platform = new InMemoryPlatform(static function () use (&$rounds): StreamResult {
+            return new StreamResult(array_shift($rounds)());
+        });
+
+        $agent = new Agent($platform, 'gpt-4o', toolbox: $toolbox);
+
+        // the text before the boundary was the preamble to the tool calls, the text after it is the answer
+        $this->assertEquals([
+            new TextDelta('Let me check the weather.'),
+            new ToolCallComplete([$toolCall]),
+            new TextDelta('It is sunny.'),
+        ], iterator_to_array($agent->call('Weather?', ['stream' => true])->asStream(), false));
     }
 
     public function testCancelStopsTheActiveStreamAndCancelsItsHttpResponse()

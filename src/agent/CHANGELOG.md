@@ -4,6 +4,7 @@ CHANGELOG
 0.14
 ----
 
+ * A streamed execution now also yields the `ToolCallComplete` delta of a tool calling round, marking the boundary between the rounds: the text streamed before it was the model's preamble to the tool calls, not part of the answer
  * Add `Execution::cancel()` to stop an active execution and cancel its active HTTP response
  * `MultiAgent` and `SpeechAgent` now forward the `Progress` updates of the executions they delegate to, and `MultiAgent` reports its routing as a `Progress` update of the `handoff` stage carrying the orchestrator's `MultiAgent\Handoff\Decision` as payload
  * [BC BREAK] `Bridge\SimilaritySearch\SimilaritySearch::getUsedDocuments()` returns `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the retriever it reads from
