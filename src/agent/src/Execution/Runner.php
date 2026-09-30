@@ -338,6 +338,10 @@ final class Runner
     /**
      * Consumes a streamed round, forwarding every delta as a progress update.
      *
+     * A round that asks for tools forwards its {@see ToolCallComplete} as the boundary of the round: the
+     * text streamed before it was the model's preamble to those tool calls, not part of the answer, and
+     * the text streamed after it belongs to the next round.
+     *
      * The stream is drained completely even after a tool call was seen, since its metadata (e.g. token
      * usage) is only complete once the underlying generator is exhausted.
      *
@@ -349,15 +353,13 @@ final class Runner
         $toolCalls = [];
 
         foreach ($stream->getContent() as $delta) {
-            if ($delta instanceof ToolCallComplete) {
-                $toolCalls = [...$toolCalls, ...$delta->getToolCalls()];
-
+            if ([] !== $toolCalls && !$delta instanceof ToolCallComplete) {
+                // the model asked for tools, the remaining deltas of this round are not part of the answer
                 continue;
             }
 
-            if ([] !== $toolCalls) {
-                // the model asked for tools, the remaining deltas of this round are not part of the answer
-                continue;
+            if ($delta instanceof ToolCallComplete) {
+                $toolCalls = [...$toolCalls, ...$delta->getToolCalls()];
             }
 
             if ($delta instanceof TextDelta) {

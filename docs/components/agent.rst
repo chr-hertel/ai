@@ -202,6 +202,32 @@ model-request and tool-call updates::
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
 
+A round that asks for tools ends with a
+:class:`Symfony\\AI\\Platform\\Result\\Stream\\Delta\\ToolCallComplete` delta, which marks the boundary between
+the rounds: the text streamed before it was the model's preamble to those tool calls ("Let me check the weather."),
+not part of the answer, and the text streamed after it belongs to the next round. This lets you show the preamble as
+progress while the tools run, and keep it out of the answer you store::
+
+    use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
+    use Symfony\AI\Platform\Result\Stream\Delta\ToolCallComplete;
+
+    $answer = '';
+    foreach ($agent->call('What is the weather in Berlin?', options: ['stream' => true])->asStream() as $delta) {
+        if ($delta instanceof ToolCallComplete) {
+            // the text so far introduced the tool calls, the answer starts with the next round
+            $answer = '';
+
+            continue;
+        }
+
+        if ($delta instanceof TextDelta) {
+            $answer .= $delta->getText();
+        }
+    }
+
+Whether the model writes a preamble at all depends on the model and your prompt, e.g. "Before calling a tool, tell
+the user in one short sentence what you are about to do."
+
 Several Inputs at Once
 ~~~~~~~~~~~~~~~~~~~~~~
 

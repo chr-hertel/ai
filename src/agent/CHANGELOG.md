@@ -10,6 +10,7 @@ CHANGELOG
 ----
 
  * Add `Toolbox\ToolCatalogInterface` and `Toolbox\ToolInvokerInterface`, extended by `Toolbox\ToolboxInterface`; the tool executors only depend on `ToolInvokerInterface`
+ * A streamed execution now also yields the `ToolCallComplete` delta of a tool calling round, marking the boundary between the rounds: the text streamed before it was the model's preamble to the tool calls, not part of the answer
  * Add `Execution::cancel()` to stop an active execution and cancel its active HTTP response
  * `SpeechAgent` now forwards the `Progress` updates of the execution it delegates to
  * [BC BREAK] `Bridge\SimilaritySearch\SimilaritySearch::getUsedDocuments()` returns `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the retriever it reads from

@@ -1004,6 +1004,70 @@ final class RunnerTest extends TestCase
         $this->assertTrue($turns[0]->hasToolResults());
     }
 
+    public function testAStreamedToolCallRoundYieldsItsToolCallCompleteAsTheRoundBoundary()
+    {
+        $toolCall = new ToolCall('id1', 'weather', ['city' => 'Berlin']);
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->expects($this->once())->method('execute')->willReturn(new ToolResult($toolCall, 'Sunny'));
+
+        $toolCallRound = new StreamResult((static function () use ($toolCall) {
+            yield new TextDelta('Let me check the weather.');
+            yield new ToolCallComplete([$toolCall]);
+            // not part of the answer, the model asked for tools
+            yield new TextDelta('Ignored.');
+        })());
+        $answerRound = new StreamResult((static function () {
+            yield new TextDelta('It is sunny.');
+        })());
+
+        $updates = $this->collectUpdates($this->createRunner($this->platform($toolCallRound, $answerRound), $toolbox), new MessageBag());
+
+        $stages = array_map(
+            static fn (UpdateInterface $update): string => $update instanceof Progress ? $update->getStage() : $update->getType()->value,
+            $updates,
+        );
+        $this->assertSame(['model_request', 'delta', 'delta', 'tool_call', 'model_request', 'delta', 'result'], $stages);
+
+        $deltas = [];
+        foreach ($updates as $update) {
+            if ($update instanceof Progress && 'delta' === $update->getStage()) {
+                $deltas[] = $update->getPayload();
+            }
+        }
+
+        // the text before the boundary was the preamble to the tool calls, the text after it is the answer
+        $this->assertEquals([
+            new TextDelta('Let me check the weather.'),
+            new ToolCallComplete([$toolCall]),
+            new TextDelta('It is sunny.'),
+        ], $deltas);
+    }
+
+    public function testEveryToolCallCompleteOfAStreamedRoundIsYielded()
+    {
+        $first = new ToolCall('id1', 'weather', ['city' => 'Berlin']);
+        $second = new ToolCall('id2', 'weather', ['city' => 'Paris']);
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->expects($this->exactly(2))->method('execute')->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, 'Sunny'));
+
+        $stream = new StreamResult((static function () use ($first, $second) {
+            yield new ToolCallComplete([$first]);
+            yield new ToolCallComplete([$second]);
+        })());
+
+        $updates = $this->collectUpdates($this->createRunner($this->platform($stream, new TextResult('Sunny in both.')), $toolbox), new MessageBag());
+
+        $boundaries = array_values(array_filter(
+            $updates,
+            static fn (UpdateInterface $update): bool => $update instanceof Progress && $update->getPayload() instanceof ToolCallComplete,
+        ));
+        $this->assertCount(2, $boundaries);
+        $this->assertSame([$first], $boundaries[0]->getPayload()->getToolCalls());
+        $this->assertSame([$second], $boundaries[1]->getPayload()->getToolCalls());
+    }
+
     public function testItYieldsEveryStreamedDeltaAsAProgressUpdate()
     {
         $toolbox = $this->createStub(ToolboxInterface::class);
