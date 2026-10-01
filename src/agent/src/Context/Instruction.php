@@ -23,7 +23,16 @@ final class Instruction
 {
     public function __construct(
         private readonly string|\Stringable|TranslatableInterface|File $content,
+        private readonly ?PromptReference $reference = null,
     ) {
+    }
+
+    /**
+     * The prompt this instruction was built from, if it comes from a versioned prompt.
+     */
+    public function getReference(): ?PromptReference
+    {
+        return $this->reference;
     }
 
     public function getContent(): string|\Stringable|TranslatableInterface|File

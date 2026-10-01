@@ -66,6 +66,34 @@ final class Context implements \Countable, \IteratorAggregate
     }
 
     /**
+     * Returns the first item of the given type, or null if the context carries none.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $type
+     *
+     * @return T|null
+     */
+    public function get(string $type): ?object
+    {
+        foreach ($this->items as $item) {
+            if ($item instanceof $type) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Replaces every item of the given item's class by that item.
+     */
+    public function replace(object $item): self
+    {
+        return $this->without($item::class)->with($item);
+    }
+
+    /**
      * @param class-string $type
      */
     public function has(string $type): bool

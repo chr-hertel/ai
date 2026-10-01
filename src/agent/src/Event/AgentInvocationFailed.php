@@ -13,25 +13,19 @@ namespace Symfony\AI\Agent\Event;
 
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Context\AgentRequest;
-use Symfony\AI\Platform\Result\ResultInterface;
 
 /**
- * Dispatched after each platform invocation, before any tool handling.
+ * Dispatched when an agent invocation fails, right before the exception is rethrown to the consumer of the execution.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class ModelResponded
+final class AgentInvocationFailed
 {
     public function __construct(
         private readonly AgentInterface $agent,
-        private readonly ResultInterface $result,
-        private readonly ?AgentRequest $request = null,
+        private readonly AgentRequest $request,
+        private readonly \Throwable $exception,
     ) {
-    }
-
-    public function getRequest(): ?AgentRequest
-    {
-        return $this->request;
     }
 
     public function getAgent(): AgentInterface
@@ -39,8 +33,13 @@ final class ModelResponded
         return $this->agent;
     }
 
-    public function getResult(): ResultInterface
+    public function getRequest(): AgentRequest
     {
-        return $this->result;
+        return $this->request;
+    }
+
+    public function getException(): \Throwable
+    {
+        return $this->exception;
     }
 }

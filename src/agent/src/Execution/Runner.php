@@ -19,7 +19,9 @@ use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
+use Symfony\AI\Agent\Context\RunContext;
 use Symfony\AI\Agent\Event\AgentInvocationCompleted;
+use Symfony\AI\Agent\Event\AgentInvocationFailed;
 use Symfony\AI\Agent\Event\AgentInvocationStarted;
 use Symfony\AI\Agent\Event\HandoffCompleted;
 use Symfony\AI\Agent\Event\HandoffRequested;
@@ -58,6 +60,7 @@ use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\AI\Platform\StructuredOutput\Streaming\PartialObjectStreamListener;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -80,7 +83,6 @@ final class Runner
         private readonly PlatformInterface $platform,
         private readonly array $contextProcessors = [],
         private readonly ?ToolExecutorInterface $toolExecutor = null,
-        private readonly ?ToolboxInterface $toolbox = null,
         private readonly ?HandoffResolver $handoffResolver = null,
         private readonly ?int $maxToolCalls = 50,
         private readonly bool $excludeToolMessages = false,
@@ -88,6 +90,7 @@ final class Runner
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?MessageStoreInterface $store = null,
         private readonly ToolResultConverter $resultConverter = new ToolResultConverter(),
+        private readonly ?ToolboxInterface $toolbox = null,
     ) {
     }
 
@@ -107,7 +110,28 @@ final class Runner
             $messages = $this->store->load()->merge($messages);
         }
 
+        if (!$context->has(RunContext::class)) {
+            $context = $context->with(new RunContext(Uuid::v7()->toRfc4122()));
+        }
+
         $request = new AgentRequest($model, $messages, $options, $context);
+
+        try {
+            yield from $this->invoke($agent, $request, $allowedTools, $cancellation);
+        } catch (\Throwable $e) {
+            $this->eventDispatcher?->dispatch(new AgentInvocationFailed($agent, $request, $e));
+
+            throw $e;
+        }
+    }
+
+    /**
+     * @param list<string>|null $allowedTools
+     *
+     * @return \Generator<int, UpdateInterface, mixed, void>
+     */
+    private function invoke(AgentInterface $agent, AgentRequest $request, ?array $allowedTools, ?Cancellation $cancellation): \Generator
+    {
         $agentContext = new AgentContext($agent);
 
         $started = new AgentInvocationStarted($agent, $request);
@@ -118,7 +142,8 @@ final class Runner
             return;
         }
 
-        foreach ($this->applicableProcessors($context) as $processor) {
+        // listeners of the started event may have changed the context
+        foreach ($this->applicableProcessors($request->getContext()) as $processor) {
             $processor->process($request, $agentContext);
             yield from $agentContext->flushUpdates();
         }
@@ -145,8 +170,22 @@ final class Runner
         $iterations = 0;
 
         while (true) {
-            $this->eventDispatcher?->dispatch(new ModelRequested($agent, $request));
+            $requested = new ModelRequested($agent, $request);
+            $this->eventDispatcher?->dispatch($requested);
 
+            if ($requested->isStopped()) {
+                $result = $requested->getResult();
+                \assert($result instanceof ResultInterface);
+
+                break;
+            }
+
+            // listeners may have changed the request, e.g. to switch to a cheaper model
+            $model = $request->getModel();
+            $messages = $request->getMessageBag();
+            $options = $request->getOptions();
+
+            $startedAt = hrtime(true);
             $deferredResult = $this->platform->invoke($model, $messages, $options);
             $cancellation?->activate($deferredResult->getRawResult());
 
@@ -176,11 +215,12 @@ final class Runner
                 return;
             }
 
-            $this->eventDispatcher?->dispatch(new ModelResponded($agent, $result));
+            $duration = (hrtime(true) - $startedAt) / 1e9;
+            $this->eventDispatcher?->dispatch(new ModelResponded($agent, $result, $request));
 
             $toolCallResult = $this->extractToolCallResult($result);
             if (null === $toolCallResult || null === $this->toolExecutor) {
-                yield new Progress('turn', 'Completed a turn.', new Turn($model, $result));
+                yield new Progress('turn', 'Completed a turn.', new Turn($model, $result, [], $duration));
 
                 break;
             }
@@ -206,9 +246,9 @@ final class Runner
                 }
             }
 
-            yield new Progress('turn', 'Completed a turn.', new Turn($model, $result, array_values($toolResults)));
+            yield new Progress('turn', 'Completed a turn.', new Turn($model, $result, array_values($toolResults), $duration));
 
-            $event = new ToolCallsExecuted($toolResults);
+            $event = new ToolCallsExecuted($toolResults, $agent, $request);
             $this->eventDispatcher?->dispatch($event);
 
             if ($event->hasResult()) {
@@ -449,6 +489,12 @@ final class Runner
         }
 
         $this->persist($request, $agentResult->getResult());
+
+        $runContext = $request->getContext()->get(RunContext::class);
+        if (null !== $runContext) {
+            $agentResult->getResult()->getMetadata()->add('run_id', $runContext->getRunId());
+            $agentResult->getResult()->getMetadata()->add('run_context', $runContext);
+        }
 
         $this->eventDispatcher?->dispatch(new AgentInvocationCompleted($agent, $agentResult));
 

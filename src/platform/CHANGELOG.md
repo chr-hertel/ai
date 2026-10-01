@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `Cost\PriceTable` and `Cost\CostCalculator` to calculate the cost of token usage
+
 0.14
 ----
 

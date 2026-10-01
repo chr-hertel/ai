@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Context\AgentContext;
 use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
+use Symfony\AI\Agent\Context\RunContext;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Platform\Message\Content\File;
@@ -66,10 +67,27 @@ final class InstructionProcessor implements ContextProcessorInterface
         foreach ($instructions as $instruction) {
             \assert($instruction instanceof Instruction);
             $rendered[] = $this->render($instruction->getContent());
+
+            $this->recordReference($request, $instruction);
         }
 
         // mutate the caller's bag in place, so the injected system message ends up in it
         $messages->prepend(Message::forSystem($this->appendTools(implode(\PHP_EOL.\PHP_EOL, $rendered))));
+    }
+
+    /**
+     * Records the versioned prompt an instruction was built from in the run context.
+     */
+    private function recordReference(AgentRequest $request, Instruction $instruction): void
+    {
+        $reference = $instruction->getReference();
+        $runContext = $request->getContext()->get(RunContext::class);
+
+        if (null === $reference || null === $runContext) {
+            return;
+        }
+
+        $request->setContext($request->getContext()->replace($runContext->withPrompt($reference)));
     }
 
     private function appendTools(string $instruction): string

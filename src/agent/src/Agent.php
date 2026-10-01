@@ -63,7 +63,7 @@ final class Agent implements AgentInterface
         private readonly string $model,
         iterable $contextProcessors = [],
         private readonly string $name = 'agent',
-        string|\Stringable|TranslatableInterface|File|null $instruction = null,
+        string|\Stringable|TranslatableInterface|File|Instruction|null $instruction = null,
         Context $context = new Context(),
         ?ToolboxInterface $toolbox = null,
         array $handoffs = [],
@@ -77,7 +77,11 @@ final class Agent implements AgentInterface
         ?EventDispatcherInterface $eventDispatcher = null,
         ?LoggerInterface $logger = null,
     ) {
-        $this->context = null !== $instruction ? $context->with(new Instruction($instruction)) : $context;
+        if (null !== $instruction && !$instruction instanceof Instruction) {
+            $instruction = new Instruction($instruction);
+        }
+
+        $this->context = null !== $instruction ? $context->with($instruction) : $context;
 
         if (null === $toolExecutor && $toolbox instanceof ToolboxInterface) {
             $toolExecutor = new SequentialToolExecutor($toolbox);
@@ -104,13 +108,13 @@ final class Agent implements AgentInterface
             $platform,
             $processors,
             $toolExecutor,
-            $toolbox,
             [] !== $handoffs ? new HandoffResolver($handoffs) : null,
             $maxToolCalls,
             $excludeToolMessages,
             $includeSources,
             $eventDispatcher,
             $store,
+            toolbox: $toolbox,
         );
     }
 

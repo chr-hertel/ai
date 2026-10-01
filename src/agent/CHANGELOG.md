@@ -4,6 +4,16 @@ CHANGELOG
 0.15
 ----
 
+ * Add `Context\RunContext`, created for every run unless passed by the caller, and echo its run ID as `run_id` and the context as `run_context` in the result metadata
+ * Add `Context\PromptReference` as optional reference of an `Context\Instruction`, recorded in the run context by the `InstructionProcessor`
+ * Add `Context\Context::get()` and `Context\Context::replace()`
+ * Add `Prompt\PromptRegistryInterface` with `InMemoryPromptRegistry` and `YamlPromptRegistry`, plus `PromptInstructionListener` and `PercentageRolloutSelector` to roll out prompt versions
+ * Add `Budget\RunBudget` to stop a run gracefully once it spent a token or cost budget
+ * Add `Event\AgentInvocationFailed` and `Event\GuardrailTriggered`
+ * Add `ModelRequested::stop()` to end a run before the model is invoked; changes to the request in `ModelRequested` listeners now apply to the model call
+ * Add the agent request to `ModelResponded` and the agent and request to `Toolbox\Event\ToolCallsExecuted`
+ * Add `Toolbox\ToolResult::isFailure()`, set by the `FaultTolerantToolbox`
+ * Add `Execution\Turn::getDuration()`
  * Add `Execution\Execution::getTurns()` returning the `Execution\Turn`s of an execution - each model result with the results of the tools it requested and a snapshot of its own metadata - also reported live as `Progress` updates of the `turn` stage
 
 0.14

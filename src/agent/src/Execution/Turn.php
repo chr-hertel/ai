@@ -34,6 +34,7 @@ final class Turn
         private readonly string $model,
         private readonly ResultInterface $result,
         private readonly array $toolResults = [],
+        private readonly ?float $duration = null,
     ) {
         $this->metadata = clone $result->getMetadata();
     }
@@ -59,6 +60,14 @@ final class Turn
     public function getToolResults(): array
     {
         return $this->toolResults;
+    }
+
+    /**
+     * Seconds from sending the request to the model until its result was fully received, tool execution excluded.
+     */
+    public function getDuration(): ?float
+    {
+        return $this->duration;
     }
 
     public function hasToolResults(): bool
