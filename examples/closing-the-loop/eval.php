@@ -92,7 +92,7 @@ output()->writeln('<comment>5. Offline evaluation: golden cases and production r
 
 $application = new Application('eval');
 $application->setAutoExit(false);
-$application->add(new RunCommand([$suite], new EvalRunner(new CostCalculator(PriceTable::fromArray(SUPPORT_PRICES)))));
+$application->addCommand(new RunCommand([$suite], new EvalRunner(new CostCalculator(PriceTable::fromArray(SUPPORT_PRICES)))));
 
 $arguments = array_slice($_SERVER['argv'], 1);
 $exitCode = $application->run(new ArgvInput(['eval.php', 'ai:eval:run', 'support',
