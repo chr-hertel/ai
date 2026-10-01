@@ -177,13 +177,13 @@ Step 5: Collect Feedback
 Traces tell you what happened, feedback tells you whether it was good. Record explicit feedback from your frontend
 with the run ID it received, and derive implicit signals from failed tool calls and guardrails::
 
+    use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
     use Symfony\AI\Feedback\Bridge\Langfuse\LangfuseRecorder;
     use Symfony\AI\Feedback\ChainRecorder;
     use Symfony\AI\Feedback\EventListener\GuardrailSignalListener;
     use Symfony\AI\Feedback\EventListener\ToolErrorSignalListener;
     use Symfony\AI\Feedback\Feedback;
     use Symfony\AI\Feedback\Signal;
-    use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 
     $recorder = new ChainRecorder([
         new LangfuseRecorder($httpClient, $langfuseHost, $publicKey, $secretKey),
@@ -335,9 +335,7 @@ Step 9: Keep the Fast Checks in Every Build
 -------------------------------------------
 
 The eval suite calls real models, so run it nightly and on pull requests that change prompts, models or tools. For
-every build, assert the agent's behavior in PHPUnit against recorded model responses:
-
-.. code-block:: php
+every build, assert the agent's behavior in PHPUnit against recorded model responses::
 
     use Symfony\AI\Eval\RunRecorder;
     use Symfony\AI\Eval\Test\AgentAssertionsTrait;
