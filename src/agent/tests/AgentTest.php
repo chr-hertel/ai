@@ -301,7 +301,7 @@ final class AgentTest extends TestCase
             new TextDelta('Let me check the weather.'),
             new ToolCallComplete([$toolCall]),
             new TextDelta('It is sunny.'),
-        ], iterator_to_array($agent->call('Weather?', ['stream' => true])->asStream(), false));
+        ], iterator_to_array($agent->call('Weather?', options: ['stream' => true])->asStream(), false));
     }
 
     public function testCancelStopsTheActiveStreamAndCancelsItsHttpResponse()

@@ -813,8 +813,8 @@ final class RunnerTest extends TestCase
 
         $runner = $this->createRunner($platform, $this->createStub(ToolboxInterface::class));
 
-        $first = $runner->run('gpt-4', new MessageBag(), []);
-        $second = $runner->run('gpt-4', new MessageBag(), []);
+        $first = $runner->run(new MockAgent(), 'gpt-4', new MessageBag(), new Context(), []);
+        $second = $runner->run(new MockAgent(), 'gpt-4', new MessageBag(), new Context(), []);
 
         // running each generator to its first update sends the request without reading the response
         $first->current();
@@ -992,7 +992,7 @@ final class RunnerTest extends TestCase
 
         $runner = new Runner(
             $this->platform(new ToolCallResult([$toolCall])),
-            $toolbox,
+            [new ToolProcessor($toolbox)],
             new SequentialToolExecutor($toolbox),
             eventDispatcher: $dispatcher,
         );
@@ -1027,7 +1027,7 @@ final class RunnerTest extends TestCase
             static fn (UpdateInterface $update): string => $update instanceof Progress ? $update->getStage() : $update->getType()->value,
             $updates,
         );
-        $this->assertSame(['model_request', 'delta', 'delta', 'tool_call', 'model_request', 'delta', 'result'], $stages);
+        $this->assertSame(['model_request', 'delta', 'delta', 'tool_call', 'turn', 'model_request', 'delta', 'turn', 'result'], $stages);
 
         $deltas = [];
         foreach ($updates as $update) {
@@ -1149,7 +1149,7 @@ final class RunnerTest extends TestCase
     private function collectTurns(Runner $runner, MessageBag $messages): array
     {
         $turns = [];
-        foreach ($runner->run('gpt-4', $messages, []) as $update) {
+        foreach ($runner->run(new MockAgent(), 'gpt-4', $messages, new Context(), []) as $update) {
             if ($update instanceof Progress && 'turn' === $update->getStage() && $update->getPayload() instanceof Turn) {
                 $turns[] = $update->getPayload();
             }
@@ -1173,6 +1173,7 @@ final class RunnerTest extends TestCase
             $maxToolCalls,
             $excludeToolMessages,
             $includeSources,
+            toolbox: $toolbox,
         );
     }
 
