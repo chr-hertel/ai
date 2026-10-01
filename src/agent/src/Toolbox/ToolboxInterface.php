@@ -11,24 +11,16 @@
 
 namespace Symfony\AI\Agent\Toolbox;
 
-use Symfony\AI\Agent\Toolbox\Exception\ToolExecutionExceptionInterface;
-use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
-use Symfony\AI\Platform\Result\ToolCall;
-use Symfony\AI\Platform\Tool\Tool;
-
 /**
+ * A toolbox both describes the available tools and invokes them.
+ *
+ * The two responsibilities live on separate interfaces — {@see ToolCatalogInterface} (advertise tools to
+ * the model) and {@see ToolInvokerInterface} (run a tool call) — because they answer to different callers
+ * at different moments. This composite keeps the convenient "one object holds the agent's tools" ergonomics
+ * (e.g. `new Toolbox([$tool])`) while letting each consumer depend on just the role it needs.
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-interface ToolboxInterface
+interface ToolboxInterface extends ToolCatalogInterface, ToolInvokerInterface
 {
-    /**
-     * @return Tool[]
-     */
-    public function getTools(): array;
-
-    /**
-     * @throws ToolExecutionExceptionInterface if the tool execution fails
-     * @throws ToolNotFoundException           if the tool is not found
-     */
-    public function execute(ToolCall $toolCall): ToolResult;
 }

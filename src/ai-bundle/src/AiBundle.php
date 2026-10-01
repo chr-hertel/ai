@@ -14,19 +14,21 @@ namespace Symfony\AI\AiBundle;
 use AsyncAws\S3Vectors\S3VectorsClient;
 use Google\Auth\ApplicationDefaultCredentials;
 use Google\Auth\FetchAuthTokenInterface;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\TracerInterface;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
+use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
+use OpenTelemetry\SDK\Trace\TracerProvider;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
-use Symfony\AI\Agent\Attribute\AsInputProcessor;
-use Symfony\AI\Agent\Attribute\AsOutputProcessor;
+use Symfony\AI\Agent\Attribute\AsContextProcessor;
 use Symfony\AI\Agent\Bridge\Mcp\McpToolbox;
-use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
-use Symfony\AI\Agent\InputProcessorInterface;
-use Symfony\AI\Agent\Memory\MemoryInputProcessor;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
+use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
+use Symfony\AI\Agent\Event\GuardrailTriggered;
+use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
-use Symfony\AI\Agent\OutputProcessorInterface;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
@@ -40,10 +42,14 @@ use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass;
+use Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
+use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
+use Symfony\AI\AiBundle\Tracing\OtlpTracerProviderFactory;
+use Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver;
 use Symfony\AI\Chat\Bridge\Cache\MessageStore as CacheMessageStore;
 use Symfony\AI\Chat\Bridge\Cloudflare\MessageStore as CloudflareMessageStore;
 use Symfony\AI\Chat\Bridge\Doctrine\DoctrineDbalMessageStore;
@@ -59,6 +65,9 @@ use Symfony\AI\Chat\InMemory\Store as InMemoryMessageStore;
 use Symfony\AI\Chat\ManagedStoreInterface as ManagedMessageStoreInterface;
 use Symfony\AI\Chat\MessageStoreInterface;
 use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
+use Symfony\AI\OpenTelemetryBridge\EventListener\GuardrailSpanListener;
+use Symfony\AI\OpenTelemetryBridge\Platform\TracingPlatform;
+use Symfony\AI\OpenTelemetryBridge\SemanticConvention\GenAiAttributes;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\ModelApiCatalog as AmazeeAiModelApiCatalog;
@@ -191,6 +200,7 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Translation\TranslatableMessage;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -206,6 +216,7 @@ final class AiBundle extends AbstractBundle
         parent::build($container);
 
         $container->addCompilerPass(new DebugCompilerPass());
+        $container->addCompilerPass(new TracingCompilerPass());
         $container->addCompilerPass(new ProcessorCompilerPass());
         $container->addCompilerPass(new SchemaProviderValidationPass());
     }
@@ -357,6 +368,10 @@ final class AiBundle extends AbstractBundle
             }
         }
 
+        if ($config['tracing']['enabled']) {
+            $this->processTracingConfig($config['tracing'], $builder);
+        }
+
         if (ContainerBuilder::willBeAvailable('symfony/ai-agent', Agent::class, ['symfony/ai-bundle'])) {
             $builder->registerAttributeForAutoconfiguration(AsTool::class, static function (ChildDefinition $definition, AsTool $attribute): void {
                 $definition->addTag('ai.tool', [
@@ -366,24 +381,15 @@ final class AiBundle extends AbstractBundle
                 ]);
             });
 
-            $builder->registerAttributeForAutoconfiguration(AsInputProcessor::class, static function (ChildDefinition $definition, AsInputProcessor $attribute): void {
-                $definition->addTag('ai.agent.input_processor', [
+            $builder->registerAttributeForAutoconfiguration(AsContextProcessor::class, static function (ChildDefinition $definition, AsContextProcessor $attribute): void {
+                $definition->addTag('ai.agent.context_processor', [
                     'agent' => $attribute->agent,
                     'priority' => $attribute->priority,
                 ]);
             });
 
-            $builder->registerAttributeForAutoconfiguration(AsOutputProcessor::class, static function (ChildDefinition $definition, AsOutputProcessor $attribute): void {
-                $definition->addTag('ai.agent.output_processor', [
-                    'agent' => $attribute->agent,
-                    'priority' => $attribute->priority,
-                ]);
-            });
-
-            $builder->registerForAutoconfiguration(InputProcessorInterface::class)
-                ->addTag('ai.agent.input_processor', ['tagged_by' => 'interface']);
-            $builder->registerForAutoconfiguration(OutputProcessorInterface::class)
-                ->addTag('ai.agent.output_processor', ['tagged_by' => 'interface']);
+            $builder->registerForAutoconfiguration(ContextProcessorInterface::class)
+                ->addTag('ai.agent.context_processor', ['tagged_by' => 'interface']);
         }
 
         $builder->registerForAutoconfiguration(ModelClientInterface::class)
@@ -1555,8 +1561,7 @@ final class AiBundle extends AbstractBundle
                 ->setArgument('$toolbox', new Reference('ai.toolbox.'.$name))
                 ->setArgument('$maxToolCalls', $config['max_tool_calls'])
                 ->setArgument('$excludeToolMessages', $config['exclude_tool_messages'])
-                ->setArgument('$includeSources', $config['include_sources'])
-                ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE));
+                ->setArgument('$includeSources', $config['include_sources']);
 
             // Define specific list of tools if are explicitly defined
             if ([] !== $services) {
@@ -1638,16 +1643,9 @@ final class AiBundle extends AbstractBundle
                 $prompt = '';
             }
 
-            $systemPromptInputProcessorDefinition = (new Definition(SystemPromptInputProcessor::class))
-                ->setArguments([
-                    $prompt,
-                    $includeTools ? new Reference('ai.toolbox.'.$name) : null,
-                    new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
-                    new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
-                ])
-                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -30]);
-
-            $container->setDefinition('ai.agent.'.$name.'.system_prompt_processor', $systemPromptInputProcessorDefinition);
+            $agentDefinition
+                ->setArgument('$instruction', $prompt)
+                ->setArgument('$includeToolsInInstruction', $includeTools);
         }
 
         // MEMORY PROVIDER
@@ -1667,17 +1665,21 @@ final class AiBundle extends AbstractBundle
                 $memoryProviderReference = new Reference($staticMemoryServiceId);
             }
 
-            $memoryInputProcessorDefinition = (new Definition(MemoryInputProcessor::class))
+            $memoryProcessorDefinition = (new Definition(MemoryProcessor::class))
                 ->setArguments([[$memoryProviderReference]])
-                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -40]);
+                ->addTag('ai.agent.context_processor', ['agent' => $agentId, 'priority' => -40]);
 
-            $container->setDefinition('ai.agent.'.$name.'.memory_input_processor', $memoryInputProcessorDefinition);
+            $container->setDefinition('ai.agent.'.$name.'.memory_processor', $memoryProcessorDefinition);
         }
 
+        // Named arguments on purpose: the Agent constructor grows over time, and positional indices would silently
+        // shift onto the wrong parameter.
         $agentDefinition
-            ->setArgument('$inputProcessors', []) // placeholder until ProcessorCompilerPass process.
-            ->setArgument('$outputProcessors', []) // placeholder until ProcessorCompilerPass process.
+            ->setArgument('$contextProcessors', []) // placeholder until ProcessorCompilerPass process.
             ->setArgument('$name', $name)
+            ->setArgument('$translator', new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$logger', new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE))
         ;
 
         $container->setDefinition($agentId, $agentDefinition);
@@ -1700,7 +1702,8 @@ final class AiBundle extends AbstractBundle
                     null !== $config['speech']['speech_to_text_platform'] ? new Reference($config['speech']['speech_to_text_platform']) : null,
                     null !== $config['speech']['text_to_speech_platform'] ? new Reference($config['speech']['text_to_speech_platform']) : null,
                 ])
-                ->setDecoratedService($agentId, priority: -1024);
+                // Inside the tracing decorator, so speech-to-text and text-to-speech are part of the traced run
+                ->setDecoratedService($agentId, priority: -512);
         }
     }
 
@@ -2942,6 +2945,64 @@ final class AiBundle extends AbstractBundle
     }
 
     /**
+     * @param array{tracer_provider: string|null, exporter?: array{endpoint: string, headers: array<string, string>, protocol: 'http/protobuf'|'http/json', resource_attributes: array<non-empty-string, bool|int|string>}, capture_content: bool, content_redactor: string|null, capture_user: bool, user_id_resolver: string|null, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
+     */
+    private function processTracingConfig(array $config, ContainerBuilder $container): void
+    {
+        if (!ContainerBuilder::willBeAvailable('symfony/ai-open-telemetry-bridge', TracingPlatform::class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException('Tracing configuration requires "symfony/ai-open-telemetry-bridge" package. Try running "composer require symfony/ai-open-telemetry-bridge".');
+        }
+
+        $tracerProvider = $config['tracer_provider'];
+        if (isset($config['exporter'])) {
+            if (!ContainerBuilder::willBeAvailable('open-telemetry/exporter-otlp', OtlpHttpTransportFactory::class, ['symfony/ai-bundle'])
+                || !ContainerBuilder::willBeAvailable('open-telemetry/sdk', TracerProvider::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Tracing exporter configuration requires "open-telemetry/sdk" and "open-telemetry/exporter-otlp" packages. Try running "composer require open-telemetry/sdk open-telemetry/exporter-otlp".');
+            }
+
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([OtlpTracerProviderFactory::class, 'create'])
+                ->setArguments([$config['exporter']['endpoint'], $config['exporter']['headers'], $config['exporter']['protocol'], $config['exporter']['resource_attributes']]));
+        } elseif (null === $tracerProvider) {
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([Globals::class, 'tracerProvider']));
+        }
+
+        // flushes SDK tracer providers only, so a custom one is flushed as well and a no-op one is left alone
+        $container->setDefinition('ai.tracing.flush_listener', new Definition(FlushTracesListener::class, [new Reference($tracerProvider)]))
+            ->addTag('kernel.event_listener', ['event' => 'kernel.terminate'])
+            ->addTag('kernel.event_listener', ['event' => 'console.terminate']);
+
+        $container->setDefinition('ai.tracing.tracer', (new Definition(TracerInterface::class))
+            ->setFactory([new Reference($tracerProvider), 'getTracer'])
+            ->setArguments(['symfony/ai', null, GenAiAttributes::SCHEMA_URL]));
+
+        if ($config['capture_user'] && null !== $config['user_id_resolver']) {
+            $container->setAlias('ai.tracing.user_id_resolver', $config['user_id_resolver']);
+        } elseif ($config['capture_user']) {
+            if (!ContainerBuilder::willBeAvailable('symfony/security-core', TokenStorageInterface::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Tracing "capture_user" requires "symfony/security-bundle" package. Try running "composer require symfony/security-bundle".');
+            }
+
+            $container->setDefinition('ai.tracing.user_id_resolver', new Definition(SecurityUserIdResolver::class, [
+                new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ]));
+        }
+
+        if (ContainerBuilder::willBeAvailable('symfony/ai-agent', GuardrailTriggered::class, ['symfony/ai-bundle'])) {
+            $container->setDefinition('ai.tracing.guardrail_listener', new Definition(GuardrailSpanListener::class))
+                ->addTag('kernel.event_listener', ['event' => GuardrailTriggered::class]);
+        }
+
+        $container->setParameter('.ai.tracing.content_redactor', $config['content_redactor']);
+        $container->setParameter('.ai.tracing.capture_content', $config['capture_content']);
+        $container->setParameter('.ai.tracing.capture_user', $config['capture_user']);
+        $container->setParameter('.ai.tracing.instrument', array_keys(array_filter($config['instrument'])));
+    }
+
+    /**
      * @param array<string, mixed> $config
      */
     private function processRetrieverConfig(int|string $name, array $config, ContainerBuilder $container): void
@@ -2966,25 +3027,29 @@ final class AiBundle extends AbstractBundle
     {
         $orchestratorServiceId = self::normalizeAgentServiceId($config['orchestrator']);
 
-        $handoffReferences = [];
+        // Handoffs live on the orchestrating agent itself, the container inlines these value objects
+        $handoffs = [];
 
         foreach ($config['handoffs'] as $agentName => $whenConditions) {
-            // Create handoff definitions directly (not as separate services)
-            // The container will inline simple value objects like Handoff
-            $handoffReferences[] = new Definition(Handoff::class, [
+            $handoffs[] = new Definition(Handoff::class, [
                 new Reference(self::normalizeAgentServiceId($agentName)),
-                $whenConditions,
+                implode(', ', $whenConditions),
             ]);
         }
 
-        $multiAgentId = 'ai.multi_agent.'.$name;
-        $multiAgentDefinition = new Definition(MultiAgent::class, [
-            new Reference($orchestratorServiceId),
-            $handoffReferences,
+        // The fallback agent takes everything the other handoffs do not match
+        $handoffs[] = new Definition(Handoff::class, [
             new Reference(self::normalizeAgentServiceId($config['fallback'])),
-            $name,
+            'general or otherwise unmatched requests',
         ]);
 
+        // The multi agent is the orchestrating agent - same platform, model, instruction and tools - carrying the
+        // handoffs. It is a service of its own, so several multi agents can share one orchestrator.
+        $multiAgentId = 'ai.multi_agent.'.$name;
+        $multiAgentDefinition = clone $container->getDefinition($orchestratorServiceId);
+        $multiAgentDefinition->clearTags();
+        $multiAgentDefinition->setArgument('$name', $name);
+        $multiAgentDefinition->setArgument('$handoffs', $handoffs);
         $multiAgentDefinition->addTag('ai.multi_agent', ['name' => $name]);
         $multiAgentDefinition->addTag('ai.agent', ['name' => $name]);
 

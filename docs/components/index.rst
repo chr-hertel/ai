@@ -6,6 +6,8 @@ Components
 
     agent
     chat
+    eval
+    feedback
     mate
     platform
     store

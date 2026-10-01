@@ -23,7 +23,21 @@ final class ToolResult
         private readonly ToolCall $toolCall,
         private readonly mixed $result,
         private readonly ?SourceCollection $sources = null,
+        private readonly ?\Throwable $failure = null,
     ) {
+    }
+
+    /**
+     * Whether the tool call failed and the result only describes the failure to the model.
+     */
+    public function isFailure(): bool
+    {
+        return null !== $this->failure;
+    }
+
+    public function getFailure(): ?\Throwable
+    {
+        return $this->failure;
     }
 
     public function getToolCall(): ToolCall

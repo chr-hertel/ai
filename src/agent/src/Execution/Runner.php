@@ -11,14 +11,36 @@
 
 namespace Symfony\AI\Agent\Execution;
 
+use Symfony\AI\Agent\AgentInterface;
+use Symfony\AI\Agent\Context\AgentContext;
+use Symfony\AI\Agent\Context\AgentRequest;
+use Symfony\AI\Agent\Context\AgentResult;
+use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
+use Symfony\AI\Agent\Context\Instruction;
+use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
+use Symfony\AI\Agent\Context\RunContext;
+use Symfony\AI\Agent\Context\RunScope;
+use Symfony\AI\Agent\Event\AgentInvocationCompleted;
+use Symfony\AI\Agent\Event\AgentInvocationFailed;
+use Symfony\AI\Agent\Event\AgentInvocationStarted;
+use Symfony\AI\Agent\Event\HandoffCompleted;
+use Symfony\AI\Agent\Event\HandoffRequested;
+use Symfony\AI\Agent\Event\ModelRequested;
+use Symfony\AI\Agent\Event\ModelResponded;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
+use Symfony\AI\Agent\Execution\Update\Interaction;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Handoff\Decision;
+use Symfony\AI\Agent\Handoff\HandoffResolver;
+use Symfony\AI\Agent\Store\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
+use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Text;
@@ -39,6 +61,7 @@ use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\AI\Platform\StructuredOutput\Streaming\PartialObjectStreamListener;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -54,33 +77,120 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  */
 final class Runner
 {
+    /**
+     * @param list<ContextProcessorInterface> $contextProcessors
+     */
     public function __construct(
         private readonly PlatformInterface $platform,
-        private readonly ?ToolboxInterface $toolbox = null,
+        private readonly array $contextProcessors = [],
         private readonly ?ToolExecutorInterface $toolExecutor = null,
+        private readonly ?HandoffResolver $handoffResolver = null,
         private readonly ?int $maxToolCalls = 50,
         private readonly bool $excludeToolMessages = false,
         private readonly bool $includeSources = false,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?MessageStoreInterface $store = null,
         private readonly ToolResultConverter $resultConverter = new ToolResultConverter(),
+        private readonly ?ToolboxInterface $toolbox = null,
     ) {
     }
 
     /**
+     * @param non-empty-string     $model
      * @param array<string, mixed> $options
      *
      * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    public function run(string $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null): \Generator
+    public function run(AgentInterface $agent, string $model, MessageBag $messages, Context $context, array $options, ?Cancellation $cancellation = null): \Generator
     {
-        [$options, $allowedTools] = $this->exposeTools($options);
+        $allowedTools = $this->allowedTools($options);
         $messages = $this->excludeToolMessages ? clone $messages : $messages;
+
+        if (null !== $this->store) {
+            // the stored conversation precedes the messages of this call
+            $messages = $this->store->load()->merge($messages);
+        }
+
+        $runContext = $context->get(RunContext::class);
+        if (null === $runContext) {
+            $context = $context->with(new RunContext(Uuid::v7()->toRfc4122()));
+        } elseif ('' === $runContext->getRunId()) {
+            // the caller describes the run, but leaves its identification to the agent
+            $context = $context->replace($runContext->withRunId(Uuid::v7()->toRfc4122()));
+        }
+
+        $request = new AgentRequest($model, $messages, $options, $context);
+
+        try {
+            yield from $this->invoke($agent, $request, $allowedTools, $cancellation);
+        } catch (\Throwable $e) {
+            $this->eventDispatcher?->dispatch(new AgentInvocationFailed($agent, $request, $e));
+
+            throw $e;
+        }
+    }
+
+    /**
+     * @param list<string>|null $allowedTools
+     *
+     * @return \Generator<int, UpdateInterface, mixed, void>
+     */
+    private function invoke(AgentInterface $agent, AgentRequest $request, ?array $allowedTools, ?Cancellation $cancellation): \Generator
+    {
+        $agentContext = new AgentContext($agent);
+
+        $started = new AgentInvocationStarted($agent, $request);
+        $this->eventDispatcher?->dispatch($started);
+        if ($started->hasResult()) {
+            yield new ResultUpdate($started->getResult());
+
+            return;
+        }
+
+        // listeners of the started event may have changed the context
+        foreach ($this->applicableProcessors($request->getContext()) as $processor) {
+            $processor->process($request, $agentContext);
+            yield from $agentContext->flushUpdates();
+        }
+
+        $model = $request->getModel();
+        $messages = $request->getMessageBag();
+        $options = $request->getOptions();
+
+        if (null !== $this->handoffResolver && [] !== $this->handoffResolver->getApplicableHandoffs()) {
+            $delegated = yield from $this->routeHandoff($agent, $request, $cancellation);
+            if ($cancellation?->isRequested()) {
+                return;
+            }
+
+            if ($delegated instanceof ResultInterface) {
+                yield new ResultUpdate($delegated);
+
+                return;
+            }
+        }
 
         $sources = new SourceCollection();
         $metadata = new Metadata();
         $iterations = 0;
 
         while (true) {
+            $requested = new ModelRequested($agent, $request);
+            $this->eventDispatcher?->dispatch($requested);
+
+            if ($requested->isStopped()) {
+                $result = $requested->getResult();
+                \assert($result instanceof ResultInterface);
+
+                break;
+            }
+
+            // listeners may have changed the request, e.g. to switch to a cheaper model
+            $model = $request->getModel();
+            $messages = $request->getMessageBag();
+            $options = $request->getOptions();
+
+            $startedAt = hrtime(true);
             $deferredResult = $this->platform->invoke($model, $messages, $options);
             $cancellation?->activate($deferredResult->getRawResult());
 
@@ -110,8 +220,13 @@ final class Runner
                 return;
             }
 
+            $duration = (hrtime(true) - $startedAt) / 1e9;
+            $this->eventDispatcher?->dispatch(new ModelResponded($agent, $result, $request));
+
             $toolCallResult = $this->extractToolCallResult($result);
             if (null === $toolCallResult || null === $this->toolExecutor) {
+                yield new Progress('turn', 'Completed a turn.', new Turn($model, $result, [], $duration));
+
                 break;
             }
 
@@ -124,9 +239,10 @@ final class Runner
 
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
-            $toolResults = yield from $this->toolExecutor->execute($toolCalls);
+            $assistant = $assistantMessage ?? Message::ofAssistant($result);
+            $toolResults = yield from $this->executeTools($toolCalls, $messages, $assistant, $request->getContext()->get(RunContext::class));
 
-            $messages->add($assistantMessage ?? Message::ofAssistant($result));
+            $messages->add($assistant);
             foreach ($toolResults as $i => $toolResult) {
                 $messages->add(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
 
@@ -135,7 +251,9 @@ final class Runner
                 }
             }
 
-            $event = new ToolCallsExecuted($toolResults);
+            yield new Progress('turn', 'Completed a turn.', new Turn($model, $result, array_values($toolResults), $duration));
+
+            $event = new ToolCallsExecuted($toolResults, $agent, $request);
             $this->eventDispatcher?->dispatch($event);
 
             if ($event->hasResult()) {
@@ -153,11 +271,133 @@ final class Runner
             $result->getMetadata()->add('sources', $sources);
         }
 
-        yield new ResultUpdate($result);
+        yield from $this->complete($agent, $result, $request, $agentContext);
+    }
+
+    /**
+     * Asks the model which agent should handle the request, and delegates to it when one is picked.
+     *
+     * @return \Generator<int, UpdateInterface, mixed, ResultInterface|null>
+     */
+    private function routeHandoff(AgentInterface $agent, AgentRequest $request, ?Cancellation $cancellation): \Generator
+    {
+        \assert($this->handoffResolver instanceof HandoffResolver);
+
+        $userMessage = $request->getMessageBag()->withoutSystemMessage()->getUserMessage();
+        if (null === $userMessage) {
+            return null;
+        }
+
+        $prompt = $this->handoffResolver->buildPrompt($userMessage->asText() ?? '');
+        $deferredDecision = $this->platform->invoke(
+            $request->getModel(),
+            new MessageBag(Message::ofUser($prompt)),
+            ['response_format' => Decision::class],
+        );
+        $cancellation?->activate($deferredDecision->getRawResult());
+
+        try {
+            if ($cancellation?->isRequested()) {
+                return null;
+            }
+
+            $decision = $deferredDecision->getResult()->getContent();
+        } finally {
+            $cancellation?->deactivate();
+        }
+
+        if (!$decision instanceof Decision || !$decision->hasAgent()) {
+            return null;
+        }
+
+        $handoff = $this->handoffResolver->findByName($decision->getAgentName());
+        if (null === $handoff) {
+            return null;
+        }
+
+        $event = new HandoffRequested($agent, $handoff->getTo(), $decision->getReasoning());
+        $this->eventDispatcher?->dispatch($event);
+
+        $target = $event->getTarget();
+        if (null === $target) {
+            return null;
+        }
+
+        yield new Progress('handoff', \sprintf('Delegating to agent "%s".', $target->getName()), $target->getName());
+
+        $result = null;
+        // the target agent brings its own instruction, the delegating one must not leak into it
+        $delegation = $target->call($userMessage, $request->getContext()->without(Instruction::class), $request->getOptions());
+        foreach ($cancellation?->forward($delegation) ?? $delegation as $update) {
+            if ($update instanceof ResultUpdate) {
+                $result = $update->getResult();
+
+                continue;
+            }
+
+            yield $update;
+        }
+
+        if ($cancellation?->isRequested()) {
+            return null;
+        }
+
+        if ($result instanceof ResultInterface) {
+            $this->eventDispatcher?->dispatch(new HandoffCompleted($agent, $target, $result));
+        }
+
+        return $result;
+    }
+
+    /**
+     * Drives the tool executor, completing the conversation snapshot an {@see Interaction} carries before it
+     * reaches the consumer, and handing the consumer's response back to the executor.
+     *
+     * @param ToolCall[] $toolCalls
+     *
+     * @return \Generator<int, UpdateInterface, mixed, ToolResult[]>
+     */
+    private function executeTools(array $toolCalls, MessageBag $messages, AssistantMessage $assistant, ?RunContext $runContext = null): \Generator
+    {
+        \assert($this->toolExecutor instanceof ToolExecutorInterface);
+
+        $executor = $this->toolExecutor->execute($toolCalls);
+
+        // every step of the executor runs tools, which see the run in the scope
+        $valid = RunScope::run($runContext, static fn (): bool => $executor->valid());
+
+        while ($valid) {
+            $update = $executor->current();
+
+            if ($update instanceof Interaction) {
+                $update = $update->withMessages([...$messages->getMessages(), $assistant, ...$update->getMessages()]);
+                $response = yield $update;
+                $valid = RunScope::run($runContext, static function () use ($executor, $response): bool {
+                    $executor->send($response);
+
+                    return $executor->valid();
+                });
+
+                continue;
+            }
+
+            yield $update;
+            $valid = RunScope::run($runContext, static function () use ($executor): bool {
+                $executor->next();
+
+                return $executor->valid();
+            });
+        }
+
+        return $executor->getReturn();
     }
 
     /**
      * Consumes a streamed round, forwarding every delta as a progress update.
+     *
+     * A round that asks for tools forwards its {@see ToolCallComplete} as the boundary of the round: the
+     * text streamed before it was the model's preamble to those tool calls, not part of the answer, and
+     * the text streamed after it belongs to the next round.
      *
      * The stream is drained completely even after a tool call was seen, since its metadata (e.g. token
      * usage) is only complete once the underlying generator is exhausted.
@@ -170,15 +410,13 @@ final class Runner
         $toolCalls = [];
 
         foreach ($stream->getContent() as $delta) {
-            if ($delta instanceof ToolCallComplete) {
-                $toolCalls = [...$toolCalls, ...$delta->getToolCalls()];
-
+            if ([] !== $toolCalls && !$delta instanceof ToolCallComplete) {
+                // the model asked for tools, the remaining deltas of this round are not part of the answer
                 continue;
             }
 
-            if ([] !== $toolCalls) {
-                // the model asked for tools, the remaining deltas of this round are not part of the answer
-                continue;
+            if ($delta instanceof ToolCallComplete) {
+                $toolCalls = [...$toolCalls, ...$delta->getToolCalls()];
             }
 
             if ($delta instanceof TextDelta) {
@@ -250,43 +488,108 @@ final class Runner
     }
 
     /**
-     * Exposes the registered tools, narrowed down by the tool names given in the tools option.
+     * Runs the result-aware processors and yields the final result.
      *
-     * @param array<string, mixed> $options
-     *
-     * @return array{array<string, mixed>, list<string>|null} the options and the names of the tools allowed to be executed, null if unrestricted
+     * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    private function exposeTools(array $options): array
+    private function complete(AgentInterface $agent, ResultInterface $result, AgentRequest $request, AgentContext $agentContext): \Generator
     {
-        $allowedTools = null;
-        $serverTools = [];
+        $agentResult = new AgentResult($request->getModel(), $result, $request->getMessageBag(), $request->getOptions(), $request->getContext());
 
-        if (isset($options['tools']) && \is_array($options['tools'])) {
-            $names = array_values(array_filter($options['tools'], static fn (mixed $tool): bool => \is_string($tool)));
-            $serverTools = array_values(array_filter($options['tools'], static fn (mixed $tool): bool => \is_array($tool)));
+        foreach ($this->applicableProcessors($request->getContext()) as $processor) {
+            if (!$processor instanceof ResultAwareContextProcessorInterface) {
+                continue;
+            }
 
-            // only restrict tools if tool names are provided as option, an empty option allows no tool at all
-            if ([] !== $names || [] === $options['tools']) {
-                $allowedTools = $names;
+            $processor->processResult($agentResult, $agentContext);
+            yield from $agentContext->flushUpdates();
+        }
+
+        $this->persist($request, $agentResult->getResult());
+
+        $runContext = $request->getContext()->get(RunContext::class);
+        if (null !== $runContext) {
+            $agentResult->getResult()->getMetadata()->add('run_id', $runContext->getRunId());
+            $agentResult->getResult()->getMetadata()->add('run_context', $runContext);
+        }
+
+        $this->eventDispatcher?->dispatch(new AgentInvocationCompleted($agent, $agentResult));
+
+        yield new ResultUpdate($agentResult->getResult());
+    }
+
+    /**
+     * Appends the answer to the conversation and persists it, so the next call continues where this one left off.
+     */
+    private function persist(AgentRequest $request, ResultInterface $result): void
+    {
+        if (null === $this->store) {
+            return;
+        }
+
+        $messages = $request->getMessageBag();
+
+        if ($result instanceof TextResult) {
+            $messages = $messages->with(Message::ofAssistant($result->getContent()));
+        } elseif ($result instanceof ObjectResult) {
+            $messages = $messages->with(Message::ofAssistant(json_encode($result->getContent(), \JSON_THROW_ON_ERROR)));
+        }
+
+        $this->store->save($messages);
+    }
+
+    /**
+     * A processor without supported types is global and always runs, otherwise it only runs when the context
+     * carries at least one item of a type it supports.
+     *
+     * @return list<ContextProcessorInterface>
+     */
+    private function applicableProcessors(Context $context): array
+    {
+        $applicable = [];
+
+        foreach ($this->contextProcessors as $processor) {
+            $types = $processor::supportedTypes();
+            if ([] === $types) {
+                $applicable[] = $processor;
+
+                continue;
+            }
+
+            foreach ($types as $type) {
+                if ($context->has($type)) {
+                    $applicable[] = $processor;
+
+                    continue 2;
+                }
             }
         }
 
-        if (!$this->toolbox instanceof ToolboxInterface) {
-            return [$options, $allowedTools];
+        return $applicable;
+    }
+
+    /**
+     * The names of the tools allowed to be executed, null if unrestricted.
+     *
+     * Only tool names given in the tools option restrict the tools, an empty option allows no tool at all.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return list<string>|null
+     */
+    private function allowedTools(array $options): ?array
+    {
+        if (!isset($options['tools']) || !\is_array($options['tools'])) {
+            return null;
         }
 
-        $toolMap = $this->toolbox->getTools();
-        if ([] === $toolMap) {
-            return [$options, $allowedTools];
+        $names = array_values(array_filter($options['tools'], static fn (mixed $tool): bool => \is_string($tool)));
+
+        if ([] !== $names || [] === $options['tools']) {
+            return $names;
         }
 
-        if (null !== $allowedTools) {
-            $toolMap = array_values(array_filter($toolMap, static fn (Tool $tool): bool => \in_array($tool->getName(), $allowedTools, true)));
-        }
-
-        $options['tools'] = [...$toolMap, ...$serverTools];
-
-        return [$options, $allowedTools];
+        return null;
     }
 
     /**

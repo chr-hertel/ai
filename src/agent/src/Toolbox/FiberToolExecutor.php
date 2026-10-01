@@ -32,7 +32,7 @@ use Symfony\AI\Platform\Result\ToolCall;
 final class FiberToolExecutor implements ToolExecutorInterface
 {
     public function __construct(
-        private readonly ToolboxInterface $toolbox,
+        private readonly ToolInvokerInterface $toolbox,
     ) {
     }
 

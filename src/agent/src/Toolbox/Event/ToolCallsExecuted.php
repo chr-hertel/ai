@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Agent\Toolbox\Event;
 
+use Symfony\AI\Agent\AgentInterface;
+use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ResultInterface;
 
@@ -26,7 +28,25 @@ final class ToolCallsExecuted
      */
     public function __construct(
         private readonly array $toolResults,
+        private readonly ?AgentInterface $agent = null,
+        private readonly ?AgentRequest $request = null,
     ) {
+    }
+
+    /**
+     * The agent that requested the tool calls, null when dispatched outside an agent run.
+     */
+    public function getAgent(): ?AgentInterface
+    {
+        return $this->agent;
+    }
+
+    /**
+     * The request of the agent run, giving access to its context, null when dispatched outside an agent run.
+     */
+    public function getRequest(): ?AgentRequest
+    {
+        return $this->request;
     }
 
     public function hasResult(): bool

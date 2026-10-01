@@ -741,7 +741,7 @@ Handoff rules are defined as a key-value mapping where:
 
 Example of creating a Handoff in PHP::
 
-    use Symfony\AI\Agent\MultiAgent\Handoff;
+    use Symfony\AI\Agent\Handoff\Handoff;
 
     $technicalHandoff = new Handoff(
         to: $technicalAgent,
@@ -936,29 +936,27 @@ Use the :class:`Symfony\\AI\\Agent\\Agent` service to leverage models and tools:
 Register Processors
 ~~~~~~~~~~~~~~~~~~~
 
-By default, all services implementing the :class:`Symfony\\AI\\Agent\\InputProcessorInterface` or the
-:class:`Symfony\\AI\\Agent\\OutputProcessorInterface` interfaces are automatically applied to every :class:`Symfony\\AI\\Agent\\Agent`.
+By default, all services implementing the :class:`Symfony\\AI\\Agent\\Context\\ContextProcessorInterface`
+interface are automatically applied to every :class:`Symfony\\AI\\Agent\\Agent`.
 
-This behavior can be overridden/configured with the :class:`Symfony\\AI\\Agent\\Attribute\\AsInputProcessor` and
-the :class:`Symfony\\AI\\Agent\\Attribute\\AsOutputProcessor` attributes::
+This behavior can be overridden/configured with the :class:`Symfony\\AI\\Agent\\Attribute\\AsContextProcessor`
+attribute::
 
-    use Symfony\AI\Agent\Attribute\AsInputProcessor;
-    use Symfony\AI\Agent\Attribute\AsOutputProcessor;
-    use Symfony\AI\Agent\Input;
-    use Symfony\AI\Agent\InputProcessorInterface;
-    use Symfony\AI\Agent\Output;
-    use Symfony\AI\Agent\OutputProcessorInterface;
+    use Symfony\AI\Agent\Attribute\AsContextProcessor;
+    use Symfony\AI\Agent\Context\AgentContext;
+    use Symfony\AI\Agent\Context\AgentRequest;
+    use Symfony\AI\Agent\Context\ContextProcessorInterface;
 
-    #[AsInputProcessor(priority: 99)] // This applies to every agent
-    #[AsOutputProcessor(agent: 'ai.agent.my_agent_name')] // The output processor will only be registered for 'ai.agent.my_agent_name'
-    final readonly class MyService implements InputProcessorInterface, OutputProcessorInterface
+    #[AsContextProcessor(priority: 99)] // This applies to every agent
+    #[AsContextProcessor(agent: 'ai.agent.my_agent_name')] // Only registered for 'ai.agent.my_agent_name'
+    final readonly class MyService implements ContextProcessorInterface
     {
-        public function processInput(Input $input): void
+        public static function supportedTypes(): array
         {
-            // ...
+            return [];
         }
 
-        public function processOutput(Output $output): void
+        public function process(AgentRequest $request, AgentContext $context): void
         {
             // ...
         }
@@ -1430,6 +1428,82 @@ agents, chats, message stores and stores that took part in the request.
     separate web server - Panther, for instance - cannot reach the collector through the container,
     and are not covered by the trait.
 
+.. _ai-bundle-tracing:
+
+Tracing
+-------
+
+With the :doc:`OpenTelemetry bridge </bridges/open-telemetry>` installed, the bundle traces platform calls, agent
+runs, tool calls and retrievals with OpenTelemetry, in every environment:
+
+.. code-block:: terminal
+
+    $ composer require symfony/ai-open-telemetry-bridge
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            # service ID of the tracer provider, the one registered in OpenTelemetry\API\Globals when omitted
+            tracer_provider: 'app.tracer_provider'
+            # record prompts, completions, tool arguments and tool results
+            capture_content: false
+            # service ID of a ContentRedactorInterface masking personal data in the captured content
+            content_redactor: 'app.pii_redactor'
+            # record the identifier of the authenticated Symfony user as "user.id"
+            capture_user: false
+            # service ID of a UserIdResolverInterface recording e.g. a pseudonymous ID instead of the user identifier
+            user_id_resolver: null
+            # disable single kinds of spans, all enabled by default
+            instrument:
+                platform: true
+                agent: true
+                toolbox: true
+                retriever: true
+
+Disabled kinds of spans are not decorated at all, so they cost nothing. Guardrail interventions are recorded as
+span events, and the spans of an OpenTelemetry SDK tracer provider are flushed once the response is sent or the
+command finished.
+
+.. caution::
+
+    With ``capture_content`` enabled, user input and model output are sent to your tracing backend, and with
+    ``capture_user`` the user identifier, often an email address. Only enable them for backends that are allowed to
+    store that data.
+
+Exporting without an OpenTelemetry Setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your application has no OpenTelemetry setup yet, the ``exporter`` option sends the spans to any OTLP endpoint
+instead of a ``tracer_provider``, for example to `Langfuse`_. It requires the OpenTelemetry SDK and exporter:
+
+.. code-block:: terminal
+
+    $ composer require open-telemetry/sdk open-telemetry/exporter-otlp
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            exporter:
+                # "/v1/traces" is appended, an empty endpoint disables the export
+                endpoint: '%env(OTEL_EXPORTER_OTLP_ENDPOINT)%'
+                headers:
+                    Authorization: 'Basic %env(LANGFUSE_AUTH)%'
+                # "http/protobuf" by default, Langfuse needs "http/json"
+                protocol: 'http/json'
+                # optional OpenTelemetry resource attributes of the spans
+                resource_attributes:
+                    service.name: 'shop'
+
+The spans are sent over HTTP in batches, once the response is sent or the command finished. There is nothing else to
+configure: for sampling, other protocols or a tracer provider shared with the rest of your application, set up
+OpenTelemetry yourself and pass its ``tracer_provider`` instead.
+
 Message stores
 --------------
 
@@ -1550,3 +1624,4 @@ When only STT is configured (no TTS), the agent returns the same result type as 
 .. _`Symfony AI Chat`: https://github.com/symfony/ai-chat
 .. _`Symfony AI Platform`: https://github.com/symfony/ai-platform
 .. _`Symfony AI Store`: https://github.com/symfony/ai-store
+.. _`Langfuse`: https://langfuse.com/

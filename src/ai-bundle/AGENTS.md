@@ -18,6 +18,7 @@ Symfony integration bundle providing DI configuration for AI components (Platfor
 ### Key Components
 - `AiBundle.php`: Main bundle with service configuration
 - `ProcessorCompilerPass.php`: Processor registration
+- `TracingCompilerPass.php`: OpenTelemetry decorators for `ai.tracing`, via `symfony/ai-open-telemetry-bridge`
 - Security system with `IsGrantedToolAttributeListener`
 - Profiler data collector and traceable decorators
 
@@ -49,8 +50,8 @@ PHPStan runs at level 6 with custom extension rules for Symfony AI components. T
 ### Agent Configuration
 - Model configuration (class, name, options)
 - Tool integration via `#[AsTool]` or explicit references
-- Input/Output processor chains
-- System prompt with optional tool inclusion
+- Context processor chains
+- Instruction (system prompt) with optional tool inclusion
 - Token usage tracking
 
 ### Store Configuration
@@ -67,12 +68,10 @@ PHPStan runs at level 6 with custom extension rules for Symfony AI components. T
 
 ### Attribute-Based
 - `#[AsTool]`: Tool registration with name/description
-- `#[AsInputProcessor]`: Agent-specific input processing
-- `#[AsOutputProcessor]`: Agent-specific output processing
+- `#[AsContextProcessor]`: Agent-specific context processing
 
 ### Interface-Based Autoconfiguration
-- `InputProcessorInterface` → `ai.agent.input_processor`
-- `OutputProcessorInterface` → `ai.agent.output_processor`
+- `ContextProcessorInterface` → `ai.agent.context_processor`
 - `ModelClientInterface` → `ai.platform.model_client`
 
 ## Debug Features

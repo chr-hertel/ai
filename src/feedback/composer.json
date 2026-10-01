@@ -1,0 +1,65 @@
+{
+    "name": "symfony/ai-feedback",
+    "description": "Explicit and implicit feedback signals for AI applications, recorded against agent runs and their traces.",
+    "license": "MIT",
+    "type": "library",
+    "keywords": [
+        "ai",
+        "llm",
+        "feedback",
+        "evaluation",
+        "observability",
+        "langfuse"
+    ],
+    "authors": [
+        {
+            "name": "Christopher Hertel",
+            "email": "mail@christopher-hertel.de"
+        },
+        {
+            "name": "Symfony Community",
+            "homepage": "https://symfony.com/contributors"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "psr/log": "^3.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.5.53",
+        "symfony/ai-agent": "^0.14",
+        "symfony/ai-platform": "^0.14",
+        "symfony/event-dispatcher": "^7.3|^8.0",
+        "symfony/http-client": "^7.3|^8.0",
+        "symfony/messenger": "^7.3|^8.0"
+    },
+    "suggest": {
+        "symfony/ai-agent": "To derive implicit signals from agent runs",
+        "symfony/http-client": "To send feedback to Langfuse",
+        "symfony/messenger": "To record feedback asynchronously"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Symfony\\AI\\Feedback\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Symfony\\AI\\Feedback\\Tests\\": "tests/",
+            "Symfony\\AI\\PHPStan\\": "../../.phpstan/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "thanks": {
+            "name": "symfony/ai",
+            "url": "https://github.com/symfony/ai"
+        }
+    }
+}

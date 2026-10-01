@@ -90,6 +90,25 @@ result::
 The callbacks are invoked however the execution is consumed - iterated, streamed or read as a result - so they are a
 way to observe a run whose result is handled elsewhere.
 
+Every round of the tool-calling loop is recorded as a :class:`Symfony\\AI\\Agent\\Execution\\Turn`: the model's
+result, the results of the tools it requested, and the round's own metadata. While the final result carries the
+metadata aggregated over all rounds, e.g. the total token usage, a turn keeps what belongs to its single model request,
+like its finish reason. ``getTurns()`` drives the execution to completion and returns them::
+
+    $execution = $agent->call('What time is it?');
+
+    foreach ($execution->getTurns() as $turn) {
+        echo 'Finished with: '.$turn->getMetadata()->get('finish_reason').\PHP_EOL;
+
+        foreach ($turn->getToolResults() as $toolResult) {
+            echo $toolResult->getToolCall()->getName().': '.$toolResult->getResult().\PHP_EOL;
+        }
+    }
+
+Each turn is also reported as a ``Progress`` update of the ``turn`` stage, carrying the ``Turn`` as payload, as soon as
+the round completes. See the
+`execution-turns.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-turns.php>`_ example.
+
 Like the platform's ``DeferredResult``, the execution offers typed accessors that narrow the result to what you
 expect - ``asText()``, ``asObject()``, ``asBinary()``, ``asFile()``, ``asDataUri()`` and ``asToolCalls()`` - and throw
 when the agent produced something else. A multi-part result containing a single part of the expected type, e.g. a reasoning part
@@ -135,7 +154,7 @@ deltas instead of the assembled answer::
 
     use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 
-    $result = $agent->call('Tell me a story.', ['stream' => true]);
+    $result = $agent->call('Tell me a story.', options: ['stream' => true]);
 
     foreach ($result->getContent() as $delta) {
         echo $delta->getText();
@@ -144,7 +163,7 @@ deltas instead of the assembled answer::
 The typed stream accessors save you the filtering: ``asStream()`` yields every delta, ``asTextStream()`` only the
 text deltas and ``asStreamedObject()`` the progressively populated object of a streamed structured output::
 
-    foreach ($agent->call('Tell me a story.', ['stream' => true])->asTextStream() as $delta) {
+    foreach ($agent->call('Tell me a story.', options: ['stream' => true])->asTextStream() as $delta) {
         echo $delta->getText();
     }
 
@@ -152,7 +171,7 @@ A running execution can be canceled, for example from a signal handler when the 
 when a chat user hits "stop". Canceling aborts the active HTTP response, so the model stops generating, and ends
 the stream without producing a final result::
 
-    $execution = $agent->call('Tell me a story.', ['stream' => true]);
+    $execution = $agent->call('Tell me a story.', options: ['stream' => true]);
 
     pcntl_async_signals(true);
     pcntl_signal(\SIGINT, static fn () => $execution->cancel());
@@ -161,7 +180,7 @@ the stream without producing a final result::
         echo $delta->getText();
     }
 
-Cancellation is idempotent, propagates to the agents a ``MultiAgent`` or ``SpeechAgent`` delegates to, and makes
+Cancellation is idempotent, propagates to the agents an agent hands off to or a ``SpeechAgent`` delegates to, and makes
 ``getResult()`` throw a :class:`Symfony\\AI\\Agent\\Exception\\RuntimeException` instead of returning a partial
 answer. See the
 `execution-cancellation.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-cancellation.php>`_
@@ -174,7 +193,7 @@ well.
 Iterating the execution instead reports each delta as a ``Progress`` update of the ``delta`` stage, next to the
 model-request and tool-call updates::
 
-    foreach ($agent->call('Tell me a story.', ['stream' => true]) as $update) {
+    foreach ($agent->call('Tell me a story.', options: ['stream' => true]) as $update) {
         if ($update instanceof Progress && 'delta' === $update->getStage() && $update->getPayload() instanceof TextDelta) {
             echo $update->getPayload()->getText();
         }
@@ -182,6 +201,296 @@ model-request and tool-call updates::
 
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
+
+A round that asks for tools ends with a
+:class:`Symfony\\AI\\Platform\\Result\\Stream\\Delta\\ToolCallComplete` delta, which marks the boundary between
+the rounds: the text streamed before it was the model's preamble to those tool calls ("Let me check the weather."),
+not part of the answer, and the text streamed after it belongs to the next round. This lets you show the preamble as
+progress while the tools run, and keep it out of the answer you store::
+
+    use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
+    use Symfony\AI\Platform\Result\Stream\Delta\ToolCallComplete;
+
+    $answer = '';
+    foreach ($agent->call('What is the weather in Berlin?', options: ['stream' => true])->asStream() as $delta) {
+        if ($delta instanceof ToolCallComplete) {
+            // the text so far introduced the tool calls, the answer starts with the next round
+            $answer = '';
+
+            continue;
+        }
+
+        if ($delta instanceof TextDelta) {
+            $answer .= $delta->getText();
+        }
+    }
+
+Whether the model writes a preamble at all depends on the model and your prompt, e.g. "Before calling a tool, tell
+the user in one short sentence what you are about to do."
+
+Several Inputs at Once
+~~~~~~~~~~~~~~~~~~~~~~
+
+``callMany()`` drives several inputs through the same agent and returns a
+:class:`Symfony\\AI\\Agent\\Execution\\ParallelExecution` whose updates and results are keyed by the input key::
+
+    $results = $agent->callMany([
+        'berlin' => 'What is the capital of Germany?',
+        'paris' => 'What is the capital of France?',
+    ])->getResults();
+
+    echo $results['berlin']->getContent();
+
+.. note::
+
+    The executions are interleaved cooperatively, not run concurrently: each step - including the blocking model
+    call behind it - completes before the next execution advances, so the wall-clock time is the sum of all
+    executions.
+
+Human in the Loop
+-----------------
+
+Some tools cannot answer on their own: they need a decision from a human. Throwing a
+:class:`Symfony\\AI\\Agent\\Toolbox\\Exception\\ToolInteractionException` pauses the execution and asks::
+
+    use Symfony\AI\Agent\Toolbox\Exception\ToolInteractionException;
+
+    #[AsTool('book_flight', 'Books a flight for the user')]
+    final class BookFlight
+    {
+        public function __invoke(string $destination): string
+        {
+            throw ToolInteractionException::choose('Which seat do you want?', ['window', 'aisle']);
+        }
+    }
+
+The execution yields an :class:`Symfony\\AI\\Agent\\Execution\\Update\\Interaction`, and only continues once an
+:class:`Symfony\\AI\\Agent\\Execution\\InteractionResponse` is sent back. Its value becomes the tool call's
+result::
+
+    use Symfony\AI\Agent\Execution\InteractionResponse;
+    use Symfony\AI\Agent\Execution\Update\Interaction;
+
+    $result = $agent->call('Book me a flight to Berlin.')
+        ->onInteraction(fn (Interaction $interaction) => new InteractionResponse(ask($interaction->getPrompt())))
+        ->getResult();
+
+Without a handler, reading the result throws an
+:class:`Symfony\\AI\\Agent\\Exception\\InteractionRequiredException` carrying the pending interaction, rather
+than silently continuing.
+
+Tool Approval
+~~~~~~~~~~~~~
+
+Destructive tools can be gated behind an explicit approval, without the tool knowing about it::
+
+    use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
+
+    $agent = new Agent($platform, $model,
+        toolbox: $toolbox,
+        toolExecutor: new SequentialToolExecutor($toolbox, toolsRequiringApproval: ['delete_everything']),
+    );
+
+    $agent->call('Delete everything.')
+        ->onInteraction(fn (Interaction $interaction) => confirm($interaction->getPrompt())
+            ? InteractionResponse::approve()
+            : InteractionResponse::deny())
+        ->getResult();
+
+A denied tool call is not executed; the model is told so and continues.
+
+.. tip::
+
+    An ``Interaction`` raised from a tool carries the pending ``ToolCall`` and a snapshot of the conversation, which
+    is everything needed to persist a paused execution and resume it later - even in another process.
+
+.. note::
+
+    This is the *blocking* way to gate a tool: the execution pauses and waits for an answer, which suits an
+    interactive consumer like a CLI or a chat UI. For an approval that was granted out of band - a listener that
+    checks an approval store and denies the call when it finds none - use `Tool Metadata`_ together with
+    :class:`Symfony\\AI\\Agent\\Toolbox\\Event\\ToolCallRequested`. Both can be combined: metadata declares
+    *which* tools need confirmation, the executor decides *how* it is obtained.
+
+Stateful Agents
+---------------
+
+By default an agent is stateless: every call starts from the messages it is given. Passing a
+:class:`Symfony\\AI\\Agent\\Store\\MessageStoreInterface` makes it stateful — the stored conversation precedes the
+messages of the call, and the answer is appended and persisted afterwards::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Store\InMemoryStore;
+
+    $store = new InMemoryStore();
+    $agent = new Agent($platform, $model, store: $store);
+
+    $agent->call('My name is Wilhelm Tell.')->getResult();
+    echo $agent->call('What is my name?')->getContent(); // "Your name is Wilhelm Tell."
+
+:class:`Symfony\\AI\\Agent\\Store\\InMemoryStore` keeps the conversation for the lifetime of the object, which is
+enough for a CLI script or a test. Implement ``MessageStoreInterface`` to persist it anywhere else - one store per
+conversation. A store whose backing storage has a lifecycle can additionally implement
+:class:`Symfony\\AI\\Agent\\Store\\ManagedStoreInterface` to expose ``setup()`` and ``drop()``; the agent never
+calls them, that is up to your application.
+
+Events
+------
+
+An agent dispatches events for every step of an invocation, when an event dispatcher is passed to it. This is the
+hook for cross-cutting concerns like logging, caching or metrics:
+
+* :class:`Symfony\\AI\\Agent\\Event\\AgentInvocationStarted` before anything else runs
+* :class:`Symfony\\AI\\Agent\\Event\\ModelRequested` and :class:`Symfony\\AI\\Agent\\Event\\ModelResponded` around every model invocation, so once per tool-calling round
+* :class:`Symfony\\AI\\Agent\\Event\\AgentInvocationCompleted` with the final result
+* :class:`Symfony\\AI\\Agent\\Event\\AgentInvocationFailed` when the invocation throws, right before the exception
+  reaches the consumer of the execution
+
+A listener on ``AgentInvocationStarted`` can short-circuit the whole invocation by providing a result, which is what
+makes a cache possible without touching the agent::
+
+    use Symfony\AI\Agent\Event\AgentInvocationStarted;
+
+    $dispatcher->addListener(AgentInvocationStarted::class, function (AgentInvocationStarted $event) use ($cache) {
+        $hit = $cache->get($event->getRequest());
+
+        if (null !== $hit) {
+            $event->setResult($hit); // the model is never invoked
+        }
+    });
+
+    $agent = new Agent($platform, $model, eventDispatcher: $dispatcher);
+
+Listeners of ``ModelRequested`` can change the request before the model is invoked, for example to switch to a
+cheaper model, or end the run with ``stop()``, which turns the given result into the final result::
+
+    use Symfony\AI\Agent\Event\ModelRequested;
+    use Symfony\AI\Platform\Result\TextResult;
+
+    $dispatcher->addListener(ModelRequested::class, function (ModelRequested $event) {
+        if ($this->rateLimiter->isExhausted()) {
+            $event->stop(new TextResult('Please try again in a minute.'));
+        }
+    });
+
+Run Context
+-----------
+
+Every invocation carries a :class:`Symfony\\AI\\Agent\\Context\\RunContext` that identifies the run and describes
+what it was running: its run ID, the user, the release of your application, the prompt version and free-form
+attributes. Tracing, feedback, evaluation and cost reporting all join on its run ID. Pass one through the context
+to describe the run, otherwise the agent creates it::
+
+    use Symfony\AI\Agent\Context\Context;
+    use Symfony\AI\Agent\Context\RunContext;
+
+    $execution = $agent->call($messages, new Context(new RunContext(
+        '',                                   // empty: the agent fills in the run ID
+        $user->getUserIdentifier(),
+        'v1.4.0',
+        attributes: ['channel' => 'web'],
+    )));
+
+    $runId = $execution->getMetadata()->get('run_id');
+
+The final result carries the run ID as ``run_id`` and the run context as ``run_context`` metadata. Return the run ID
+to your frontend, so feedback on the answer can refer to the run. With the
+:doc:`OpenTelemetry bridge </bridges/open-telemetry>`, the run ID is the trace ID.
+
+While tools execute, the run context is available through
+:class:`Symfony\\AI\\Agent\\Context\\RunScope`, and the ``ToolCallRequested`` and ``ToolCallFailed`` events expose it
+with ``getRunContext()``.
+
+Versioned Prompts
+-----------------
+
+To tell which prompt produced an answer, give the instruction a
+:class:`Symfony\\AI\\Agent\\Context\\PromptReference`. It is recorded in the run context of every run:
+
+.. code-block:: yaml
+
+    # prompts/support.yaml
+    name: support/system
+    versions:
+        '2026-08-v2':
+            template: |
+                You are the support assistant of {shop_name}.
+        '2026-09-v3':
+            template: |
+                You are the support assistant of {shop_name}.
+                Never promise a refund before open_refund returned a ticket id.
+
+The :class:`Symfony\\AI\\Agent\\Prompt\\YamlPromptRegistry` loads such files and renders a version as instruction,
+including its reference::
+
+    use Symfony\AI\Agent\Prompt\YamlPromptRegistry;
+
+    $prompts = new YamlPromptRegistry([__DIR__.'/prompts']);
+    $instruction = $prompts->get('support/system', '2026-09-v3')->toInstruction(['shop_name' => 'ACME']);
+
+    $agent = new Agent($platform, $model, instruction: $instruction);
+
+To roll out a new version to a share of the traffic, register a
+:class:`Symfony\\AI\\Agent\\Prompt\\PromptInstructionListener` with a
+:class:`Symfony\\AI\\Agent\\Prompt\\PercentageRolloutSelector`. It resolves the instruction for every run, and keeps a
+conversation on one version when the run context carries a ``conversation`` attribute::
+
+    use Symfony\AI\Agent\Event\AgentInvocationStarted;
+    use Symfony\AI\Agent\Prompt\PercentageRolloutSelector;
+    use Symfony\AI\Agent\Prompt\PromptInstructionListener;
+
+    $dispatcher->addListener(AgentInvocationStarted::class, new PromptInstructionListener(
+        $prompts,
+        'support/system',
+        version: '2026-08-v2',
+        variables: ['shop_name' => 'ACME'],
+        selector: new PercentageRolloutSelector('support/system', '2026-09-v3', '2026-08-v2', 10),
+    ));
+
+Run Budgets
+-----------
+
+A :class:`Symfony\\AI\\Agent\\Budget\\RunBudget` stops a run gracefully once it spent more tokens or money than
+allowed, for example a runaway tool-calling loop. The run ends with a configurable answer instead of another model
+request. Cost budgets use the :class:`Symfony\\AI\\Platform\\Cost\\CostCalculator` of the Platform component::
+
+    use Symfony\AI\Agent\Budget\RunBudget;
+    use Symfony\AI\Platform\Cost\CostCalculator;
+    use Symfony\AI\Platform\Cost\PriceTable;
+
+    $prices = PriceTable::fromArray(['gpt-4o' => ['input' => 2.5, 'output' => 10.0]]);
+    $budget = new RunBudget(maxTokens: 20_000, maxCost: 0.25, costCalculator: new CostCalculator($prices), eventDispatcher: $dispatcher);
+
+    foreach (RunBudget::getSubscribedEvents() as $event => $method) {
+        $dispatcher->addListener($event, [$budget, $method]);
+    }
+
+Guardrails
+----------
+
+Guardrails use the existing extension points: deny a tool call in a ``ToolCallRequested`` listener, refuse an input
+by setting a result on ``AgentInvocationStarted``, or replace the answer in a
+``ResultAwareContextProcessorInterface``. To make their interventions visible, dispatch a
+:class:`Symfony\\AI\\Agent\\Event\\GuardrailTriggered`. The OpenTelemetry bridge records it as a span event and the
+Feedback component as an implicit signal on the run::
+
+    use Symfony\AI\Agent\Event\GuardrailTriggered;
+    use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
+
+    $dispatcher->addListener(ToolCallRequested::class, function (ToolCallRequested $event) use ($dispatcher, $policy) {
+        $order = $event->getToolCall()->getArguments()['orderNumber'] ?? '';
+
+        if ('open_refund' === $event->getDefinition()->getName() && !$policy->isRefundable($order)) {
+            $event->deny('This order is outside the refund window.');
+
+            $dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, runContext: $event->getRunContext()));
+        }
+    });
+
+.. note::
+
+    Result-aware processors run after the model answered. In a streamed execution, the deltas have already reached
+    the consumer at that point, so a guardrail on the answer can only replace the final result.
 
 Tools
 -----
@@ -775,7 +1084,7 @@ Tool Filtering
 To limit the tools provided to the LLM in a specific agent call to a subset of the configured tools, you can use the
 tools option with a list of tool names::
 
-    $this->agent->call($messages, ['tools' => ['tavily_search']]);
+    $this->agent->call($messages, options: ['tools' => ['tavily_search']]);
 
 Tool Result Interception
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1044,55 +1353,81 @@ Code Examples
 Input & Output Processing
 -------------------------
 
-The behavior of the agent is extendable with services that implement InputProcessor and/or OutputProcessor interface.
-They are provided while instantiating the agent instance::
+The behavior of the agent is extendable with a :class:`Symfony\\AI\\Agent\\Context\\Context`: a collection of
+data objects handed to the agent, each processed by a matching
+:class:`Symfony\\AI\\Agent\\Context\\ContextProcessorInterface`. A context can be configured on the agent, and
+extended per call::
 
     use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Context\Context;
+    use Symfony\AI\Agent\Context\Instruction;
 
-    // Initialize Platform, LLM and processors
+    // Initialize Platform, LLM and context processors
 
-    $agent = new Agent($platform, $model, $inputProcessors, $outputProcessors);
+    $agent = new Agent($platform, $model, $contextProcessors, instruction: 'You are a helpful assistant.');
 
-InputProcessor
-~~~~~~~~~~~~~~
+    // an instruction can also be passed for a single call
+    $result = $agent->call('Hello!', new Context(new Instruction('Answer in French.')));
 
-:class:`Symfony\\AI\\Agent\\InputProcessorInterface` instances are called in the agent before handing over the :class:`Symfony\\AI\\Platform\\Message\\MessageBag` and the $options array to the LLM
-and are able to mutate both on top of the :class:`Symfony\\AI\\Agent\\Input` instance provided::
+The built-in :class:`Symfony\\AI\\Agent\\Context\\Instruction` is what used to be the system prompt, and
+platform content objects (``Image``, ``Audio``, ``Document``, ...) passed as context items get attached to the user
+message.
 
-    use Symfony\AI\Agent\Input;
-    use Symfony\AI\Agent\InputProcessorInterface;
+Context Processors
+~~~~~~~~~~~~~~~~~~
+
+A :class:`Symfony\\AI\\Agent\\Context\\ContextProcessorInterface` is called before the platform is invoked and
+can mutate the model, the :class:`Symfony\\AI\\Platform\\Message\\MessageBag` and the options through the
+:class:`Symfony\\AI\\Agent\\Context\\AgentRequest`::
+
+    use Symfony\AI\Agent\Context\AgentContext;
+    use Symfony\AI\Agent\Context\AgentRequest;
+    use Symfony\AI\Agent\Context\ContextProcessorInterface;
     use Symfony\AI\Platform\Message\Message;
 
-    final class MyProcessor implements InputProcessorInterface
+    final class MyProcessor implements ContextProcessorInterface
     {
-        public function processInput(Input $input): void
+        public static function supportedTypes(): array
+        {
+            return []; // always runs; return context item classes to only run when they are present
+        }
+
+        public function process(AgentRequest $request, AgentContext $context): void
         {
             // mutate options
-            $options = $input->getOptions();
+            $options = $request->getOptions();
             $options['foo'] = 'bar';
-            $input->setOptions($options);
+            $request->setOptions($options);
 
-            // mutate MessageBag
-            $input->getMessageBag()->add(Message::ofAssistant(sprintf('Please answer using the locale %s', $this->locale)));
+            // mutate the MessageBag
+            $request->getMessageBag()->add(Message::ofAssistant(sprintf('Please answer using the locale %s', $this->locale)));
+
+            // report progress to the consumer of the execution
+            $context->reportProgress('my_processor', 'Doing my thing.');
         }
     }
 
-OutputProcessor
-~~~~~~~~~~~~~~~
+``supportedTypes()`` declares which context items a processor consumes: it only runs when the context carries at least
+one item of those types. Returning an empty list marks the processor as global, so it always runs.
 
-:class:`Symfony\\AI\\Agent\\OutputProcessorInterface` instances are called after the model provided a result and can - on top of options and messages - mutate
-or replace the given result::
+Result-aware Context Processors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    use Symfony\AI\Agent\Output;
-    use Symfony\AI\Agent\OutputProcessorInterface;
+To inspect or replace the result after the model answered, implement
+:class:`Symfony\\AI\\Agent\\Context\\ResultAwareContextProcessorInterface`::
 
-    final class MyProcessor implements OutputProcessorInterface
+    use Symfony\AI\Agent\Context\AgentContext;
+    use Symfony\AI\Agent\Context\AgentResult;
+    use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
+
+    final class MyProcessor implements ResultAwareContextProcessorInterface
     {
-        public function processOutput(Output $output): void
+        // process() and supportedTypes() as above
+
+        public function processResult(AgentResult $result, AgentContext $context): void
         {
-            // mutate result
-            if (str_contains($output->getResult()->getContent(), self::STOP_WORD)) {
-                $output->setResult(new TextResult('Sorry, we were unable to find relevant information.'));
+            if (str_contains($result->getResult()->getContent(), self::STOP_WORD)) {
+                $result->setResult(new TextResult('Sorry, we were unable to find relevant information.'));
             }
         }
     }
@@ -1100,24 +1435,12 @@ or replace the given result::
 Agent Awareness
 ~~~~~~~~~~~~~~~
 
-Both, :class:`Symfony\\AI\\Agent\\Input` and :class:`Symfony\\AI\\Agent\\Output` instances, provide access to the LLM used by the agent, but the agent itself is only provided,
-in case the processor implemented the :class:`Symfony\\AI\\Agent\\AgentAwareInterface` interface, which can be combined with using the
-:class:`Symfony\\AI\\Agent\\AgentAwareTrait`::
+The :class:`Symfony\\AI\\Agent\\Context\\AgentContext` handed to every processor exposes the running agent, so a
+processor can call back into it::
 
-    use Symfony\AI\Agent\AgentAwareInterface;
-    use Symfony\AI\Agent\AgentAwareTrait;
-    use Symfony\AI\Agent\Output;
-    use Symfony\AI\Agent\OutputProcessorInterface;
-
-    final class MyProcessor implements OutputProcessorInterface, AgentAwareInterface
+    public function process(AgentRequest $request, AgentContext $context): void
     {
-        use AgentAwareTrait;
-
-        public function processOutput(Output $out): void
-        {
-            // additional agent interaction
-            $result = $this->agent->call(...);
-        }
+        $result = $context->getAgent()->call(...);
     }
 
 Agent Memory Management
@@ -1130,10 +1453,10 @@ model with context without changing your application logic.
 Using Memory
 ^^^^^^^^^^^^
 
-Memory integration is handled through the :class:`Symfony\\AI\\Agent\\Memory\\MemoryInputProcessor` and one or more :class:`Symfony\\AI\\Agent\\Memory\\MemoryProviderInterface` implementations::
+Memory integration is handled through the :class:`Symfony\\AI\\Agent\\Context\\Processor\\MemoryProcessor` and one or more :class:`Symfony\\AI\\Agent\\Memory\\MemoryProviderInterface` implementations::
 
     use Symfony\AI\Agent\Agent;
-    use Symfony\AI\Agent\Memory\MemoryInputProcessor;
+    use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
     use Symfony\AI\Agent\Memory\StaticMemoryProvider;
     use Symfony\AI\Platform\Message\Message;
     use Symfony\AI\Platform\Message\MessageBag;
@@ -1145,7 +1468,7 @@ Memory integration is handled through the :class:`Symfony\\AI\\Agent\\Memory\\Me
         'I wish to be a swiss national hero',
         'I am struggling with hitting apples but want to be professional with the bow and arrow',
     ]);
-    $memoryProcessor = new MemoryInputProcessor([$personalFacts]);
+    $memoryProcessor = new MemoryProcessor([$personalFacts]);
 
     $agent = new Agent($platform, $model, [$memoryProcessor]);
     $messages = new MessageBag(Message::ofUser('What do we do today?'));
@@ -1189,7 +1512,7 @@ Dynamic Memory Control
 Memory is globally configured for the agent, but you can selectively disable it for specific calls when needed. This is
 useful when certain interactions shouldn't be influenced by the memory context::
 
-    $result = $agent->call($messages, [
+    $result = $agent->call($messages, options: [
         'use_memory' => false, // Disable memory for this specific call
     ]);
 

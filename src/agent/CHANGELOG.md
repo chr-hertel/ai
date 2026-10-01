@@ -1,6 +1,41 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `Context\RunContext`, created for every run unless passed by the caller, and echo its run ID as `run_id` and the context as `run_context` in the result metadata
+ * Add `Context\PromptReference` as optional reference of an `Context\Instruction`, recorded in the run context by the `InstructionProcessor`
+ * Add `Context\Context::get()` and `Context\Context::replace()`
+ * Add `Prompt\PromptRegistryInterface` with `InMemoryPromptRegistry` and `YamlPromptRegistry`, plus `PromptInstructionListener` and `PercentageRolloutSelector` to roll out prompt versions
+ * Add `Budget\RunBudget` to stop a run gracefully once it spent a token or cost budget
+ * Add `Event\AgentInvocationFailed` and `Event\GuardrailTriggered`
+ * Add `ModelRequested::stop()` to end a run before the model is invoked; changes to the request in `ModelRequested` listeners now apply to the model call
+ * Add the agent request to `ModelResponded` and the agent and request to `Toolbox\Event\ToolCallsExecuted`
+ * Add `Toolbox\ToolResult::isFailure()`, set by the `FaultTolerantToolbox`
+ * Add `Execution\Turn::getDuration()`
+ * Add `Execution\Execution::getTurns()` returning the `Execution\Turn`s of an execution - each model result with the results of the tools it requested and a snapshot of its own metadata - also reported live as `Progress` updates of the `turn` stage
+ * Add `Toolbox\ToolCatalogInterface` and `Toolbox\ToolInvokerInterface`, extended by `Toolbox\ToolboxInterface`; the tool executors only depend on `ToolInvokerInterface`
+ * A streamed execution now also yields the `ToolCallComplete` delta of a tool calling round, marking the boundary between the rounds: the text streamed before it was the model's preamble to the tool calls, not part of the answer
+ * [BC BREAK] Add a `Context` argument to `AgentInterface::call()`: a collection of data objects processed by per-type `Context\ContextProcessorInterface` strategies
+ * [BC BREAK] Remove `InputProcessorInterface`, `OutputProcessorInterface`, `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `SystemPromptInputProcessor`, `ModelOverrideInputProcessor`, `Memory\MemoryInputProcessor`, `Attribute\AsInputProcessor` and `Attribute\AsOutputProcessor`; the context processor system supersedes them
+ * [BC BREAK] Change `Memory\MemoryProviderInterface::load()` to take a `Context\AgentRequest` instead of the removed `Input`
+ * Add `Context\Instruction` (the former system prompt) and pass it to the `Agent` constructor as `instruction`, overridable per call through the context
+ * Add `Context\Processor\InstructionProcessor`, `AttachmentProcessor`, `ToolProcessor` and `MemoryProcessor`, plus `Attribute\AsContextProcessor` to register custom ones
+ * Add `Context\ResultAwareContextProcessorInterface` for processors that inspect or replace the result after the model answered
+ * Add support for overriding the agent's model per call through the `model` option
+ * Add agent lifecycle events (`AgentInvocationStarted`, `ModelRequested`, `ModelResponded`, `AgentInvocationCompleted`) dispatched when an event dispatcher is passed to the `Agent`; a listener on `AgentInvocationStarted` can short-circuit the invocation by providing a result
+ * [BC BREAK] Remove the `MultiAgent` namespace; handoffs are now a property of the `Agent` itself, configured through the `handoffs` constructor argument
+ * Add `Handoff\Handoff` and `Handoff\HandoffResolver`: before answering, an agent with handoffs asks the model which of them should handle the request and delegates to it, falling back to answering itself
+ * Add `HandoffRequested` and `HandoffCompleted` events; a listener on `HandoffRequested` can override or cancel the target agent
+ * Handoffs are reported as a `Progress` update of the `handoff` stage, the delegated agent's own updates are forwarded into the caller's execution, and the target agent receives the caller's context without the delegating agent's `Instruction`
+ * Add a `Store` namespace (`MessageStoreInterface`, `ManagedStoreInterface`, `InMemoryStore`): when a store is passed to the `Agent`, the runner loads the conversation before the call and persists it with the answer afterwards, making the agent stateful
+ * Add a human-in-the-loop path: a tool can throw a `Toolbox\Exception\ToolInteractionException` to pause the execution with an `Interaction` update, and the `InteractionResponse` sent back by the consumer becomes the tool call's result
+ * Add a `toolsRequiringApproval` argument to `SequentialToolExecutor`, gating the configured tools behind an `InteractionReason::ToolApproval` interaction; a denied tool call is not executed
+ * Add `Execution::onInteraction()`; reading the result throws an `InteractionRequiredException` when an execution pauses and no handler is registered
+ * `Interaction` updates raised from tool calls carry the pending `ToolCall` and a full conversation snapshot, enabling persist-and-resume of paused executions across processes
+ * Add `Agent::callMany()` and `Execution\ParallelExecution`, driving several inputs through the same agent and keying their merged updates and results by the input key
+
 0.14
 ----
 

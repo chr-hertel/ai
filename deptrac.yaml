@@ -397,6 +397,18 @@ deptrac:
       collectors:
         - type: classLike
           value: Symfony\\AI\\Mate\\Bridge\\Symfony\\.*
+    - name: OpenTelemetryBridge
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\OpenTelemetryBridge\\.*
+    - name: FeedbackComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Feedback\\.*
+    - name: EvalComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Eval\\.*
   ruleset:
     Fixtures: ~
     AgentComponent:
@@ -662,3 +674,13 @@ deptrac:
       - MateComponent
     MateSymfonyBridge:
       - MateComponent
+    OpenTelemetryBridge:
+      - AgentComponent
+      - PlatformComponent
+      - StoreComponent
+    FeedbackComponent:
+      - AgentComponent
+    EvalComponent:
+      - AgentComponent
+      - PlatformComponent
+      - FeedbackComponent
