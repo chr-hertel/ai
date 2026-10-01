@@ -59,6 +59,17 @@ final class RunHooksTest extends TestCase
         $this->assertSame(['channel' => 'web'], $runContext->getAttributes());
     }
 
+    public function testEmptyRunIdIsFilledIn()
+    {
+        $agent = new Agent(new InMemoryPlatform('Hello'), 'gpt-4o');
+
+        $runContext = $agent->call('Hi', new Context(new RunContext('', release: 'v1')))->getMetadata()->get('run_context');
+
+        $this->assertInstanceOf(RunContext::class, $runContext);
+        $this->assertNotSame('', $runContext->getRunId());
+        $this->assertSame('v1', $runContext->getRelease());
+    }
+
     public function testInstructionReferenceIsRecordedInTheRunContext()
     {
         $agent = new Agent(new InMemoryPlatform('Hello'), 'gpt-4o', instruction: new Instruction('Be nice.', new PromptReference('support/system', 'v3')));

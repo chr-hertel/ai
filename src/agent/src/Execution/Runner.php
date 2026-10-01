@@ -110,8 +110,12 @@ final class Runner
             $messages = $this->store->load()->merge($messages);
         }
 
-        if (!$context->has(RunContext::class)) {
+        $runContext = $context->get(RunContext::class);
+        if (null === $runContext) {
             $context = $context->with(new RunContext(Uuid::v7()->toRfc4122()));
+        } elseif ('' === $runContext->getRunId()) {
+            // the caller describes the run, but leaves its identification to the agent
+            $context = $context->replace($runContext->withRunId(Uuid::v7()->toRfc4122()));
         }
 
         $request = new AgentRequest($model, $messages, $options, $context);
