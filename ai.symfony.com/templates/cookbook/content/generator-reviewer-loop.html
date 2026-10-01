@@ -454,7 +454,7 @@ clear of similar false positives:</p>
 
         <span class="hljs-comment">/** <span class="hljs-doctag">@var</span> FindingList $list */</span>
         <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>list</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>this</span>-&gt;generator
-            -&gt;<span class="hljs-title invoke__">call</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>prompt</span>, [<span class="hljs-string">'response_format'</span> =&gt; FindingList::<span class="hljs-variable language_">class</span>])
+            -&gt;<span class="hljs-title invoke__">call</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>prompt</span>, <span class="hljs-attr">options</span>: [<span class="hljs-string">'response_format'</span> =&gt; FindingList::<span class="hljs-variable language_">class</span>])
             -&gt;<span class="hljs-title invoke__">asObject</span>();
 
         <span class="hljs-keyword">return</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>list</span>-&gt;findings;
@@ -470,7 +470,7 @@ clear of similar false positives:</p>
 
         <span class="hljs-comment">/** <span class="hljs-doctag">@var</span> Verdict $verdict */</span>
         <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>verdict</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>this</span>-&gt;reviewer
-            -&gt;<span class="hljs-title invoke__">call</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>prompt</span>, [<span class="hljs-string">'response_format'</span> =&gt; Verdict::<span class="hljs-variable language_">class</span>])
+            -&gt;<span class="hljs-title invoke__">call</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>prompt</span>, <span class="hljs-attr">options</span>: [<span class="hljs-string">'response_format'</span> =&gt; Verdict::<span class="hljs-variable language_">class</span>])
             -&gt;<span class="hljs-title invoke__">asObject</span>();
 
         <span class="hljs-keyword">return</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>verdict</span>;

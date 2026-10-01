@@ -204,7 +204,7 @@ clear of similar false positives::
 
             /** @var FindingList $list */
             $list = $this->generator
-                ->call($prompt, ['response_format' => FindingList::class])
+                ->call($prompt, options: ['response_format' => FindingList::class])
                 ->asObject();
 
             return $list->findings;
@@ -220,7 +220,7 @@ clear of similar false positives::
 
             /** @var Verdict $verdict */
             $verdict = $this->reviewer
-                ->call($prompt, ['response_format' => Verdict::class])
+                ->call($prompt, options: ['response_format' => Verdict::class])
                 ->asObject();
 
             return $verdict;
