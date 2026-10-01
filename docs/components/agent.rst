@@ -171,7 +171,7 @@ A running execution can be canceled, for example from a signal handler when the 
 when a chat user hits "stop". Canceling aborts the active HTTP response, so the model stops generating, and ends
 the stream without producing a final result::
 
-    $execution = $agent->call('Tell me a story.', ['stream' => true]);
+    $execution = $agent->call('Tell me a story.', options: ['stream' => true]);
 
     pcntl_async_signals(true);
     pcntl_signal(\SIGINT, static fn () => $execution->cancel());

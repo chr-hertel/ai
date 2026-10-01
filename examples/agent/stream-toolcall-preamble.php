@@ -31,7 +31,7 @@ $messages = new MessageBag(
     Message::ofUser('What date and time is it? Answer in one sentence.'),
 );
 
-foreach ($agent->call($messages, ['stream' => true])->asStream() as $delta) {
+foreach ($agent->call($messages, options: ['stream' => true])->asStream() as $delta) {
     if ($delta instanceof TextDelta) {
         echo $delta;
     }
