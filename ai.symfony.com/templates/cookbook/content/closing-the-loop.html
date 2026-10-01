@@ -1,0 +1,797 @@
+<!-- This file is generated from docs/cookbook by "bin/console app:cookbook:build". Do not edit. -->
+<div class="section">
+
+<p>Shipping an agent is the start of the work. To make it better, and to keep it from getting worse, you need a loop:
+production runs are traced and rated, the bad ones become eval cases, and every change to a prompt or model has to
+pass those cases before it is released:</p>
+<div translate="no" class="highlight-text notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs text">production traffic ──► traces + feedback ──► triage ──► eval dataset
+       ▲                                                     │
+       └──────── release ◄── gate in CI ◄── eval suite ◄─────┘</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>In this guide you will build that loop for a customer support agent of a web shop. It looks up orders and opens
+refunds, and one of its prompt versions promises refunds without opening them. You will find that failure in
+production feedback, capture it as eval cases, and prove that the next prompt version fixes it without breaking
+anything else.</p>
+<p>The complete, runnable version of this guide is in <code translate="no" class="notranslate">examples/closing-the-loop/</code>. It uses a scripted model, so it
+runs offline and gives the same result every time.</p>
+<div class="section">
+<h2 id="prerequisites">
+    Prerequisites
+    
+</h2>
+<ul>
+    <li>Symfony AI Agent and Platform components</li>
+<li>An OpenTelemetry backend like Langfuse, Arize Phoenix, Grafana Tempo or Jaeger, optional for this guide</li>
+<li>An API key of a supported platform</li>
+</ul>
+</div>
+<div class="section">
+<h2 id="step-1-install-packages">
+    Step 1: Install Packages
+    
+</h2>
+<p>Install the Agent component, the OpenTelemetry bridge and the Feedback component, plus the Eval component for
+development:</p>
+<div translate="no" class="highlight-terminal highlight-bash notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs terminal bash"><span class="hljs-prompt">$ </span>composer require symfony/ai-agent symfony/ai-open-telemetry-bridge symfony/ai-feedback
+<span class="hljs-prompt">$ </span>composer require --dev symfony/ai-eval symfony/yaml</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</div>
+<div class="section">
+<h2 id="step-2-version-the-prompt">
+    Step 2: Version the Prompt
+    
+</h2>
+<p>When a regression shows up, you need to know which prompt produced it. Keep the prompt versions in a YAML file
+next to your code:</p>
+<div translate="no" class="highlight-yaml notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs yaml"><span class="hljs-comment"># prompts/support.yaml</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">support/system</span>
+<span class="hljs-attr">versions:</span>
+    <span class="hljs-attr">'2026-08-v2':</span>
+        <span class="hljs-attr">template:</span> <span class="hljs-string">|
+            You are the support assistant of {shop_name}.
+            Always look up the order before discussing it.
+</span>    <span class="hljs-attr">'2026-09-v3':</span>
+        <span class="hljs-attr">template:</span> <span class="hljs-string">|
+            You are the support assistant of {shop_name}.
+            Always look up the order before discussing it.
+            Never promise a refund before open_refund returned a ticket id.</span></pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>The prompt registry resolves the instruction for every run. With a rollout selector, the new version reaches a share
+of the conversations first, and every run records the version it used:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Event</span>\<span class="hljs-title">AgentInvocationStarted</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Prompt</span>\<span class="hljs-title">PercentageRolloutSelector</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Prompt</span>\<span class="hljs-title">PromptInstructionListener</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Prompt</span>\<span class="hljs-title">YamlPromptRegistry</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">Component</span>\<span class="hljs-title">EventDispatcher</span>\<span class="hljs-title">EventDispatcher</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>prompts</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">YamlPromptRegistry</span>([<span class="hljs-keyword">__DIR__</span>.<span class="hljs-string">'/prompts'</span>]);
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">EventDispatcher</span>();
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>-&gt;<span class="hljs-title invoke__">addListener</span>(AgentInvocationStarted::<span class="hljs-variable language_">class</span>, <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">PromptInstructionListener</span>(
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>prompts</span>,
+    <span class="hljs-string">'support/system'</span>,
+    <span class="hljs-attr">version</span>: <span class="hljs-string">'2026-08-v2'</span>,
+    <span class="hljs-attr">variables</span>: [<span class="hljs-string">'shop_name'</span> =&gt; <span class="hljs-string">'ACME'</span>],
+    <span class="hljs-attr">selector</span>: <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">PercentageRolloutSelector</span>(<span class="hljs-string">'support/system'</span>, <span class="hljs-string">'2026-09-v3'</span>, <span class="hljs-string">'2026-08-v2'</span>, <span class="hljs-number">50</span>),
+));</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</div>
+<div class="section">
+<h2 id="step-3-trace-every-run">
+    Step 3: Trace Every Run
+    
+</h2>
+<p>The OpenTelemetry bridge wraps the platform, the toolbox and the agent. It identifies each run by its trace ID, so
+everything you learn about a run later, like a thumbs down, attaches to its trace. Captured content is masked before
+it leaves the application:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">OpenTelemetry</span>\<span class="hljs-title">API</span>\<span class="hljs-title">Globals</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Agent</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">FaultTolerantToolbox</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">Toolbox</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">OpenTelemetryBridge</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">TracingAgent</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">OpenTelemetryBridge</span>\<span class="hljs-title">Platform</span>\<span class="hljs-title">TracingPlatform</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">OpenTelemetryBridge</span>\<span class="hljs-title">RegexContentRedactor</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">OpenTelemetryBridge</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">TracingToolbox</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>tracer</span> = Globals::<span class="hljs-title invoke__">tracerProvider</span>()-&gt;<span class="hljs-title invoke__">getTracer</span>(<span class="hljs-string">'symfony/ai'</span>);
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>redactor</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">RegexContentRedactor</span>();
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>platform</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">TracingPlatform</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>anthropicPlatform</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>tracer</span>, <span class="hljs-string">'anthropic'</span>, <span class="hljs-keyword">true</span>, <span class="hljs-attr">redactor</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>redactor</span>);
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>toolbox</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">TracingToolbox</span>(<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">FaultTolerantToolbox</span>(<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Toolbox</span>([<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">ShopTools</span>()], <span class="hljs-attr">eventDispatcher</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>)), <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>tracer</span>, <span class="hljs-keyword">true</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>redactor</span>);
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>agent</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">TracingAgent</span>(
+    <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Agent</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>platform</span>, <span class="hljs-string">'claude-sonnet-4-5'</span>, <span class="hljs-attr">name</span>: <span class="hljs-string">'support'</span>, <span class="hljs-attr">toolbox</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>toolbox</span>, <span class="hljs-attr">eventDispatcher</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>),
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>tracer</span>,
+    <span class="hljs-attr">captureContent</span>: <span class="hljs-keyword">true</span>,
+    <span class="hljs-attr">redactor</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>redactor</span>,
+);</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>With the AI Bundle, the <code translate="no" class="notranslate">tracing</code> configuration wires the same decorators for every platform, agent and toolbox,
+see <a href="https://symfony.com/doc/current/ai/bundles/ai-bundle.html" class="reference internal">AI Bundle</a>.</p>
+<p>Describe each run with a run context. Its run ID stays empty, so the tracing decorator fills in the trace ID, and
+your controller returns it with the answer:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Context</span>\<span class="hljs-title">Context</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Context</span>\<span class="hljs-title">RunContext</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>execution</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>agent</span>-&gt;<span class="hljs-title invoke__">call</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>question</span>, <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Context</span>(<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">RunContext</span>(
+    <span class="hljs-string">''</span>,
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>user</span>-&gt;<span class="hljs-title invoke__">getUserIdentifier</span>(),
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>release</span>,
+    <span class="hljs-attr">attributes</span>: [<span class="hljs-string">'channel'</span> =&gt; <span class="hljs-string">'web'</span>, <span class="hljs-string">'conversation'</span> =&gt; <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>conversationId</span>],
+)));
+
+<span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">JsonResponse</span>([
+    <span class="hljs-string">'answer'</span> =&gt; <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>execution</span>-&gt;<span class="hljs-title invoke__">getContent</span>(),
+    <span class="hljs-string">'run_id'</span> =&gt; <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>execution</span>-&gt;<span class="hljs-title invoke__">getMetadata</span>()-&gt;<span class="hljs-title invoke__">get</span>(<span class="hljs-string">'run_id'</span>),
+]);</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>The <code translate="no" class="notranslate">invoke_agent</code> span now carries <code translate="no" class="notranslate">app.run_id</code>, <code translate="no" class="notranslate">app.release</code>, <code translate="no" class="notranslate">app.prompt.version</code> and your attributes, so
+your tracing backend can compare prompt versions side by side.</p>
+</div>
+<div class="section">
+<h2 id="step-4-add-guardrails-and-a-budget">
+    Step 4: Add Guardrails and a Budget
+    
+</h2>
+<p>Guardrails stop known failures before they reach the customer. Deny refunds outside the refund window before the
+tool runs, and report the intervention:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Event</span>\<span class="hljs-title">GuardrailTriggered</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">Event</span>\<span class="hljs-title">ToolCallRequested</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>-&gt;<span class="hljs-title invoke__">addListener</span>(ToolCallRequested::<span class="hljs-variable language_">class</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(ToolCallRequested <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>event</span>)</span> <span class="hljs-keyword">use</span> <span class="hljs-params">(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>policy</span>)</span> </span>{
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>orderNumber</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>event</span>-&gt;<span class="hljs-title invoke__">getToolCall</span>()-&gt;<span class="hljs-title invoke__">getArguments</span>()[<span class="hljs-string">'orderNumber'</span>] ?? <span class="hljs-string">''</span>;
+
+    if (<span class="hljs-string">'open_refund'</span> !== <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>event</span>-&gt;<span class="hljs-title invoke__">getDefinition</span>()-&gt;<span class="hljs-title invoke__">getName</span>() || <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>policy</span>-&gt;<span class="hljs-title invoke__">isRefundable</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>orderNumber</span>)) {
+        <span class="hljs-keyword">return</span>;
+    }
+
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>event</span>-&gt;<span class="hljs-title invoke__">deny</span>(<span class="hljs-string">'This order is outside the refund window. Offer to escalate to a human instead.'</span>);
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>-&gt;<span class="hljs-title invoke__">dispatch</span>(<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">GuardrailTriggered</span>(<span class="hljs-string">'refund_policy'</span>, GuardrailTriggered::<span class="hljs-variable constant_">ACTION_DENIED</span>, <span class="hljs-attr">runContext</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>event</span>-&gt;<span class="hljs-title invoke__">getRunContext</span>()));
+});</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>A run budget ends runaway tool-calling loops gracefully, instead of letting them burn tokens:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Budget</span>\<span class="hljs-title">RunBudget</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">OpenTelemetryBridge</span>\<span class="hljs-title">EventListener</span>\<span class="hljs-title">GuardrailSpanListener</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>budget</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">RunBudget</span>(<span class="hljs-attr">maxTokens</span>: <span class="hljs-number">8</span>_000, <span class="hljs-attr">eventDispatcher</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>);
+<span class="hljs-keyword">foreach</span> (RunBudget::<span class="hljs-title invoke__">getSubscribedEvents</span>() <span class="hljs-keyword">as</span> <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>event</span> =&gt; <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>method</span>) {
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>-&gt;<span class="hljs-title invoke__">addListener</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>event</span>, [<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>budget</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>method</span>]);
+}
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>-&gt;<span class="hljs-title invoke__">addListener</span>(GuardrailTriggered::<span class="hljs-variable language_">class</span>, <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">GuardrailSpanListener</span>());</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>Every intervention is now an event on the span of the run that triggered it.</p>
+</div>
+<div class="section">
+<h2 id="step-5-collect-feedback">
+    Step 5: Collect Feedback
+    
+</h2>
+<p>Traces tell you what happened, feedback tells you whether it was good. Record explicit feedback from your frontend
+with the run ID it received, and derive implicit signals from failed tool calls and guardrails:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Feedback</span>\<span class="hljs-title">Bridge</span>\<span class="hljs-title">Langfuse</span>\<span class="hljs-title">LangfuseRecorder</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Feedback</span>\<span class="hljs-title">ChainRecorder</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Feedback</span>\<span class="hljs-title">EventListener</span>\<span class="hljs-title">GuardrailSignalListener</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Feedback</span>\<span class="hljs-title">EventListener</span>\<span class="hljs-title">ToolErrorSignalListener</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Feedback</span>\<span class="hljs-title">Feedback</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Feedback</span>\<span class="hljs-title">Signal</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">Event</span>\<span class="hljs-title">ToolCallsExecuted</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>recorder</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">ChainRecorder</span>([
+    <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">LangfuseRecorder</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>httpClient</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>langfuseHost</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>publicKey</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>secretKey</span>),
+    <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>localRecorder</span>,
+]);
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>-&gt;<span class="hljs-title invoke__">addListener</span>(ToolCallsExecuted::<span class="hljs-variable language_">class</span>, <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">ToolErrorSignalListener</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>recorder</span>));
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dispatcher</span>-&gt;<span class="hljs-title invoke__">addListener</span>(GuardrailTriggered::<span class="hljs-variable language_">class</span>, <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">GuardrailSignalListener</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>recorder</span>));
+
+<span class="hljs-comment">// in the feedback endpoint</span>
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>recorder</span>-&gt;<span class="hljs-title invoke__">record</span>(<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Feedback</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>payload</span>-&gt;<span class="hljs-title invoke__">getString</span>(<span class="hljs-string">'run_id'</span>), Signal::<span class="hljs-variable constant_">Thumbs</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>payload</span>-&gt;<span class="hljs-title invoke__">getBoolean</span>(<span class="hljs-string">'helpful'</span>)));</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>The Langfuse recorder sends feedback as a score on the trace, so a reviewer opening a thumbs down sees the whole run
+next to it. To keep requests fast, record through the <code translate="no" class="notranslate">MessengerRecorder</code> and handle the messages on a worker.</p>
+<p>After a few days, the feedback points at a pattern: customers on the prompt version <code translate="no" class="notranslate">2026-08-v2</code> rate refund
+answers down, because the agent writes "your refund has been processed" without ever calling <code translate="no" class="notranslate">open_refund</code>.</p>
+</div>
+<div class="section">
+<h2 id="step-6-turn-failures-into-eval-cases">
+    Step 6: Turn Failures into Eval Cases
+    
+</h2>
+<p>Each reviewed failure becomes an eval case, so the fix can be verified and the bug cannot come back. Pull the
+negatively rated traces from Langfuse as a starting point:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Bridge</span>\<span class="hljs-title">Langfuse</span>\<span class="hljs-title">LangfuseDatasetSource</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">Component</span>\<span class="hljs-title">Yaml</span>\<span class="hljs-title">Yaml</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>source</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">LangfuseDatasetSource</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>httpClient</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>langfuseHost</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>publicKey</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>secretKey</span>);
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dataset</span> = <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>source</span>-&gt;<span class="hljs-title invoke__">pull</span>(<span class="hljs-string">'support-regressions'</span>, <span class="hljs-string">'thumbs'</span>, <span class="hljs-number">0</span>, <span class="hljs-keyword">new</span> \<span class="hljs-title invoke__">DateTimeImmutable</span>(<span class="hljs-string">'-7 days'</span>), <span class="hljs-attr">labels</span>: [<span class="hljs-string">'triage'</span>]);
+
+<span class="hljs-title invoke__">file_put_contents</span>(<span class="hljs-string">'evals/datasets/support-regressions.yaml'</span>, Yaml::<span class="hljs-title invoke__">dump</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>dataset</span>-&gt;<span class="hljs-title invoke__">toArray</span>(), <span class="hljs-number">6</span>, <span class="hljs-number">4</span>));</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>Then review each case: label the failure, add the expectations, and record the tool results as fixtures, so the
+evaluation never opens a real refund. The case keeps the trace ID it was taken from:</p>
+<div translate="no" class="highlight-yaml notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs yaml"><span class="hljs-comment"># evals/datasets/support-regressions.yaml</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">support-regressions</span>
+<span class="hljs-attr">cases:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-attr">id:</span> <span class="hljs-string">refund-without-ticket-001</span>
+      <span class="hljs-attr">source_run:</span> <span class="hljs-string">4bf92f3577b34da6a3ce929d0e0e4736</span>
+      <span class="hljs-attr">labels:</span> <span class="hljs-string">[refund]</span>
+      <span class="hljs-attr">input:</span>
+          <span class="hljs-bullet">-</span> <span class="hljs-attr">user:</span> <span class="hljs-string">'I want my money back for SO-10023, the jacket is too small.'</span>
+      <span class="hljs-attr">fixtures:</span>
+          <span class="hljs-attr">order_lookup:</span>
+              <span class="hljs-attr">SO-10023:</span> <span class="hljs-string">{</span> <span class="hljs-attr">status:</span> <span class="hljs-string">delivered</span> <span class="hljs-string">}</span>
+          <span class="hljs-attr">open_refund:</span> <span class="hljs-string">'RF-4711'</span>
+      <span class="hljs-attr">expect:</span>
+          <span class="hljs-attr">tools_called:</span> <span class="hljs-string">[order_lookup,</span> <span class="hljs-string">open_refund]</span>
+          <span class="hljs-attr">tool_order:</span> <span class="hljs-string">strict</span>
+          <span class="hljs-attr">not_contains:</span> <span class="hljs-string">['has</span> <span class="hljs-string">been</span> <span class="hljs-string">processed']</span>
+          <span class="hljs-attr">judge:</span>
+              <span class="hljs-attr">criteria:</span> <span class="hljs-string">'Only confirms the refund after a ticket id is available, and mentions that ticket id.'</span></pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</div>
+<div class="section">
+<h2 id="step-7-evaluate-the-candidate-against-the-baseline">
+    Step 7: Evaluate the Candidate against the Baseline
+    
+</h2>
+<p>An eval suite runs every case for every variant of the agent and scores the runs. Compare the current prompt, the
+fixed one, and a cheaper model with the fixed prompt:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Agent</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">Toolbox</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Toolbox</span>\<span class="hljs-title">ToolboxInterface</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Dataset</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">EvalCase</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Evaluator</span>\<span class="hljs-title">LlmJudge</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Evaluator</span>\<span class="hljs-title">TextAssertions</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Evaluator</span>\<span class="hljs-title">ToolArguments</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Evaluator</span>\<span class="hljs-title">ToolsCalled</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Gate</span>\<span class="hljs-title">PassRateGate</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Gate</span>\<span class="hljs-title">RegressionGate</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Suite</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Variant</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>suite</span> = <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Suite</span>(
+    <span class="hljs-string">'support'</span>,
+    [Dataset::<span class="hljs-title invoke__">fromFile</span>(<span class="hljs-string">'evals/datasets/support-golden.yaml'</span>), Dataset::<span class="hljs-title invoke__">fromFile</span>(<span class="hljs-string">'evals/datasets/support-regressions.yaml'</span>)],
+    [
+        <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Variant</span>(<span class="hljs-string">'baseline'</span>, [<span class="hljs-string">'model'</span> =&gt; <span class="hljs-string">'claude-sonnet-4-5'</span>, <span class="hljs-string">'prompt'</span> =&gt; <span class="hljs-string">'2026-08-v2'</span>]),
+        <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Variant</span>(<span class="hljs-string">'candidate'</span>, [<span class="hljs-string">'model'</span> =&gt; <span class="hljs-string">'claude-sonnet-4-5'</span>, <span class="hljs-string">'prompt'</span> =&gt; <span class="hljs-string">'2026-09-v3'</span>]),
+        <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Variant</span>(<span class="hljs-string">'cheap'</span>, [<span class="hljs-string">'model'</span> =&gt; <span class="hljs-string">'claude-haiku-4-5'</span>, <span class="hljs-string">'prompt'</span> =&gt; <span class="hljs-string">'2026-09-v3'</span>]),
+    ],
+    static <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-params">(Variant <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>variant</span>, ?ToolboxInterface <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>toolbox</span>, EvalCase <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>case</span>)</span>: <span class="hljs-title">Agent</span> =&gt;</span> <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Agent</span>(
+        <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>platform</span>,
+        <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>variant</span>-&gt;<span class="hljs-title invoke__">get</span>(<span class="hljs-string">'model'</span>),
+        <span class="hljs-attr">instruction</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>prompts</span>-&gt;<span class="hljs-title invoke__">get</span>(<span class="hljs-string">'support/system'</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>variant</span>-&gt;<span class="hljs-title invoke__">get</span>(<span class="hljs-string">'prompt'</span>))-&gt;<span class="hljs-title invoke__">toInstruction</span>([<span class="hljs-string">'shop_name'</span> =&gt; <span class="hljs-string">'ACME'</span>]),
+        <span class="hljs-attr">toolbox</span>: <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>toolbox</span>,
+    ),
+    [<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">ToolsCalled</span>(), <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">ToolArguments</span>(), <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">TextAssertions</span>(), <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">LlmJudge</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>platform</span>, <span class="hljs-string">'claude-opus-4-5'</span>)],
+    [
+        <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">PassRateGate</span>(<span class="hljs-number">0.9</span>, <span class="hljs-attr">variants</span>: [<span class="hljs-string">'candidate'</span>, <span class="hljs-string">'cheap'</span>]),
+        <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">PassRateGate</span>(<span class="hljs-number">0.95</span>, <span class="hljs-string">'refund'</span>, [<span class="hljs-string">'candidate'</span>, <span class="hljs-string">'cheap'</span>]),
+        <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">RegressionGate</span>(<span class="hljs-string">'baseline'</span>, <span class="hljs-number">0.02</span>),
+    ],
+    <span class="hljs-attr">repetitions</span>: <span class="hljs-number">3</span>,
+    <span class="hljs-attr">toolCatalog</span>: <span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Toolbox</span>([<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">ShopTools</span>()]),
+);</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>The suite hands the agent factory a toolbox that exposes your real tool definitions, but answers the calls with the
+fixtures of the case. Deterministic evaluators check the tool trajectory and the answer, the LLM judge checks the
+free-form criteria, and the gates decide whether a variant may be released. Register
+<a href="https://github.com/symfony/ai/blob/main/src/eval/src/Command/RunCommand.php" class="reference external" title="Symfony\AI\Eval\Command\RunCommand" rel="external noopener noreferrer" target="_blank">RunCommand</a> with your suites as a console command and run <code translate="no" class="notranslate">ai:eval:run</code>:</p>
+<div translate="no" class="highlight-terminal highlight-bash notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs terminal bash"><span class="hljs-prompt">$ </span>php bin/console ai:<span class="hljs-built_in">eval</span>:run support --report=markdown:var/<span class="hljs-built_in">eval</span>/summary.md --report=junit:var/<span class="hljs-built_in">eval</span>/junit.xml
+
+Suite <span class="hljs-string">"support"</span> - 10 results per variant
+
+ Variant     Pass rate   escalation   refund    status    Avg tokens   Avg cost   Flaky
+ ------------------------------------------------------------------------------------------
+ baseline    40.0 %      100.0 %      0.0 %     100.0 %   1,452        <span class="hljs-variable">$0</span>.0057    0
+ candidate   100.0 %     100.0 %      100.0 %   100.0 %   2,160        <span class="hljs-variable">$0</span>.0082    0
+ cheap       80.0 %      0.0 %        100.0 %   100.0 %   2,160        <span class="hljs-variable">$0</span>.0027    0
+
+ Gates
+  OK   candidate  pass_rate 100.0 % &gt;= 90 %
+  FAIL cheap      pass_rate 80.0 % &lt; 90 %
+  OK   candidate  pass_rate[refund] 100.0 % &gt;= 95 %
+  OK   cheap      pass_rate[refund] 100.0 % &gt;= 95 %
+  OK   candidate  no drop above 2.0 points vs baseline
+  FAIL cheap      escalation dropped 100.0 points vs baseline (max 2.0)</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>This is the output of the example, shortened. The candidate fixes the refunds and keeps everything else, so it can be released. The cheaper model would save
+two thirds of the cost, but stops handing over to a human, so the gate keeps it out. The command exits with <code translate="no" class="notranslate">1</code>
+whenever a gate fails, which makes it a release check in CI.</p>
+</div>
+<div class="section">
+<h2 id="step-8-calibrate-the-judge">
+    Step 8: Calibrate the Judge
+    
+</h2>
+<p>A judge that disagrees with humans makes your scores meaningless. Label a sample of runs yourself with the same
+criteria and measure the agreement:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Calibration</span>\<span class="hljs-title">JudgeCalibrator</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Calibration</span>\<span class="hljs-title">LabeledRun</span>;
+
+<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>calibration</span> = (<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">JudgeCalibrator</span>())-&gt;<span class="hljs-title invoke__">calibrate</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>judge</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>labeledRuns</span>);
+
+<span class="hljs-keyword">if</span> (<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>calibration</span>-&gt;<span class="hljs-title invoke__">getKappa</span>() &lt; <span class="hljs-number">0.7</span>) {
+    <span class="hljs-comment">// improve the judge prompt, starting from $calibration-&gt;getDisagreements()</span>
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>A false pass, where the judge accepts an answer humans reject, is the dangerous kind of disagreement: it lets
+regressions through. Re-run the calibration whenever you change the judge model or prompt.</p>
+</div>
+<div class="section">
+<h2 id="step-9-keep-the-fast-checks-in-every-build">
+    Step 9: Keep the Fast Checks in Every Build
+    
+</h2>
+<p>The eval suite calls real models, so run it nightly and on pull requests that change prompts, models or tools. For
+every build, assert the agent's behavior in PHPUnit against recorded model responses:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">RunRecorder</span>;
+<span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Eval</span>\<span class="hljs-title">Test</span>\<span class="hljs-title">AgentAssertionsTrait</span>;
+
+<span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RefundFlowTest</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">KernelTestCase</span>
+</span>{
+    <span class="hljs-keyword">use</span> <span class="hljs-title">AgentAssertionsTrait</span>;
+
+    <span class="hljs-keyword">public</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">testRefundIsOnlyConfirmedWithTicket</span><span class="hljs-params">()</span>
+    </span>{
+        <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>run</span> = RunRecorder::<span class="hljs-title invoke__">record</span>(self::<span class="hljs-title invoke__">getContainer</span>()-&gt;<span class="hljs-title invoke__">get</span>(<span class="hljs-string">'ai.agent.support'</span>), <span class="hljs-string">'I want my money back for SO-10023.'</span>);
+
+        <span class="hljs-keyword">self</span>::<span class="hljs-title invoke__">assertToolsCalledInOrder</span>([<span class="hljs-string">'order_lookup'</span>, <span class="hljs-string">'open_refund'</span>], <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>run</span>);
+        <span class="hljs-keyword">self</span>::<span class="hljs-title invoke__">assertAnswerMatches</span>(<span class="hljs-string">'/RF-\d+/'</span>, <span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>run</span>);
+    }
+}</pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<p>To evaluate production traffic continuously, add the <code translate="no" class="notranslate">SamplingProcessor</code> of the Eval component to the agent: it
+sends a sample of the runs to a message bus, and the <code translate="no" class="notranslate">EvaluateRunHandler</code> records the scores as feedback, right
+next to the ratings of your customers.</p>
+</div>
+<div class="section">
+<h2 id="going-further">
+    Going Further
+    
+</h2>
+<ul>
+    <li><a href="https://symfony.com/doc/current/ai/components/agent.html" class="reference internal">Symfony AI - Agent Component</a> - run context, versioned prompts, budgets and guardrails</li>
+<li><a href="https://symfony.com/doc/current/ai/bridges/open-telemetry.html" class="reference internal">Symfony AI - OpenTelemetry Bridge</a> - spans, content capture and exporting to Langfuse</li>
+<li><a href="https://symfony.com/doc/current/ai/components/feedback.html" class="reference internal">Symfony AI - Feedback Component</a> - feedback recorders and implicit signals</li>
+<li><a href="https://symfony.com/doc/current/ai/components/eval.html" class="reference internal">Symfony AI - Eval Component</a> - datasets, evaluators, gates, reports and simulations</li>
+</ul>
+</div>
+</div>

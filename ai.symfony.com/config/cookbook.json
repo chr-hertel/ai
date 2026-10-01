@@ -100,5 +100,18 @@
         "components": [
             "MCP Bundle"
         ]
+    },
+    {
+        "slug": "closing-the-loop",
+        "title": "Closing the Loop",
+        "description": "Trace production runs, collect feedback, turn failures into eval cases and gate releases on them.",
+        "icon": "refresh",
+        "components": [
+            "Agent",
+            "Platform",
+            "OpenTelemetry Bridge",
+            "Feedback",
+            "Eval"
+        ]
     }
 ]

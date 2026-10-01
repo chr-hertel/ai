@@ -68,6 +68,8 @@ A demo application (`composer create-project symfony/ai-demo`) with 8 scenarios:
 - [S3 Vectors](https://symfony.com/doc/current/ai/components/store/s3-vectors.html): AWS S3 Vectors bridge for vector storage
 - [SQLite Store](https://symfony.com/doc/current/ai/components/store/sqlite.html): SQLite-based vector store
 - [Supabase Bridge](https://symfony.com/doc/current/ai/components/store/supabase.html): Supabase vector store integration
+- [Eval Component](https://symfony.com/doc/current/ai/components/eval.html): Evaluation of agents with datasets, deterministic evaluators, LLM judges, gates, reports and PHPUnit assertions
+- [Feedback Component](https://symfony.com/doc/current/ai/components/feedback.html): Explicit and implicit feedback signals recorded against agent runs and their traces
 - [Chat Component](https://symfony.com/doc/current/ai/components/chat.html): High-level API for conversations with agents and message history persistence
 - [Mate Component](https://symfony.com/doc/current/ai/components/mate.html): Command-line assistant giving coding agents project-aware tools for PHP/Symfony applications
 - [Mate Integration](https://symfony.com/doc/current/ai/components/mate/integration.html): How coding agents find Mate, and choosing the PHP interpreter
@@ -93,6 +95,7 @@ A demo application (`composer create-project symfony/ai-demo`) with 8 scenarios:
 - [Context Compression](https://symfony.com/doc/current/ai/cookbook/context-compression.html): Keep long conversations within context limits using a sliding window or summarization
 - [Build a RAG Pipeline](https://symfony.com/doc/current/ai/cookbook/rag-implementation.html): Index documents into a vector store and query them with an AI agent
 - [Build an MCP Server](https://symfony.com/doc/current/ai/cookbook/build-an-mcp-server.html): Expose tools, prompts, and resources to AI assistants over MCP
+- [Closing the Loop](https://symfony.com/doc/current/ai/cookbook/closing-the-loop.html): Trace production runs, collect feedback, turn failures into eval cases and gate releases on them
 
 ## Code
 
@@ -122,6 +125,12 @@ Symfony framework integration for Platform, Agent, Store, and Chat components. I
 
 ### MCP Bundle
 Symfony integration for the official MCP SDK (`mcp/sdk`). Install with `composer require symfony/mcp-bundle`. Supports MCP capabilities (tools, prompts, resources, resource templates) as a server via HTTP and STDIO transports, definitions via attributes, and both server and client modes.
+
+### Feedback
+Records explicit feedback (thumbs, ratings, corrections) and implicit signals (tool errors, guardrail interventions, evaluator scores) against agent runs. Install with `composer require symfony/ai-feedback`. Feedback is keyed by the run ID of the agent, which is the trace ID when tracing with the OpenTelemetry bridge, and can be sent to Langfuse as scores on the trace, recorded asynchronously via Messenger, or kept in memory. Experimental.
+
+### Eval
+Evaluates agents against datasets of cases. Install with `composer require --dev symfony/ai-eval`. Provides YAML datasets with tool fixtures, deterministic evaluators for tool trajectories and answers, LLM judges with calibration against human labels (Cohen's kappa), variants and gates for CI, the `ai:eval:run` command with text, Markdown, JSON and JUnit reports, PHPUnit assertions, online evaluation of production runs, multi-turn simulation and a Langfuse dataset pull. Experimental.
 
 ### OpenTelemetry Bridge
 Traces platform calls, agent runs, tool calls and retrievals with OpenTelemetry, following the GenAI semantic conventions. Install with `composer require symfony/ai-open-telemetry-bridge`. Depends on `open-telemetry/api` only and works with any OTLP backend (Langfuse, Arize Phoenix, Datadog, Grafana Tempo, Jaeger). Prompt and completion content is only captured on opt-in. Experimental.
