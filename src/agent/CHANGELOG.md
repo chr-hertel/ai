@@ -4,6 +4,7 @@ CHANGELOG
 0.14
 ----
 
+ * Add `Toolbox\ToolCatalogInterface` and `Toolbox\ToolInvokerInterface`, extended by `Toolbox\ToolboxInterface`; the tool executors only depend on `ToolInvokerInterface`
  * Add `Execution::cancel()` to stop an active execution and cancel its active HTTP response
  * `SpeechAgent` now forwards the `Progress` updates of the execution it delegates to
  * [BC BREAK] `Bridge\SimilaritySearch\SimilaritySearch::getUsedDocuments()` returns `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the retriever it reads from

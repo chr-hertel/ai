@@ -35,7 +35,7 @@ final class SequentialToolExecutor implements ToolExecutorInterface
      * @param list<string> $toolsRequiringApproval names of tools that pause for human approval before executing
      */
     public function __construct(
-        private readonly ToolboxInterface $toolbox,
+        private readonly ToolInvokerInterface $toolbox,
         private readonly ToolResultConverter $resultConverter = new ToolResultConverter(),
         private readonly array $toolsRequiringApproval = [],
     ) {
