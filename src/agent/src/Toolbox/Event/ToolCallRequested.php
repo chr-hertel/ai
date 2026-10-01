@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Toolbox\Event;
 
+use Symfony\AI\Agent\Context\RunContext;
 use Psr\EventDispatcher\StoppableEventInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
@@ -28,7 +29,16 @@ final class ToolCallRequested implements StoppableEventInterface
     public function __construct(
         private readonly ToolCall $toolCall,
         private readonly Tool $definition,
+        private readonly ?RunContext $runContext = null,
     ) {
+    }
+
+    /**
+     * The run the tool call belongs to, null when the tool is called outside an agent run.
+     */
+    public function getRunContext(): ?RunContext
+    {
+        return $this->runContext;
     }
 
     public function getToolCall(): ToolCall

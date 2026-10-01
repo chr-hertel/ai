@@ -20,6 +20,7 @@ use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Context\ResultAwareContextProcessorInterface;
 use Symfony\AI\Agent\Context\RunContext;
+use Symfony\AI\Agent\Context\RunScope;
 use Symfony\AI\Agent\Event\AgentInvocationCompleted;
 use Symfony\AI\Agent\Event\AgentInvocationFailed;
 use Symfony\AI\Agent\Event\AgentInvocationStarted;
@@ -239,7 +240,7 @@ final class Runner
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
             $assistant = $assistantMessage ?? Message::ofAssistant($result);
-            $toolResults = yield from $this->executeTools($toolCalls, $messages, $assistant);
+            $toolResults = yield from $this->executeTools($toolCalls, $messages, $assistant, $request->getContext()->get(RunContext::class));
 
             $messages->add($assistant);
             foreach ($toolResults as $i => $toolResult) {
@@ -356,24 +357,36 @@ final class Runner
      *
      * @return \Generator<int, UpdateInterface, mixed, ToolResult[]>
      */
-    private function executeTools(array $toolCalls, MessageBag $messages, AssistantMessage $assistant): \Generator
+    private function executeTools(array $toolCalls, MessageBag $messages, AssistantMessage $assistant, ?RunContext $runContext = null): \Generator
     {
         \assert($this->toolExecutor instanceof ToolExecutorInterface);
 
         $executor = $this->toolExecutor->execute($toolCalls);
 
-        while ($executor->valid()) {
+        // every step of the executor runs tools, which see the run in the scope
+        $valid = RunScope::run($runContext, static fn (): bool => $executor->valid());
+
+        while ($valid) {
             $update = $executor->current();
 
             if ($update instanceof Interaction) {
                 $update = $update->withMessages([...$messages->getMessages(), $assistant, ...$update->getMessages()]);
-                $executor->send(yield $update);
+                $response = yield $update;
+                $valid = RunScope::run($runContext, static function () use ($executor, $response): bool {
+                    $executor->send($response);
+
+                    return $executor->valid();
+                });
 
                 continue;
             }
 
             yield $update;
-            $executor->next();
+            $valid = RunScope::run($runContext, static function () use ($executor): bool {
+                $executor->next();
+
+                return $executor->valid();
+            });
         }
 
         return $executor->getReturn();

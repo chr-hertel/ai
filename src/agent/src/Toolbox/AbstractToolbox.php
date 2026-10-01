@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Toolbox;
 
+use Symfony\AI\Agent\Context\RunScope;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallFailed;
@@ -43,7 +44,7 @@ abstract class AbstractToolbox implements ToolboxInterface
     {
         $metadata = $this->getMetadata($toolCall);
 
-        $event = new ToolCallRequested($toolCall, $metadata);
+        $event = new ToolCallRequested($toolCall, $metadata, RunScope::current());
         $this->eventDispatcher?->dispatch($event);
 
         if ($event->isDenied()) {
@@ -76,14 +77,14 @@ abstract class AbstractToolbox implements ToolboxInterface
             $this->eventDispatcher?->dispatch(new ToolCallSucceeded($tool, $metadata, $arguments, $result));
         } catch (ToolExecutionExceptionInterface $e) {
             $this->logger->warning(\sprintf('Failed to execute tool "%s".', $toolCall->getName()), ['exception' => $e]);
-            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e));
+            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e, RunScope::current()));
             throw $e;
         } catch (ToolInteractionException $e) {
             // not a failure: the tool pauses the execution for human interaction
             throw $e;
         } catch (\Throwable $e) {
             $this->logger->warning(\sprintf('Failed to execute tool "%s".', $toolCall->getName()), ['exception' => $e]);
-            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e));
+            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e, RunScope::current()));
             throw ToolExecutionException::executionFailed($toolCall, $e);
         }
 

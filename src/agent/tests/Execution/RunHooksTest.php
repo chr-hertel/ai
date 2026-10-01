@@ -21,6 +21,9 @@ use Symfony\AI\Agent\Event\AgentInvocationFailed;
 use Symfony\AI\Agent\Event\ModelRequested;
 use Symfony\AI\Agent\Execution\Turn;
 use Symfony\AI\Agent\Execution\Update\Progress;
+use Symfony\AI\Agent\Context\RunScope;
+use Symfony\AI\Agent\Tests\Fixtures\Tool\ToolNoParams;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\FaultTolerantToolbox;
 use Symfony\AI\Agent\Toolbox\Toolbox;
@@ -155,5 +158,26 @@ final class RunHooksTest extends TestCase
         $this->assertTrue($events[0]->getToolResults()[0]->isFailure());
         $this->assertCount(2, $turns);
         $this->assertNotNull($turns[0]->getDuration());
+    }
+
+    public function testToolCallEventsSeeTheRun()
+    {
+        $runIds = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(ToolCallRequested::class, static function (ToolCallRequested $event) use (&$runIds): void {
+            $runIds[] = $event->getRunContext()?->getRunId();
+            $event->deny('Not allowed.');
+        });
+
+        $results = [new ToolCallResult([new ToolCall('call-1', 'tool_no_params')]), new TextResult('Done.')];
+        $platform = new InMemoryPlatform(static function () use (&$results): ResultInterface {
+            return array_shift($results);
+        });
+
+        $agent = new Agent($platform, 'gpt-4o', toolbox: new Toolbox([new ToolNoParams()], eventDispatcher: $dispatcher));
+        $agent->call('Hi', new Context(new RunContext('run-1')))->getContent();
+
+        $this->assertSame(['run-1'], $runIds);
+        $this->assertNull(RunScope::current());
     }
 }
