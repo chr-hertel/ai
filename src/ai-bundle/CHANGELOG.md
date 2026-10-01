@@ -6,6 +6,19 @@ CHANGELOG
 
  * Add `tracing` configuration to trace platforms, agents, toolboxes and retrievers with OpenTelemetry through `symfony/ai-open-telemetry-bridge`, exporting to an OTLP endpoint with the `exporter` option and recording the authenticated user with `capture_user`
  * Add `content_redactor` and `user_id_resolver` to the `tracing` configuration, record guardrail interventions as span events and flush SDK tracer providers also when configured with `tracer_provider`
+ * [BC BREAK] Replace the `ai.agent.input_processor` and `ai.agent.output_processor` tags with a single
+   `ai.agent.context_processor` tag, collected into the agent's context processor argument. Services implementing
+   `Context\ContextProcessorInterface` are autoconfigured with it, and the `AsInputProcessor`/`AsOutputProcessor`
+   attributes are replaced by `AsContextProcessor`
+ * [BC BREAK] The agent's system prompt is passed to the `Agent` as its `instruction` instead of being registered as
+   the `ai.agent.*.system_prompt_processor` service, and memory is wired as `ai.agent.*.memory_processor`
+ * [BC BREAK] Remove the `ai.tool.agent_processor.*` services; the toolbox and its settings (`max_tool_calls`,
+   `exclude_tool_messages`, `include_sources`) are passed to the `Agent` directly
+ * [BC BREAK] The `multi_agent` configuration now builds an `Agent` carrying handoffs instead of a `MultiAgent`
+   service: `ai.multi_agent.*` is the orchestrating agent with the configured handoffs, and the `fallback` agent is
+   registered as a catch-all handoff. The configuration keys are unchanged
+ * Fix the `memory` agent option: a string was passed to `StaticMemoryProvider`, whose constructor takes a list of
+   facts, so a configured string memory failed to instantiate
 
 0.14
 ----
@@ -25,19 +38,6 @@ CHANGELOG
  * Allow configuring the `elasticsearch` store with a pre-scoped `http_client` instead of an `endpoint`
  * Build the `clickhouse`, `manticoresearch`, `milvus`, `neo4j`, `opensearch` and `supabase` stores through their bridge `StoreFactory`, so a pre-scoped `http_client` can replace the endpoint and credentials; either the endpoint or `http_client` must be configured, credentials require the endpoint, and a custom `http_client` is scoped to the endpoint when both are set
  * Add an `http_client` option to the `manticoresearch`, `milvus` and `neo4j` stores
- * [BC BREAK] Replace the `ai.agent.input_processor` and `ai.agent.output_processor` tags with a single
-   `ai.agent.context_processor` tag, collected into the agent's context processor argument. Services implementing
-   `Context\ContextProcessorInterface` are autoconfigured with it, and the `AsInputProcessor`/`AsOutputProcessor`
-   attributes are replaced by `AsContextProcessor`
- * [BC BREAK] The agent's system prompt is passed to the `Agent` as its `instruction` instead of being registered as
-   the `ai.agent.*.system_prompt_processor` service, and memory is wired as `ai.agent.*.memory_processor`
- * [BC BREAK] Remove the `ai.tool.agent_processor.*` services; the toolbox and its settings (`max_tool_calls`,
-   `exclude_tool_messages`, `include_sources`) are passed to the `Agent` directly
- * [BC BREAK] The `multi_agent` configuration now builds an `Agent` carrying handoffs instead of a `MultiAgent`
-   service: `ai.multi_agent.*` is the orchestrating agent with the configured handoffs, and the `fallback` agent is
-   registered as a catch-all handoff. The configuration keys are unchanged
- * Fix the `memory` agent option: a string was passed to `StaticMemoryProvider`, whose constructor takes a list of
-   facts, so a configured string memory failed to instantiate
 
 0.13
 ----

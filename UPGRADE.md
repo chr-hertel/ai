@@ -1,13 +1,8 @@
-UPGRADE FROM 0.13 to 0.14
+UPGRADE FROM 0.14 to 0.15
 =========================
 
 Agent
 -----
-
- * `Bridge\SimilaritySearch\SimilaritySearch::getUsedDocuments()` returns
-   `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the
-   retriever it reads from. Code narrowing the returned documents to the concrete class has to widen.
- * `Toolbox\ToolCallArgumentResolver` throws `Toolbox\Exception\InvalidToolCallArgumentsException` instead of `Toolbox\Exception\ToolException`.
 
  * The input/output processor pipeline has been replaced by a `Context` of data objects, each processed by a
    matching `Context\ContextProcessorInterface`. `InputProcessorInterface`, `OutputProcessorInterface`, `Input`,
@@ -112,6 +107,17 @@ AI Bundle
    the toolbox are passed to the `Agent` itself. The `ai.agent.*.memory_input_processor` service was renamed to
    `ai.agent.*.memory_processor`. The `prompt`, `tools`, `max_tool_calls`, `exclude_tool_messages` and `include_sources`
    configuration keys are unchanged.
+
+UPGRADE FROM 0.13 to 0.14
+=========================
+
+Agent
+-----
+
+ * `Bridge\SimilaritySearch\SimilaritySearch::getUsedDocuments()` returns
+   `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the
+   retriever it reads from. Code narrowing the returned documents to the concrete class has to widen.
+ * `Toolbox\ToolCallArgumentResolver` throws `Toolbox\Exception\InvalidToolCallArgumentsException` instead of `Toolbox\Exception\ToolException`.
 
 Platform
 --------

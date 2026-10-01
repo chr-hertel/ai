@@ -15,21 +15,8 @@ CHANGELOG
  * Add `Toolbox\ToolResult::isFailure()`, set by the `FaultTolerantToolbox`
  * Add `Execution\Turn::getDuration()`
  * Add `Execution\Execution::getTurns()` returning the `Execution\Turn`s of an execution - each model result with the results of the tools it requested and a snapshot of its own metadata - also reported live as `Progress` updates of the `turn` stage
-
-0.14
-----
-
  * Add `Toolbox\ToolCatalogInterface` and `Toolbox\ToolInvokerInterface`, extended by `Toolbox\ToolboxInterface`; the tool executors only depend on `ToolInvokerInterface`
  * A streamed execution now also yields the `ToolCallComplete` delta of a tool calling round, marking the boundary between the rounds: the text streamed before it was the model's preamble to the tool calls, not part of the answer
- * Add `Execution::cancel()` to stop an active execution and cancel its active HTTP response
- * `SpeechAgent` now forwards the `Progress` updates of the execution it delegates to
- * [BC BREAK] `Bridge\SimilaritySearch\SimilaritySearch::getUsedDocuments()` returns `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the retriever it reads from
- * Add an optional `Stopwatch` to `Toolbox\TraceableToolbox` and `TraceableAgent`, timing each tool execution and the consumption of each agent execution
- * Add `Execution\Execution::isStreamed()`
- * Add `Toolbox\FiberToolExecutor` to run tool calls concurrently through PHP Fibers, together with a `Toolbox\SuspendableTrait` for cooperative tools
- * Add `Toolbox\AbstractToolbox` holding the shared part of executing a tool call - looking the tool up, the tool call events and the error handling - so a toolbox in front of a remote tool protocol only implements how a call is turned into a value
- * Add `Toolbox\ChainToolbox` offering the tools of several toolboxes to one agent
- * Add `#[MapToolArguments]` to map a flat tool-call payload onto a single DTO parameter while exposing the DTO properties as the tool schema root
  * [BC BREAK] Add a `Context` argument to `AgentInterface::call()`: a collection of data objects processed by per-type `Context\ContextProcessorInterface` strategies
  * [BC BREAK] Remove `InputProcessorInterface`, `OutputProcessorInterface`, `Input`, `Output`, `AgentAwareInterface`, `AgentAwareTrait`, `SystemPromptInputProcessor`, `ModelOverrideInputProcessor`, `Memory\MemoryInputProcessor`, `Attribute\AsInputProcessor` and `Attribute\AsOutputProcessor`; the context processor system supersedes them
  * [BC BREAK] Change `Memory\MemoryProviderInterface::load()` to take a `Context\AgentRequest` instead of the removed `Input`
@@ -48,6 +35,19 @@ CHANGELOG
  * Add `Execution::onInteraction()`; reading the result throws an `InteractionRequiredException` when an execution pauses and no handler is registered
  * `Interaction` updates raised from tool calls carry the pending `ToolCall` and a full conversation snapshot, enabling persist-and-resume of paused executions across processes
  * Add `Agent::callMany()` and `Execution\ParallelExecution`, driving several inputs through the same agent and keying their merged updates and results by the input key
+
+0.14
+----
+
+ * Add `Execution::cancel()` to stop an active execution and cancel its active HTTP response
+ * `MultiAgent` and `SpeechAgent` now forward the `Progress` updates of the executions they delegate to, and `MultiAgent` reports its routing as a `Progress` update of the `handoff` stage carrying the orchestrator's `MultiAgent\Handoff\Decision` as payload
+ * [BC BREAK] `Bridge\SimilaritySearch\SimilaritySearch::getUsedDocuments()` returns `Store\Document\VectorDocumentInterface[]` instead of `Store\Document\VectorDocument[]`, following the retriever it reads from
+ * Add an optional `Stopwatch` to `Toolbox\TraceableToolbox` and `TraceableAgent`, timing each tool execution and the consumption of each agent execution
+ * Add `Execution\Execution::isStreamed()`
+ * Add `Toolbox\FiberToolExecutor` to run tool calls concurrently through PHP Fibers, together with a `Toolbox\SuspendableTrait` for cooperative tools
+ * Add `Toolbox\AbstractToolbox` holding the shared part of executing a tool call - looking the tool up, the tool call events and the error handling - so a toolbox in front of a remote tool protocol only implements how a call is turned into a value
+ * Add `Toolbox\ChainToolbox` offering the tools of several toolboxes to one agent
+ * Add `#[MapToolArguments]` to map a flat tool-call payload onto a single DTO parameter while exposing the DTO properties as the tool schema root
 
 0.13
 ----
