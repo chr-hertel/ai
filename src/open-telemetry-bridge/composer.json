@@ -34,7 +34,8 @@
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^11.5.53",
         "symfony/ai-agent": "^0.14",
-        "symfony/ai-store": "^0.14"
+        "symfony/ai-store": "^0.14",
+        "symfony/event-dispatcher": "^7.3|^8.0"
     },
     "suggest": {
         "symfony/ai-agent": "To trace agent runs and tool calls",

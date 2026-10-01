@@ -15,6 +15,7 @@ use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
+use Symfony\AI\OpenTelemetryBridge\ContentRedactorInterface;
 use Symfony\AI\OpenTelemetryBridge\Guard;
 use Symfony\AI\OpenTelemetryBridge\SemanticConvention\GenAiAttributes;
 use Symfony\AI\OpenTelemetryBridge\SemanticConvention\MessageSerializer;
@@ -39,6 +40,7 @@ final class TracingPlatform implements PlatformInterface
         private readonly string $providerName,
         private readonly bool $captureContent = false,
         private readonly ?UserIdResolverInterface $userIdResolver = null,
+        private readonly ?ContentRedactorInterface $redactor = null,
     ) {
     }
 
@@ -52,7 +54,7 @@ final class TracingPlatform implements PlatformInterface
             return $this->platform->invoke($model, $input, $options);
         }
 
-        $inferenceSpan = new InferenceSpan($span, $modelName, $operation, $this->captureContent);
+        $inferenceSpan = new InferenceSpan($span, $modelName, $operation, $this->captureContent, $this->redactor);
 
         try {
             // Active while the request is built and sent, so the HTTP client span nests below
@@ -115,10 +117,19 @@ final class TracingPlatform implements PlatformInterface
         }
 
         if ($this->captureContent && $input instanceof MessageBag) {
-            $builder->setAttribute(GenAiAttributes::INPUT_MESSAGES, MessageSerializer::inputMessages($input));
-            $builder->setAttribute(GenAiAttributes::SYSTEM_INSTRUCTIONS, MessageSerializer::systemInstructions($input));
+            $builder->setAttribute(GenAiAttributes::INPUT_MESSAGES, $this->redact(MessageSerializer::inputMessages($input)));
+            $builder->setAttribute(GenAiAttributes::SYSTEM_INSTRUCTIONS, $this->redact(MessageSerializer::systemInstructions($input)));
         }
 
         return $builder->startSpan();
+    }
+
+    private function redact(?string $content): ?string
+    {
+        if (null === $content || null === $this->redactor) {
+            return $content;
+        }
+
+        return $this->redactor->redact($content);
     }
 }

@@ -12,6 +12,7 @@
 namespace Symfony\AI\OpenTelemetryBridge\Platform;
 
 use OpenTelemetry\API\Trace\SpanInterface;
+use Symfony\AI\OpenTelemetryBridge\ContentRedactorInterface;
 use Symfony\AI\OpenTelemetryBridge\Guard;
 use Symfony\AI\OpenTelemetryBridge\SemanticConvention\GenAiAttributes;
 use Symfony\AI\OpenTelemetryBridge\SemanticConvention\MessageSerializer;
@@ -43,6 +44,7 @@ final class InferenceSpan
         private readonly string $modelName,
         private readonly ?string $operation,
         private readonly bool $captureContent,
+        private readonly ?ContentRedactorInterface $redactor = null,
     ) {
     }
 
@@ -87,7 +89,7 @@ final class InferenceSpan
             $finishReason = $this->recordMetadata($result->getMetadata());
 
             if ($this->captureContent) {
-                $this->span->setAttribute(GenAiAttributes::OUTPUT_MESSAGES, MessageSerializer::outputMessages($result->getAssistantMessage(), $finishReason));
+                $this->span->setAttribute(GenAiAttributes::OUTPUT_MESSAGES, $this->redact(MessageSerializer::outputMessages($result->getAssistantMessage(), $finishReason)));
             }
         });
 
@@ -139,7 +141,7 @@ final class InferenceSpan
         }
 
         // The same conversion the agent uses to append the turn to the conversation
-        $this->span->setAttribute(GenAiAttributes::OUTPUT_MESSAGES, MessageSerializer::outputMessages(Message::ofAssistant($result), $finishReason));
+        $this->span->setAttribute(GenAiAttributes::OUTPUT_MESSAGES, $this->redact(MessageSerializer::outputMessages(Message::ofAssistant($result), $finishReason)));
     }
 
     /**
@@ -150,5 +152,10 @@ final class InferenceSpan
         if (null !== $value) {
             $this->span->setAttribute($attribute, $value);
         }
+    }
+
+    private function redact(string $content): string
+    {
+        return null === $this->redactor ? $content : $this->redactor->redact($content);
     }
 }

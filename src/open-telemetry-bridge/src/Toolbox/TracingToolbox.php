@@ -17,6 +17,7 @@ use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
+use Symfony\AI\OpenTelemetryBridge\ContentRedactorInterface;
 use Symfony\AI\OpenTelemetryBridge\Guard;
 use Symfony\AI\OpenTelemetryBridge\SemanticConvention\GenAiAttributes;
 use Symfony\AI\OpenTelemetryBridge\SemanticConvention\MessageSerializer;
@@ -33,6 +34,7 @@ final class TracingToolbox implements ToolboxInterface
         private readonly ToolboxInterface $toolbox,
         private readonly TracerInterface $tracer,
         private readonly bool $captureContent = false,
+        private readonly ?ContentRedactorInterface $redactor = null,
     ) {
     }
 
@@ -60,7 +62,7 @@ final class TracingToolbox implements ToolboxInterface
 
         Guard::run(function () use ($span, $result): void {
             if ($this->captureContent) {
-                $span->setAttribute(GenAiAttributes::TOOL_CALL_RESULT, $this->encodeResult($result->getResult()));
+                $span->setAttribute(GenAiAttributes::TOOL_CALL_RESULT, $this->redact($this->encodeResult($result->getResult())));
             }
 
             $span->end();
@@ -79,7 +81,7 @@ final class TracingToolbox implements ToolboxInterface
             ->setAttribute(GenAiAttributes::TOOL_TYPE, 'function');
 
         if ($this->captureContent) {
-            $builder->setAttribute(GenAiAttributes::TOOL_CALL_ARGUMENTS, MessageSerializer::encode($toolCall->getArguments()));
+            $builder->setAttribute(GenAiAttributes::TOOL_CALL_ARGUMENTS, $this->redact(MessageSerializer::encode($toolCall->getArguments())));
         }
 
         return $builder->startSpan();
@@ -96,5 +98,10 @@ final class TracingToolbox implements ToolboxInterface
         }
 
         return json_encode($result, \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES | \JSON_PARTIAL_OUTPUT_ON_ERROR) ?: '';
+    }
+
+    private function redact(string $content): string
+    {
+        return null === $this->redactor ? $content : $this->redactor->redact($content);
     }
 }

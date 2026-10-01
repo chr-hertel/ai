@@ -119,7 +119,7 @@ final class TracingAgentTest extends TestCase
         })()));
         $agent = new TracingAgent(new Agent($platform, 'gpt-4.1', name: 'support'), $this->tracer);
 
-        foreach ($agent->call(new MessageBag(Message::ofUser('Hi')), ['stream' => true])->getContent() as $delta) {
+        foreach ($agent->call(new MessageBag(Message::ofUser('Hi')), options: ['stream' => true])->getContent() as $delta) {
             $this->tracer->spanBuilder('consumer work')->startSpan()->end();
         }
 
@@ -135,7 +135,7 @@ final class TracingAgentTest extends TestCase
         })()));
         $agent = new TracingAgent(new Agent($platform, 'gpt-4.1', name: 'support'), $this->tracer);
 
-        $execution = $agent->call(new MessageBag(Message::ofUser('Hi')), ['stream' => true]);
+        $execution = $agent->call(new MessageBag(Message::ofUser('Hi')), options: ['stream' => true]);
         foreach ($execution->getContent() as $delta) {
             break;
         }
