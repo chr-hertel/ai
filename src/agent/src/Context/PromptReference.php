@@ -25,6 +25,11 @@ final class PromptReference implements \Stringable
     ) {
     }
 
+    public function __toString(): string
+    {
+        return $this->name.'@'.$this->version;
+    }
+
     public function getName(): string
     {
         return $this->name;
@@ -38,10 +43,5 @@ final class PromptReference implements \Stringable
     public function getHash(): ?string
     {
         return $this->hash;
-    }
-
-    public function __toString(): string
-    {
-        return $this->name.'@'.$this->version;
     }
 }

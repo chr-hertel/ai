@@ -19,9 +19,9 @@
  */
 
 use Symfony\AI\Agent\Agent;
+use Symfony\AI\Agent\Prompt\YamlPromptRegistry;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
-use Symfony\AI\Agent\Prompt\YamlPromptRegistry;
 use Symfony\AI\Eval\Calibration\JudgeCalibrator;
 use Symfony\AI\Eval\Calibration\LabeledRun;
 use Symfony\AI\Eval\Command\RunCommand;

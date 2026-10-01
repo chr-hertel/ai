@@ -17,7 +17,7 @@ namespace Symfony\AI\Eval;
 final class Score
 {
     /**
-     * @param float                      $value normalized between 0.0 and 1.0
+     * @param float                      $value    normalized between 0.0 and 1.0
      * @param array<string, scalar|null> $metadata
      */
     public function __construct(

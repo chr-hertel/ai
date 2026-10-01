@@ -25,12 +25,12 @@ use Symfony\AI\Eval\Gate\GateInterface;
 final class Suite
 {
     /**
-     * @param list<Dataset>                                                         $datasets
-     * @param list<Variant>                                                         $variants
-     * @param \Closure(Variant, ToolboxInterface|null, EvalCase): AgentInterface   $agentFactory builds the agent under test, with the fixture toolbox of the case if the suite has a tool catalog
-     * @param list<EvaluatorInterface>                                              $evaluators
-     * @param list<GateInterface>                                                   $gates
-     * @param ToolCatalogInterface|null                                             $toolCatalog  the real tools, answered by the fixtures of each case
+     * @param list<Dataset>                                                      $datasets
+     * @param list<Variant>                                                      $variants
+     * @param \Closure(Variant, ToolboxInterface|null, EvalCase): AgentInterface $agentFactory builds the agent under test, with the fixture toolbox of the case if the suite has a tool catalog
+     * @param list<EvaluatorInterface>                                           $evaluators
+     * @param list<GateInterface>                                                $gates
+     * @param ToolCatalogInterface|null                                          $toolCatalog  the real tools, answered by the fixtures of each case
      */
     public function __construct(
         private readonly string $name,

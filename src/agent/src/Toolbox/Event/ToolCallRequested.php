@@ -11,8 +11,8 @@
 
 namespace Symfony\AI\Agent\Toolbox\Event;
 
-use Symfony\AI\Agent\Context\RunContext;
 use Psr\EventDispatcher\StoppableEventInterface;
+use Symfony\AI\Agent\Context\RunContext;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Tool\Tool;

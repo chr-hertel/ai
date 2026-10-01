@@ -33,7 +33,7 @@ final class EvalRunner
     }
 
     /**
-     * @param list<string>|null                $variants only run these variants, all if null
+     * @param list<string>|null                 $variants only run these variants, all if null
      * @param (\Closure(CaseResult): void)|null $onResult called after every case, e.g. to report progress
      */
     public function run(Suite $suite, ?array $variants = null, ?\Closure $onResult = null): Report

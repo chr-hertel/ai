@@ -22,6 +22,11 @@ final class Cost implements \Stringable
     ) {
     }
 
+    public function __toString(): string
+    {
+        return \sprintf('%.6F %s', $this->amount, $this->currency);
+    }
+
     public function getAmount(): float
     {
         return $this->amount;
@@ -35,10 +40,5 @@ final class Cost implements \Stringable
     public function add(self $other): self
     {
         return new self($this->amount + $other->amount, $this->currency);
-    }
-
-    public function __toString(): string
-    {
-        return \sprintf('%.6F %s', $this->amount, $this->currency);
     }
 }

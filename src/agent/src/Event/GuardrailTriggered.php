@@ -25,8 +25,8 @@ final class GuardrailTriggered
     public const ACTION_STOPPED = 'stopped';
 
     /**
-     * @param string                      $guardrail name of the guardrail, e.g. "refund_policy" or "token_budget"
-     * @param string                      $action    one of the ACTION_* constants, or a custom action
+     * @param string                     $guardrail name of the guardrail, e.g. "refund_policy" or "token_budget"
+     * @param string                     $action    one of the ACTION_* constants, or a custom action
      * @param array<string, scalar|null> $details
      */
     public function __construct(
