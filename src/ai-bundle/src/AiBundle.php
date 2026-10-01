@@ -2945,7 +2945,7 @@ final class AiBundle extends AbstractBundle
     }
 
     /**
-     * @param array{tracer_provider: string|null, exporter?: array{endpoint: string, headers: array<string, string>, protocol: 'http/protobuf'|'http/json', resource_attributes: array<non-empty-string, bool|int|string>}, capture_content: bool, capture_user: bool, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
+     * @param array{tracer_provider: string|null, exporter?: array{endpoint: string, headers: array<string, string>, protocol: 'http/protobuf'|'http/json', resource_attributes: array<non-empty-string, bool|int|string>}, capture_content: bool, content_redactor: string|null, capture_user: bool, user_id_resolver: string|null, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
      */
     private function processTracingConfig(array $config, ContainerBuilder $container): void
     {

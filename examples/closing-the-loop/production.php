@@ -158,10 +158,15 @@ $joined = array_filter($feedback->all(), static fn (Feedback $f): bool => in_arr
 $output->writeln(sprintf("\n%d spans in %d traces, %d of %d feedback records join a trace by its run ID.", count($spans), count($traceIds), count($joined), count($feedback->all())));
 
 $output->writeln("\n<comment>2. The trace of the denied refund</comment>");
-$denied = array_values(array_filter($runs, static fn (array $run): bool => str_contains($run['question'], 'SO-9001')))[0];
-print_span_tree($spans, $denied['trace_id']);
+$deniedTraceId = '';
+foreach ($runs as $run) {
+    if (str_contains($run['question'], 'SO-9001')) {
+        $deniedTraceId = (string) $run['trace_id'];
+    }
+}
+print_span_tree($spans, $deniedTraceId);
 foreach ($spans as $span) {
-    if ($span->getTraceId() === $denied['trace_id'] && str_starts_with($span->getName(), 'invoke_agent')) {
+    if ($span->getTraceId() === $deniedTraceId && str_starts_with($span->getName(), 'invoke_agent')) {
         $output->writeln(sprintf('Captured input, with PII redacted: %s', $span->getAttributes()->get('input.value')));
     }
 }

@@ -19,6 +19,7 @@
 
 use Symfony\AI\Agent\Context\RunScope;
 use Symfony\AI\Agent\Event\GuardrailTriggered;
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 use Symfony\AI\Eval\Evaluator\Verdict;

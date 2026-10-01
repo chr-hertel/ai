@@ -110,7 +110,7 @@ final class LangfuseDatasetSource
         ]);
 
         if (200 !== $response->getStatusCode()) {
-            throw new RuntimeException(\sprintf('Langfuse answered %s with status %d.', $path, $response->getStatusCode()));
+            throw new RuntimeException(\sprintf('Langfuse answered "%s" with status %d.', $path, $response->getStatusCode()));
         }
 
         return $response->toArray();

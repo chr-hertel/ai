@@ -44,7 +44,7 @@ final class LangfuseRecorder implements FeedbackRecorderInterface
         ]);
 
         if ($response->getStatusCode() >= 300) {
-            throw new RuntimeException(\sprintf('Langfuse rejected the score "%s" with status %d: %s', $feedback->getName(), $response->getStatusCode(), $response->getContent(false)));
+            throw new RuntimeException(\sprintf('Langfuse rejected the score "%s" with status %d: "%s"', $feedback->getName(), $response->getStatusCode(), $response->getContent(false)));
         }
     }
 

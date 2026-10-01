@@ -18,6 +18,8 @@ use Symfony\Component\Yaml\Yaml;
 /**
  * A named, versioned list of eval cases, usually stored as YAML file next to the code it tests.
  *
+ * @implements \IteratorAggregate<int, EvalCase>
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class Dataset implements \IteratorAggregate, \Countable

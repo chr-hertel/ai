@@ -4,8 +4,8 @@
             "request": {
                 "method": "POST",
                 "url": "https://api.openai.com/v1/responses",
-                "signature": "cefac8a7e69fbecfb362e5aa1b6088f2",
-                "signature_v2": "b3fff2dc711a4344801b46ee9b6ddcc4",
+                "signature": "805bdeaef0df69abbde1d12678413123",
+                "signature_v2": "a1a4e0347497e4e901b0f35858c2989b",
                 "headers": {
                     "content-type": [
                         "application/json"
@@ -14,7 +14,7 @@
                         "[redacted]"
                     ]
                 },
-                "body": "{\"text\":{\"format\":{\"name\":\"Decision\",\"schema\":{\"type\":\"object\",\"properties\":{\"agentName\":{\"type\":\"string\",\"description\":\"The name of the selected agent, or empty string if no specific agent is selected\"},\"reasoning\":{\"type\":\"string\",\"description\":\"The reasoning behind the selection\"}},\"required\":[\"agentName\",\"reasoning\"],\"additionalProperties\":false},\"strict\":true,\"type\":\"json_schema\"}},\"model\":\"gpt-5-mini\",\"input\":[{\"role\":\"user\",\"content\":\"You are an intelligent agent orchestrator. Based on the user\\u0027s question, determine which specialized agent should handle the request.\\n\\nUser question: \\u0022I get this error in my php code: \\u0022Call to undefined method App\\\\Controller\\\\UserController::getName()\\u0022 - this is my line of code: $user-\\u003EgetName() where $user is an instance of User entity.\\u0022\\n\\nAvailable agents and their capabilities:\\n- technical: bug, problem, technical, error\\n- fallback: fallback agent for general\\/unmatched queries\\n\\nAnalyze the user\\u0027s question and select the most appropriate agent to handle this request.\\nReturn an empty string (\\u0022\\u0022) for agentName if no specific agent matches the request criteria.\\n\\nAvailable agent names: technical\\u0022, \\u0022fallback\\n\\nProvide your selection and explain your reasoning.\"}],\"instructions\":\"You are an intelligent agent orchestrator that routes user questions to specialized agents.\"}"
+                "body": "{\"text\":{\"format\":{\"name\":\"Decision\",\"schema\":{\"type\":\"object\",\"properties\":{\"agentName\":{\"type\":\"string\",\"description\":\"the name of the selected agent, or empty string if no specific agent is selected\"},\"reasoning\":{\"type\":\"string\",\"description\":\"the reasoning behind the selection\"}},\"required\":[\"agentName\",\"reasoning\"],\"additionalProperties\":false},\"strict\":true,\"type\":\"json_schema\"}},\"model\":\"gpt-5-mini\",\"input\":[{\"role\":\"user\",\"content\":\"You are an intelligent agent orchestrator. Based on the user\\u0027s question, determine which specialized agent should handle the request.\\n\\nUser question: \\u0022I get this error in my php code: \\u0022Call to undefined method App\\\\Controller\\\\UserController::getName()\\u0022 - this is my line of code: $user-\\u003EgetName() where $user is an instance of User entity.\\u0022\\n\\nAvailable agents and their capabilities:\\n- technical: bugs, problems, technical questions and errors\\n- fallback: general or otherwise unmatched requests\\n\\nAnalyze the user\\u0027s question and select the most appropriate agent to handle this request.\\nReturn an empty string (\\u0022\\u0022) for agentName if no specific agent matches the request criteria.\\n\\nAvailable agent names: \\u0022technical\\u0022, \\u0022fallback\\u0022\\n\\nProvide your selection and explain your reasoning.\"}]}"
             },
             "response": {
                 "status": 200,
@@ -65,9 +65,6 @@
                     ],
                     "set-cookie": [
                         "[redacted]"
-                    ],
-                    "content-encoding": [
-                        "gzip"
                     ]
                 },
                 "body_format": "json",
@@ -139,9 +136,6 @@
                     ],
                     "set-cookie": [
                         "[redacted]"
-                    ],
-                    "content-encoding": [
-                        "gzip"
                     ]
                 },
                 "body_format": "json",
@@ -152,8 +146,8 @@
             "request": {
                 "method": "POST",
                 "url": "https://api.openai.com/v1/responses",
-                "signature": "76914710868155baeceedb38c5dd2086",
-                "signature_v2": "4ec952e3815aa116545bf95a46fe6ddf",
+                "signature": "cefe86b9c9a47f8060587bde3b9c681f",
+                "signature_v2": "f5bf365451a08d1c8ef77781265ed1b6",
                 "headers": {
                     "content-type": [
                         "application/json"
@@ -162,7 +156,7 @@
                         "[redacted]"
                     ]
                 },
-                "body": "{\"text\":{\"format\":{\"name\":\"Decision\",\"schema\":{\"type\":\"object\",\"properties\":{\"agentName\":{\"type\":\"string\",\"description\":\"The name of the selected agent, or empty string if no specific agent is selected\"},\"reasoning\":{\"type\":\"string\",\"description\":\"The reasoning behind the selection\"}},\"required\":[\"agentName\",\"reasoning\"],\"additionalProperties\":false},\"strict\":true,\"type\":\"json_schema\"}},\"model\":\"gpt-5-mini\",\"input\":[{\"role\":\"user\",\"content\":\"You are an intelligent agent orchestrator. Based on the user\\u0027s question, determine which specialized agent should handle the request.\\n\\nUser question: \\u0022Can you give me a lasagne recipe?\\u0022\\n\\nAvailable agents and their capabilities:\\n- technical: bug, problem, technical, error\\n- fallback: fallback agent for general\\/unmatched queries\\n\\nAnalyze the user\\u0027s question and select the most appropriate agent to handle this request.\\nReturn an empty string (\\u0022\\u0022) for agentName if no specific agent matches the request criteria.\\n\\nAvailable agent names: technical\\u0022, \\u0022fallback\\n\\nProvide your selection and explain your reasoning.\"}],\"instructions\":\"You are an intelligent agent orchestrator that routes user questions to specialized agents.\"}"
+                "body": "{\"text\":{\"format\":{\"name\":\"Decision\",\"schema\":{\"type\":\"object\",\"properties\":{\"agentName\":{\"type\":\"string\",\"description\":\"the name of the selected agent, or empty string if no specific agent is selected\"},\"reasoning\":{\"type\":\"string\",\"description\":\"the reasoning behind the selection\"}},\"required\":[\"agentName\",\"reasoning\"],\"additionalProperties\":false},\"strict\":true,\"type\":\"json_schema\"}},\"model\":\"gpt-5-mini\",\"input\":[{\"role\":\"user\",\"content\":\"You are an intelligent agent orchestrator. Based on the user\\u0027s question, determine which specialized agent should handle the request.\\n\\nUser question: \\u0022Can you give me a lasagne recipe?\\u0022\\n\\nAvailable agents and their capabilities:\\n- technical: bugs, problems, technical questions and errors\\n- fallback: general or otherwise unmatched requests\\n\\nAnalyze the user\\u0027s question and select the most appropriate agent to handle this request.\\nReturn an empty string (\\u0022\\u0022) for agentName if no specific agent matches the request criteria.\\n\\nAvailable agent names: \\u0022technical\\u0022, \\u0022fallback\\u0022\\n\\nProvide your selection and explain your reasoning.\"}]}"
             },
             "response": {
                 "status": 200,
@@ -213,9 +207,6 @@
                     ],
                     "set-cookie": [
                         "[redacted]"
-                    ],
-                    "content-encoding": [
-                        "gzip"
                     ]
                 },
                 "body_format": "json",
@@ -287,9 +278,6 @@
                     ],
                     "set-cookie": [
                         "[redacted]"
-                    ],
-                    "content-encoding": [
-                        "gzip"
                     ]
                 },
                 "body_format": "json",

@@ -28,8 +28,6 @@ final class SecurityUserIdResolver implements UserIdResolverInterface
 
     public function resolve(): ?string
     {
-        $identifier = $this->tokenStorage?->getToken()?->getUser()?->getUserIdentifier();
-
-        return '' === $identifier ? null : $identifier;
+        return $this->tokenStorage?->getToken()?->getUser()?->getUserIdentifier();
     }
 }
