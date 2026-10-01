@@ -10449,7 +10449,7 @@ class AiBundleTest extends TestCase
         $this->assertSame([['event' => 'kernel.terminate'], ['event' => 'console.terminate']], $listener->getTag('kernel.event_listener'));
     }
 
-    public function testTracingWithoutExporterDoesNotFlush()
+    public function testTracingFlushesAnOwnTracerProvider()
     {
         $container = $this->buildContainer([
             'ai' => [
@@ -10458,7 +10458,27 @@ class AiBundleTest extends TestCase
             ],
         ]);
 
-        $this->assertFalse($container->hasDefinition('ai.tracing.flush_listener'), 'Flushing an own tracer provider is up to the application');
+        $this->assertTrue($container->hasDefinition('ai.tracing.flush_listener'), 'An SDK tracer provider is flushed, any other one is left alone');
+        $this->assertEquals(new Reference('app.tracer_provider'), $container->getDefinition('ai.tracing.flush_listener')->getArgument(0));
+    }
+
+    public function testTracingWithRedactorAndUserIdResolver()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'tracer_provider' => 'app.tracer_provider',
+                    'content_redactor' => 'app.pii_redactor',
+                    'capture_user' => true,
+                    'user_id_resolver' => 'app.customer_id_resolver',
+                ],
+            ],
+        ]);
+
+        $this->assertSame('app.pii_redactor', $container->getParameter('.ai.tracing.content_redactor'));
+        $this->assertSame('app.customer_id_resolver', (string) $container->getAlias('ai.tracing.user_id_resolver'));
+        $this->assertTrue($container->hasDefinition('ai.tracing.guardrail_listener'));
     }
 
     public function testTracingRejectsTracerProviderAndExporterTogether()

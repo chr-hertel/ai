@@ -80,6 +80,34 @@ Prompts, completions, tool arguments and tool results are not recorded by defaul
     Captured content may contain personal data and is sent to your tracing backend. Only enable it for backends that
     are allowed to store that data.
 
+To mask personal data before it is recorded, pass a
+:class:`Symfony\\AI\\OpenTelemetryBridge\\ContentRedactorInterface` to the decorators. The
+:class:`Symfony\\AI\\OpenTelemetryBridge\\RegexContentRedactor` replaces email addresses and card numbers by
+default::
+
+    use Symfony\AI\OpenTelemetryBridge\RegexContentRedactor;
+
+    $agent = new TracingAgent($agent, $tracer, captureContent: true, redactor: new RegexContentRedactor());
+
+Identifying Runs
+~~~~~~~~~~~~~~~~
+
+``TracingAgent`` identifies the agent run by its trace ID: unless the caller passes a
+:class:`Symfony\\AI\\Agent\\Context\\RunContext` with its own run ID, the run context of the agent carries the trace
+ID as run ID. The final result has it as ``run_id`` and ``trace_id`` metadata, so the frontend can send feedback for
+exactly this trace, and the fields of the run context are recorded on the ``invoke_agent`` span: ``app.run_id``,
+``app.release``, ``app.prompt.name``, ``app.prompt.version`` and every attribute as ``app.<name>``::
+
+    use Symfony\AI\Agent\Context\Context;
+    use Symfony\AI\Agent\Context\RunContext;
+
+    $execution = $agent->call($messages, new Context(new RunContext('', $userId, 'v1.4.0', attributes: ['channel' => 'web'])));
+
+    $traceId = $execution->getMetadata()->get('trace_id');
+
+Guardrail interventions dispatched as :class:`Symfony\\AI\\Agent\\Event\\GuardrailTriggered` become span events of
+the current span with the :class:`Symfony\\AI\\OpenTelemetryBridge\\EventListener\\GuardrailSpanListener`.
+
 Recording the User
 ~~~~~~~~~~~~~~~~~~
 

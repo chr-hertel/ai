@@ -26,6 +26,7 @@ use Symfony\AI\Agent\Attribute\AsContextProcessor;
 use Symfony\AI\Agent\Bridge\Mcp\McpToolbox;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
+use Symfony\AI\Agent\Event\GuardrailTriggered;
 use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
@@ -64,6 +65,7 @@ use Symfony\AI\Chat\InMemory\Store as InMemoryMessageStore;
 use Symfony\AI\Chat\ManagedStoreInterface as ManagedMessageStoreInterface;
 use Symfony\AI\Chat\MessageStoreInterface;
 use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
+use Symfony\AI\OpenTelemetryBridge\EventListener\GuardrailSpanListener;
 use Symfony\AI\OpenTelemetryBridge\Platform\TracingPlatform;
 use Symfony\AI\OpenTelemetryBridge\SemanticConvention\GenAiAttributes;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
@@ -2962,21 +2964,24 @@ final class AiBundle extends AbstractBundle
             $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
                 ->setFactory([OtlpTracerProviderFactory::class, 'create'])
                 ->setArguments([$config['exporter']['endpoint'], $config['exporter']['headers'], $config['exporter']['protocol'], $config['exporter']['resource_attributes']]));
-
-            $container->setDefinition('ai.tracing.flush_listener', new Definition(FlushTracesListener::class, [new Reference($tracerProvider)]))
-                ->addTag('kernel.event_listener', ['event' => 'kernel.terminate'])
-                ->addTag('kernel.event_listener', ['event' => 'console.terminate']);
         } elseif (null === $tracerProvider) {
             $tracerProvider = 'ai.tracing.tracer_provider';
             $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
                 ->setFactory([Globals::class, 'tracerProvider']));
         }
 
+        // flushes SDK tracer providers only, so a custom one is flushed as well and a no-op one is left alone
+        $container->setDefinition('ai.tracing.flush_listener', new Definition(FlushTracesListener::class, [new Reference($tracerProvider)]))
+            ->addTag('kernel.event_listener', ['event' => 'kernel.terminate'])
+            ->addTag('kernel.event_listener', ['event' => 'console.terminate']);
+
         $container->setDefinition('ai.tracing.tracer', (new Definition(TracerInterface::class))
             ->setFactory([new Reference($tracerProvider), 'getTracer'])
             ->setArguments(['symfony/ai', null, GenAiAttributes::SCHEMA_URL]));
 
-        if ($config['capture_user']) {
+        if ($config['capture_user'] && null !== $config['user_id_resolver']) {
+            $container->setAlias('ai.tracing.user_id_resolver', $config['user_id_resolver']);
+        } elseif ($config['capture_user']) {
             if (!ContainerBuilder::willBeAvailable('symfony/security-core', TokenStorageInterface::class, ['symfony/ai-bundle'])) {
                 throw new RuntimeException('Tracing "capture_user" requires "symfony/security-bundle" package. Try running "composer require symfony/security-bundle".');
             }
@@ -2986,6 +2991,12 @@ final class AiBundle extends AbstractBundle
             ]));
         }
 
+        if (ContainerBuilder::willBeAvailable('symfony/ai-agent', GuardrailTriggered::class, ['symfony/ai-bundle'])) {
+            $container->setDefinition('ai.tracing.guardrail_listener', new Definition(GuardrailSpanListener::class))
+                ->addTag('kernel.event_listener', ['event' => GuardrailTriggered::class]);
+        }
+
+        $container->setParameter('.ai.tracing.content_redactor', $config['content_redactor']);
         $container->setParameter('.ai.tracing.capture_content', $config['capture_content']);
         $container->setParameter('.ai.tracing.capture_user', $config['capture_user']);
         $container->setParameter('.ai.tracing.instrument', array_keys(array_filter($config['instrument'])));

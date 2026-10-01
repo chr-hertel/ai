@@ -41,22 +41,24 @@ final class TracingCompilerPass implements CompilerPassInterface
         $captureContent = $container->getParameter('.ai.tracing.capture_content');
         $tracer = new Reference('ai.tracing.tracer');
         $userIdResolver = $container->getParameter('.ai.tracing.capture_user') ? new Reference('ai.tracing.user_id_resolver') : null;
+        $redactorId = $container->hasParameter('.ai.tracing.content_redactor') ? $container->getParameter('.ai.tracing.content_redactor') : null;
+        $redactor = \is_string($redactorId) ? new Reference($redactorId) : null;
 
         if (\in_array('platform', $instrument, true)) {
             foreach ($container->findTaggedServiceIds('ai.platform') as $id => $tags) {
-                $this->decorate($container, $id, TracingPlatform::class, [$tracer, $tags[0]['name'] ?? $id, $captureContent, $userIdResolver]);
+                $this->decorate($container, $id, TracingPlatform::class, [$tracer, $tags[0]['name'] ?? $id, $captureContent, $userIdResolver, $redactor]);
             }
         }
 
         if (\in_array('agent', $instrument, true)) {
             foreach (array_keys($container->findTaggedServiceIds('ai.agent')) as $id) {
-                $this->decorate($container, $id, TracingAgent::class, [$tracer, $captureContent, $userIdResolver]);
+                $this->decorate($container, $id, TracingAgent::class, [$tracer, $captureContent, $userIdResolver, $redactor]);
             }
         }
 
         if (\in_array('toolbox', $instrument, true)) {
             foreach (array_keys($container->findTaggedServiceIds('ai.toolbox')) as $id) {
-                $this->decorate($container, $id, TracingToolbox::class, [$tracer, $captureContent]);
+                $this->decorate($container, $id, TracingToolbox::class, [$tracer, $captureContent, $redactor]);
             }
         }
 

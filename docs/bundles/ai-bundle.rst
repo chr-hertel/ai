@@ -1450,8 +1450,12 @@ runs, tool calls and retrievals with OpenTelemetry, in every environment:
             tracer_provider: 'app.tracer_provider'
             # record prompts, completions, tool arguments and tool results
             capture_content: false
+            # service ID of a ContentRedactorInterface masking personal data in the captured content
+            content_redactor: 'app.pii_redactor'
             # record the identifier of the authenticated Symfony user as "user.id"
             capture_user: false
+            # service ID of a UserIdResolverInterface recording e.g. a pseudonymous ID instead of the user identifier
+            user_id_resolver: null
             # disable single kinds of spans, all enabled by default
             instrument:
                 platform: true
@@ -1459,7 +1463,9 @@ runs, tool calls and retrievals with OpenTelemetry, in every environment:
                 toolbox: true
                 retriever: true
 
-Disabled kinds of spans are not decorated at all, so they cost nothing.
+Disabled kinds of spans are not decorated at all, so they cost nothing. Guardrail interventions are recorded as
+span events, and the spans of an OpenTelemetry SDK tracer provider are flushed once the response is sent or the
+command finished.
 
 .. caution::
 

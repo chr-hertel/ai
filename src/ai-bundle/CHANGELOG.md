@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add `tracing` configuration to trace platforms, agents, toolboxes and retrievers with OpenTelemetry through `symfony/ai-open-telemetry-bridge`, exporting to an OTLP endpoint with the `exporter` option and recording the authenticated user with `capture_user`
+ * Add `content_redactor` and `user_id_resolver` to the `tracing` configuration, record guardrail interventions as span events and flush SDK tracer providers also when configured with `tracer_provider`
 
 0.14
 ----

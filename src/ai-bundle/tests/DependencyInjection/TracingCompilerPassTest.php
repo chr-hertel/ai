@@ -31,17 +31,17 @@ final class TracingCompilerPassTest extends TestCase
         $platform = $container->getDefinition('ai.platform.openai.tracing');
         $this->assertSame(TracingPlatform::class, $platform->getClass());
         $this->assertSame(['ai.platform.openai', null, -768], $platform->getDecoratedService());
-        $this->assertEquals([new Reference('.inner'), new Reference('ai.tracing.tracer'), 'openai', true, null], $platform->getArguments());
+        $this->assertEquals([new Reference('.inner'), new Reference('ai.tracing.tracer'), 'openai', true, null, null], $platform->getArguments());
 
         $agent = $container->getDefinition('ai.agent.support.tracing');
         $this->assertSame(TracingAgent::class, $agent->getClass());
         $this->assertSame(['ai.agent.support', null, -768], $agent->getDecoratedService());
-        $this->assertEquals([new Reference('.inner'), new Reference('ai.tracing.tracer'), true, null], $agent->getArguments());
+        $this->assertEquals([new Reference('.inner'), new Reference('ai.tracing.tracer'), true, null, null], $agent->getArguments());
 
         $toolbox = $container->getDefinition('ai.toolbox.support.tracing');
         $this->assertSame(TracingToolbox::class, $toolbox->getClass());
         $this->assertSame(['ai.toolbox.support', null, -768], $toolbox->getDecoratedService());
-        $this->assertEquals([new Reference('.inner'), new Reference('ai.tracing.tracer'), true], $toolbox->getArguments());
+        $this->assertEquals([new Reference('.inner'), new Reference('ai.tracing.tracer'), true, null], $toolbox->getArguments());
 
         $retriever = $container->getDefinition('ai.retriever.blog.tracing');
         $this->assertSame(TracingRetriever::class, $retriever->getClass());
@@ -58,7 +58,7 @@ final class TracingCompilerPassTest extends TestCase
         $resolver = new Reference('ai.tracing.user_id_resolver');
         $this->assertEquals($resolver, $container->getDefinition('ai.platform.openai.tracing')->getArgument(4));
         $this->assertEquals($resolver, $container->getDefinition('ai.agent.support.tracing')->getArgument(3));
-        $this->assertCount(3, $container->getDefinition('ai.toolbox.support.tracing')->getArguments(), 'Tool spans inherit the user from the agent span');
+        $this->assertNull($container->getDefinition('ai.toolbox.support.tracing')->getArgument(3), 'Tool spans inherit the user from the agent span');
     }
 
     public function testProcessOnlyDecoratesInstrumentedServices()
