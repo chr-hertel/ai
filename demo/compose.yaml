@@ -18,7 +18,17 @@ services:
       # - ./docker/db/data:/var/lib/postgresql/data:rw
 ###< doctrine/doctrine-bundle ###
 
+  # Arize Phoenix as the OpenTelemetry tracing backend, UI and OTLP endpoint on the same port
+  phoenix:
+    image: arizephoenix/phoenix:version-20.16.0
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+      PHOENIX_TELEMETRY_ENABLED: 'false'
+    volumes:
+      - phoenix_data:/mnt/data
+
 volumes:
 ###> doctrine/doctrine-bundle ###
   database_data:
 ###< doctrine/doctrine-bundle ###
+  phoenix_data:

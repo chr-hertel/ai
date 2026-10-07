@@ -33,6 +33,7 @@ This small demo sits on top of following technologies:
 ## Setup
 
 The setup is split into three parts, the Symfony application, the OpenAI configuration, and initializing PostgreSQL.
+Tracing with Arize Phoenix comes with the docker environment, see the fourth part.
 
 ### 1. Symfony App
 
@@ -87,6 +88,21 @@ symfony console ai:store:retrieve blog "Week of Symfony"
 ```
 
 **Don't forget to set up the project in your favorite IDE or editor.**
+
+### 4. Tracing with Arize Phoenix
+
+Every agent run, model call, tool call and retrieval is traced with OpenTelemetry. The spans follow the GenAI semantic
+conventions and go to the local [Arize Phoenix](https://phoenix.arize.com/) that `docker compose up -d` starts next to
+the database. Use the demo, then open http://localhost:6006 and the project "Symfony AI Demo".
+
+The spans come from `symfony/ai-open-telemetry-bridge`, enabled by the `tracing` section of `config/packages/ai.yaml`,
+which also exports them to Phoenix. Point `OTEL_EXPORTER_OTLP_ENDPOINT` to any other OTLP/HTTP backend instead, or
+leave it empty to disable the export. To also see prompts and completions, add
+`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` to `.env.local`.
+
+> [!WARNING]
+> `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` sends prompts, completions and tool arguments to the
+> tracing backend. Only enable it for backends that are allowed to store that data.
 
 ## Testing
 

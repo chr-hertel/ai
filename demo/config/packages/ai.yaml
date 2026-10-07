@@ -169,6 +169,15 @@ ai:
         blog:
             store: 'ai.store.postgres.symfony_blog'
             vectorizer: 'ai.vectorizer.openai'
+    tracing:
+        enabled: true
+        capture_content: '%env(bool:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT)%'
+        exporter:
+            endpoint: '%env(OTEL_EXPORTER_OTLP_ENDPOINT)%'
+            resource_attributes:
+                service.name: 'symfony-ai-demo'
+                # Arize Phoenix groups the traces by this project
+                openinference.project.name: 'Symfony AI Demo'
 
 services:
     _defaults:
