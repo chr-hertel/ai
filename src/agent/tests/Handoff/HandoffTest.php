@@ -26,6 +26,7 @@ use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
 use Symfony\AI\Agent\Handoff\Handoff;
+use Symfony\AI\Agent\Handoff\HandoffTrail;
 use Symfony\AI\Agent\Handoff\History;
 use Symfony\AI\Agent\MockAgent;
 use Symfony\AI\Agent\Tests\Fixtures\RecordingProcessor;
@@ -243,7 +244,7 @@ final class HandoffTest extends TestCase
         $target->method('getName')->willReturn('technical');
         $target->expects($this->once())
             ->method('call')
-            ->with($this->anything(), $this->callback(static fn (Context $context): bool => [$item] === $context->all()))
+            ->with($this->anything(), $this->callback(static fn (Context $context): bool => [$item] === $context->without(HandoffTrail::class)->all() && $context->has(HandoffTrail::class)))
             ->willReturn(new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('The technical agent answered.'))));
 
         $agent = new Agent(
@@ -581,6 +582,48 @@ final class HandoffTest extends TestCase
         History::window(0);
     }
 
+    public function testTwoAgentsHandingOffToEachOtherDoNotLoop()
+    {
+        $a = new Agent($this->chainPlatform('b', 'A answers.'), 'gpt-4o', name: 'a');
+        $routingCallsOfB = 0;
+        $b = new Agent($this->chainPlatform('a', 'B answers.', $routingCallsOfB), 'gpt-4o', name: 'b', context: new Context(new Handoff($a, 'anything')));
+
+        $this->assertSame('B answers.', $a->call('Hello there', new Context(new Handoff($b, 'anything')))->asText());
+        // the handoff back to "a" is not even offered, so "b" does not ask its model to route
+        $this->assertSame(0, $routingCallsOfB);
+    }
+
+    public function testHandoffsStopAtTheMaximumDepth()
+    {
+        $e = new MockAgent([], 'e');
+        $d = new Agent($this->chainPlatform('e', 'D answers.'), 'gpt-4o', name: 'd', context: new Context(new Handoff($e, 'anything')));
+        $c = new Agent($this->chainPlatform('d', 'C answers.'), 'gpt-4o', name: 'c', context: new Context(new Handoff($d, 'anything')));
+        $b = new Agent($this->chainPlatform('c', 'B answers.'), 'gpt-4o', name: 'b', context: new Context(new Handoff($c, 'anything')));
+        $a = new Agent($this->chainPlatform('b', 'A answers.'), 'gpt-4o', name: 'a', context: new Context(new Handoff($b, 'anything')));
+
+        // a, b and c handed the request off, so d is at the default maximum depth of 3 and answers itself
+        $this->assertSame('D answers.', $a->call('Hello there')->asText());
+        $e->assertNotCalled();
+    }
+
+    public function testTheHandoffTrailDoesNotLeakIntoTheNextCall()
+    {
+        $b = new MockAgent(['Hello there' => 'B answers.'], 'b');
+        $a = new Agent($this->chainPlatform('b', 'A answers.'), 'gpt-4o', name: 'a', context: new Context(new Handoff($b, 'anything')));
+
+        $this->assertSame('B answers.', $a->call('Hello there')->asText());
+        $this->assertSame('B answers.', $a->call('Hello there')->asText());
+        $b->assertCallCount(2);
+    }
+
+    public function testTheMaximumDepthMustBeAtLeastOne()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The maximum handoff depth must be at least one.');
+
+        new HandoffProcessor(new InMemoryPlatform('Hi'), maxDepth: 0);
+    }
+
     public function testAHandoffRequiresADescription()
     {
         $this->expectException(InvalidArgumentException::class);
@@ -656,5 +699,21 @@ final class HandoffTest extends TestCase
         });
 
         return $target;
+    }
+
+    /**
+     * A platform picking the given agent whenever it is asked to route, and answering with the given text otherwise.
+     */
+    private function chainPlatform(string $next, string $answer, int &$routingCalls = 0): InMemoryPlatform
+    {
+        return new InMemoryPlatform(static function (mixed $model, mixed $input, array $options) use ($next, $answer, &$routingCalls): ResultInterface {
+            if (isset($options['response_format'])) {
+                ++$routingCalls;
+
+                return new ObjectResult(['agentName' => $next, 'reasoning' => 'Next in line.']);
+            }
+
+            return new TextResult($answer);
+        });
     }
 }

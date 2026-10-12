@@ -268,6 +268,9 @@ its handoffs should handle the request; when none is picked, it simply answers o
         </tbody>
     </table>
 </div>
+<p>A specialist can have handoffs of its own. A request is never handed back to an agent it was already handed off
+from, and after three handoffs in a row the agent answers itself; pass a <code translate="no" class="notranslate">HandoffProcessor</code> with a different
+<code translate="no" class="notranslate">maxDepth</code> to change that limit.</p>
 <p>Because handoffs are context items, you can also offer them for a single call only:
 <code translate="no" class="notranslate">$agent-&gt;call($messages, new Context(new Handoff($technical, '...')))</code>.</p>
 <div class="admonition admonition-caution ">

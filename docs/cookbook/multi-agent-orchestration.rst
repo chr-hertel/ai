@@ -113,6 +113,10 @@ its handoffs should handle the request; when none is picked, it simply answers o
         context: $handoffs,
     );
 
+A specialist can have handoffs of its own. A request is never handed back to an agent it was already handed off
+from, and after three handoffs in a row the agent answers itself; pass a ``HandoffProcessor`` with a different
+``maxDepth`` to change that limit.
+
 Because handoffs are context items, you can also offer them for a single call only:
 ``$agent->call($messages, new Context(new Handoff($technical, '...')))``.
 
