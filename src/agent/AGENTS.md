@@ -22,7 +22,7 @@ Framework for building AI agents with user interaction and task execution. Built
 ### Key Features
 - **Memory** (`src/Memory/`): Conversation memory with embeddings
 - **Toolbox** (`src/Toolbox/`): Function calling capabilities
-- **MultiAgent** (`src/MultiAgent/`): Orchestration across multiple specialized agents
+- **Handoff** (`src/Handoff/`): Context items delegating a request to other specialized agents, processed by `Context\Processor\HandoffProcessor`
 - **Bridge** (`src/Bridge/`): Third-party tool integrations (Brave, Tavily, Wikipedia, etc.)
 
 ## Essential Commands

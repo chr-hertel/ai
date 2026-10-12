@@ -61,6 +61,27 @@ Agent
    +public function load(AgentRequest $request): array
    ```
 
+ * The `MultiAgent` namespace has been removed. Handoffs are now context items of the agent itself: an agent with
+   handoffs asks the model which of them should handle the request and delegates to it, and answers itself when
+   none is picked. The former `fallback` agent becomes a catch-all handoff:
+
+   ```diff
+   -$multiAgent = new MultiAgent(
+   -    orchestrator: $orchestrator,
+   -    handoffs: [new Handoff(to: $technical, when: ['bug', 'error'])],
+   -    fallback: $fallback,
+   -);
+   +$multiAgent = new Agent($platform, $model, instruction: '...', context: new Context(
+   +    new Handoff($technical, 'bugs, errors and other technical problems'),
+   +    new Handoff($fallback, 'general or otherwise unmatched requests'),
+   +));
+   ```
+
+   `Handoff` takes a natural-language description instead of a list of `when` keywords, plus an optional condition
+   to make it applicable only in certain situations. Being context items, handoffs can also be given per call:
+   `$agent->call($messages, new Context(new Handoff(...)))`. `MultiAgent\Handoff\Decision` moved to
+   `Handoff\Decision`.
+
  * `ModelOverrideInputProcessor` has been removed. The `model` option overrides the agent's model out of the box:
 
    ```diff

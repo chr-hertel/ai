@@ -741,7 +741,7 @@ Handoff rules are defined as a key-value mapping where:
 
 Example of creating a Handoff in PHP::
 
-    use Symfony\AI\Agent\MultiAgent\Handoff;
+    use Symfony\AI\Agent\Handoff\Handoff;
 
     $technicalHandoff = new Handoff(
         to: $technicalAgent,
@@ -961,6 +961,10 @@ attribute::
             // ...
         }
     }
+
+Processors run in the order of their priority, highest first. Each agent has a ``HandoffProcessor`` with priority
+``0``: when it hands a request off to another agent, the processors after it are skipped. Give a processor that must
+apply to every request, like an input guardrail, a priority above ``0``.
 
 Register Tools
 ~~~~~~~~~~~~~~

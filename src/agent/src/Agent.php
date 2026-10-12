@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Context\Processor\AttachmentProcessor;
+use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
 use Symfony\AI\Agent\Context\Processor\InstructionProcessor;
 use Symfony\AI\Agent\Context\Processor\ToolProcessor;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
@@ -76,22 +77,30 @@ final class Agent implements AgentInterface
             $toolExecutor = new SequentialToolExecutor($toolbox);
         }
 
-        $processors = [
-            new InstructionProcessor($translator, $includeToolsInInstruction ? $toolbox : null, $logger ?? new NullLogger()),
-            new AttachmentProcessor(),
-        ];
-
-        if ($toolbox instanceof ToolboxInterface) {
-            $processors[] = new ToolProcessor($toolbox);
-        }
-
+        $customProcessors = [];
         foreach ($contextProcessors as $processor) {
             if (!$processor instanceof ContextProcessorInterface) {
                 throw new InvalidArgumentException(\sprintf('Context processor "%s" must implement "%s".', get_debug_type($processor), ContextProcessorInterface::class));
             }
 
-            $processors[] = $processor;
+            $customProcessors[] = $processor;
         }
+
+        $processors = [];
+
+        // a HandoffProcessor among the given ones keeps its position, so processors can run before the routing
+        if ([] === array_filter($customProcessors, static fn (ContextProcessorInterface $processor): bool => $processor instanceof HandoffProcessor)) {
+            $processors[] = new HandoffProcessor($platform, $eventDispatcher);
+        }
+
+        $processors[] = new InstructionProcessor($translator, $includeToolsInInstruction ? $toolbox : null, $logger ?? new NullLogger());
+        $processors[] = new AttachmentProcessor();
+
+        if ($toolbox instanceof ToolboxInterface) {
+            $processors[] = new ToolProcessor($toolbox);
+        }
+
+        $processors = [...$processors, ...$customProcessors];
 
         $this->runner = new Runner(
             $platform,

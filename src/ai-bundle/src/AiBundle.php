@@ -19,11 +19,12 @@ use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Attribute\AsContextProcessor;
 use Symfony\AI\Agent\Bridge\Mcp\McpToolbox;
+use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
+use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
 use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
+use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
-use Symfony\AI\Agent\MultiAgent\Handoff;
-use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
@@ -1667,6 +1668,9 @@ final class AiBundle extends AbstractBundle
         $container->setDefinition($agentId, $agentDefinition);
         $container->registerAliasForArgument($agentId, AgentInterface::class, (new Target($name))->getParsedName());
 
+        // HANDOFFS
+        $this->registerHandoffProcessor($agentId, $agentDefinition, $container);
+
         // SPEECH DECORATOR
         if (isset($config['speech']) && $config['speech']['enabled']) {
             $container->setDefinition('ai.agent.'.$name.'.speech_configuration', new Definition(SpeechConfiguration::class))
@@ -2951,30 +2955,49 @@ final class AiBundle extends AbstractBundle
     {
         $orchestratorServiceId = self::normalizeAgentServiceId($config['orchestrator']);
 
-        $handoffReferences = [];
+        // Handoffs are context items of the orchestrating agent, the container inlines these value objects
+        $handoffs = [];
 
         foreach ($config['handoffs'] as $agentName => $whenConditions) {
-            // Create handoff definitions directly (not as separate services)
-            // The container will inline simple value objects like Handoff
-            $handoffReferences[] = new Definition(Handoff::class, [
+            $handoffs[] = new Definition(Handoff::class, [
                 new Reference(self::normalizeAgentServiceId($agentName)),
-                $whenConditions,
+                implode(', ', $whenConditions),
             ]);
         }
 
-        $multiAgentId = 'ai.multi_agent.'.$name;
-        $multiAgentDefinition = new Definition(MultiAgent::class, [
-            new Reference($orchestratorServiceId),
-            $handoffReferences,
+        // The fallback agent takes everything the other handoffs do not match
+        $handoffs[] = new Definition(Handoff::class, [
             new Reference(self::normalizeAgentServiceId($config['fallback'])),
-            $name,
+            'general or otherwise unmatched requests',
         ]);
 
+        // The multi agent is the orchestrating agent - same platform, model, instruction and tools - carrying the
+        // handoffs in its context. It is a service of its own, so several multi agents can share one orchestrator.
+        $multiAgentId = 'ai.multi_agent.'.$name;
+        $multiAgentDefinition = clone $container->getDefinition($orchestratorServiceId);
+        $multiAgentDefinition->clearTags();
+        $multiAgentDefinition->setArgument('$name', $name);
+        $multiAgentDefinition->setArgument('$context', new Definition(Context::class, $handoffs));
         $multiAgentDefinition->addTag('ai.multi_agent', ['name' => $name]);
         $multiAgentDefinition->addTag('ai.agent', ['name' => $name]);
 
         $container->setDefinition($multiAgentId, $multiAgentDefinition);
+        $this->registerHandoffProcessor($multiAgentId, $multiAgentDefinition, $container);
         $container->registerAliasForArgument($multiAgentId, AgentInterface::class, (new Target($name))->getParsedName());
+    }
+
+    /**
+     * Registers the agent's HandoffProcessor at priority 0, so context processors with a higher priority run before
+     * the routing, which skips the remaining processors when it hands the request off.
+     */
+    private function registerHandoffProcessor(string $agentId, Definition $agentDefinition, ContainerBuilder $container): void
+    {
+        $container->setDefinition($agentId.'.handoff_processor', new Definition(HandoffProcessor::class))
+            ->setArguments([
+                '$platform' => $agentDefinition->getArgument('$platform'),
+                '$eventDispatcher' => new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ])
+            ->addTag('ai.agent.context_processor', ['agent' => $agentId, 'priority' => 0]);
     }
 
     /**
