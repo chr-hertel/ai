@@ -85,7 +85,7 @@ final class HandoffProcessor implements ContextProcessorInterface
 
         // the target brings its own instruction and handoffs, the delegating agent's must not leak into it
         $targetContext = $request->getContext()->without(Instruction::class)->without(Handoff::class);
-        $delegation = $target->call($userMessage, $targetContext, $request->getOptions());
+        $delegation = $target->call($userMessage, $targetContext, $this->targetOptions($request->getOptions()));
 
         if (null !== $this->eventDispatcher) {
             $eventDispatcher = $this->eventDispatcher;
@@ -98,6 +98,29 @@ final class HandoffProcessor implements ContextProcessorInterface
         }
 
         $context->delegate($delegation, $target->getName());
+    }
+
+    /**
+     * Drops the tool names restricting the delegating agent's toolbox, the target exposes its own toolbox.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    private function targetOptions(array $options): array
+    {
+        if (!isset($options['tools']) || !\is_array($options['tools']) || [] === $options['tools']) {
+            return $options;
+        }
+
+        $options['tools'] = array_values(array_filter($options['tools'], static fn (mixed $tool): bool => !\is_string($tool)));
+
+        // an empty tools option would allow no tool at all, while the list only restricted the delegating agent
+        if ([] === $options['tools']) {
+            unset($options['tools']);
+        }
+
+        return $options;
     }
 
     private function decide(string $model, string $prompt, ?Cancellation $cancellation): ?Decision

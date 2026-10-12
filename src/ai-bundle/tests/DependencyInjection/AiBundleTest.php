@@ -28,6 +28,7 @@ use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Bridge\Mcp\McpToolbox;
 use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
 use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
 use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
@@ -8495,6 +8496,33 @@ class AiBundleTest extends TestCase
 
         // Verify alias is created
         $this->assertTrue($container->hasAlias(AgentInterface::class.' $support'));
+    }
+
+    public function testEveryAgentGetsItsHandoffProcessorAtPriorityZero()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'dispatcher' => ['model' => 'gpt-4o-mini'],
+                    'general' => ['model' => 'gpt-4o-mini'],
+                ],
+                'multi_agent' => [
+                    'support' => [
+                        'orchestrator' => 'dispatcher',
+                        'fallback' => 'general',
+                        'handoffs' => ['dispatcher' => ['routing']],
+                    ],
+                ],
+            ],
+        ]);
+
+        foreach (['ai.agent.dispatcher', 'ai.multi_agent.support'] as $agentId) {
+            $processor = $container->getDefinition($agentId.'.handoff_processor');
+
+            $this->assertSame(HandoffProcessor::class, $processor->getClass());
+            $this->assertEquals($container->getDefinition($agentId)->getArgument('$platform'), $processor->getArgument('$platform'));
+            $this->assertSame([['agent' => $agentId, 'priority' => 0]], $processor->getTag('ai.agent.context_processor'));
+        }
     }
 
     public function testMultiAgentWithMultipleHandoffs()

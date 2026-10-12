@@ -970,9 +970,13 @@ Service                                    Priority  Purpose
 =========================================  ========  ===================================================
 ``ai.agent.<name>.instruction_processor``  ``100``   injects the instruction as system message
 ``ai.agent.<name>.attachment_processor``   ``90``    attaches context content to the user message
+``ai.agent.<name>.handoff_processor``      ``0``     routes the request to a handoff target, if any
 ``ai.agent.<name>.memory_processor``       ``-40``   adds the configured memory to the system message
 ``ai.agent.<name>.tool_processor``         ``-100``  exposes the toolbox and enforces the tools option
 =========================================  ========  ===================================================
+
+When the handoff processor hands a request off to another agent, the processors after it are skipped. Give a
+processor that must apply to every request, like an input guardrail, a priority above ``0``.
 
 Register Tools
 ~~~~~~~~~~~~~~

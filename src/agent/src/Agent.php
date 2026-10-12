@@ -95,7 +95,9 @@ final class Agent implements AgentInterface
             array_unshift($processors, new InstructionProcessor($translator, $includeToolsInInstruction ? $toolbox : null, $logger));
         }
 
-        array_unshift($processors, new HandoffProcessor($platform, $eventDispatcher));
+        if (!$this->contains($processors, HandoffProcessor::class)) {
+            array_unshift($processors, new HandoffProcessor($platform, $eventDispatcher));
+        }
 
         // last by default, so the tools option a processor sets is exposed and enforced
         if ($toolbox instanceof ToolboxInterface && !$this->contains($processors, ToolProcessor::class)) {

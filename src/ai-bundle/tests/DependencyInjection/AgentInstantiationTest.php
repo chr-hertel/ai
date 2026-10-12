@@ -112,6 +112,7 @@ final class AgentInstantiationTest extends TestCase
             'custom_processor',
             'ai.agent.my_agent.instruction_processor',
             'ai.agent.my_agent.attachment_processor',
+            'ai.agent.my_agent.handoff_processor',
             'ai.agent.my_agent.memory_processor',
             'ai.agent.my_agent.tool_processor',
         ], $processors);

@@ -1195,6 +1195,16 @@ The result of the delegated execution completes the run like an answer of the mo
 it, and the ``ExecutionCompleted`` event is dispatched. The optional second argument names the delegate in the result
 metadata as ``delegated_to``. Canceling the execution also cancels the delegated one.
 
+A delegation short-circuits the processor chain: every processor after the delegating one is skipped, including its
+``processResult()``. The built-in :class:`Symfony\\AI\\Agent\\Context\\Processor\\HandoffProcessor` runs first
+by default, so a processor that must apply to every request - an input guardrail, a budget check - has to run before
+it. To do so, pass your own ``HandoffProcessor`` among the context processors, after the ones that must run first.
+The agent then does not add its default one::
+
+    use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
+
+    $agent = new Agent($platform, $model, [$guardrail, new HandoffProcessor($platform), $memoryProcessor]);
+
 Agent Memory Management
 -----------------------
 

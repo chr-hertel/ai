@@ -22,6 +22,7 @@ use Symfony\AI\Agent\Bridge\Mcp\McpToolbox;
 use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Processor\AttachmentProcessor;
+use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
 use Symfony\AI\Agent\Context\Processor\InstructionProcessor;
 use Symfony\AI\Agent\Context\Processor\MemoryProcessor;
 use Symfony\AI\Agent\Context\Processor\ToolProcessor;
@@ -1684,6 +1685,9 @@ final class AiBundle extends AbstractBundle
         $container->setDefinition($agentId, $agentDefinition);
         $container->registerAliasForArgument($agentId, AgentInterface::class, (new Target($name))->getParsedName());
 
+        // HANDOFFS
+        $this->registerHandoffProcessor($agentId, $agentDefinition, $container);
+
         // SPEECH DECORATOR
         if (isset($config['speech']) && $config['speech']['enabled']) {
             $container->setDefinition('ai.agent.'.$name.'.speech_configuration', new Definition(SpeechConfiguration::class))
@@ -3005,7 +3009,22 @@ final class AiBundle extends AbstractBundle
         $multiAgentDefinition->addTag('ai.agent', ['name' => $name]);
 
         $container->setDefinition($multiAgentId, $multiAgentDefinition);
+        $this->registerHandoffProcessor($multiAgentId, $multiAgentDefinition, $container);
         $container->registerAliasForArgument($multiAgentId, AgentInterface::class, (new Target($name))->getParsedName());
+    }
+
+    /**
+     * Registers the agent's HandoffProcessor at priority 0, so context processors with a higher priority run before
+     * the routing, which skips the remaining processors when it hands the request off.
+     */
+    private function registerHandoffProcessor(string $agentId, Definition $agentDefinition, ContainerBuilder $container): void
+    {
+        $container->setDefinition($agentId.'.handoff_processor', new Definition(HandoffProcessor::class))
+            ->setArguments([
+                '$platform' => $agentDefinition->getArgument('$platform'),
+                '$eventDispatcher' => new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ])
+            ->addTag('ai.agent.context_processor', ['agent' => $agentId, 'priority' => 0]);
     }
 
     /**
