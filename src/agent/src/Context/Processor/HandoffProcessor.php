@@ -23,6 +23,7 @@ use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
 use Symfony\AI\Agent\Handoff\Handoff;
+use Symfony\AI\Agent\Handoff\HandoffTrail;
 use Symfony\AI\Agent\Handoff\History;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
 use Symfony\AI\Platform\Message\Message;
@@ -42,14 +43,20 @@ final class HandoffProcessor implements ContextProcessorInterface
 {
     /**
      * @param int $routingWindow the number of most recent conversation messages the routing decision is based on
+     * @param int $maxDepth      the number of handoffs in a row, after which an agent answers itself
      */
     public function __construct(
         private readonly PlatformInterface $platform,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly int $routingWindow = 10,
+        private readonly int $maxDepth = 3,
     ) {
         if ($routingWindow < 1) {
             throw new InvalidArgumentException('The routing window must contain at least one message.');
+        }
+
+        if ($maxDepth < 1) {
+            throw new InvalidArgumentException('The maximum handoff depth must be at least one.');
         }
     }
 
@@ -60,9 +67,19 @@ final class HandoffProcessor implements ContextProcessorInterface
 
     public function process(AgentRequest $request, AgentContext $context): void
     {
+        $trail = $request->getContext()->all(HandoffTrail::class)[0] ?? null;
+        if (!$trail instanceof HandoffTrail) {
+            $trail = new HandoffTrail();
+        }
+
+        if ($trail->getDepth() >= $this->maxDepth) {
+            return;
+        }
+
+        // an agent the request was already handed off from must not get it back, or two agents could loop forever
         $handoffs = array_values(array_filter(
             $request->getContext()->all(Handoff::class),
-            static fn (Handoff $handoff): bool => $handoff->isApplicable(),
+            static fn (Handoff $handoff): bool => !$trail->contains($handoff->getTo()->getName()) && $handoff->isApplicable(),
         ));
 
         if ([] === $handoffs) {
@@ -87,14 +104,15 @@ final class HandoffProcessor implements ContextProcessorInterface
         $this->eventDispatcher?->dispatch($event);
 
         $target = $event->getTarget();
-        if (null === $target) {
+        if (null === $target || $trail->contains($target->getName())) {
             return;
         }
 
         $context->reportProgress(Progress::STAGE_HANDOFF, \sprintf('Delegating to agent "%s".', $target->getName()), $target->getName());
 
         // the target brings its own instruction and handoffs, the delegating agent's must not leak into it
-        $targetContext = $request->getContext()->without(Instruction::class)->without(Handoff::class);
+        $targetContext = $request->getContext()->without(Instruction::class)->without(Handoff::class)->without(HandoffTrail::class)
+            ->with($trail->with($context->getAgent()->getName()));
         $delegation = $target->call($handoff->getHistory()->apply($request->getMessageBag()), $targetContext, $this->targetOptions($request->getOptions()));
 
         if (null !== $this->eventDispatcher) {
