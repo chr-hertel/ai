@@ -63,32 +63,27 @@ point::
 Step 4: Configure Handoffs
 --------------------------
 
-A :class:`Symfony\\AI\\Agent\\MultiAgent\\Handoff` defines when a question should be routed to a
-specific agent. The ``when`` parameter accepts an array of keywords that trigger the routing.
-When the orchestrator detects these keywords in the user's question, it delegates to the matching
-agent::
+A :class:`Symfony\\AI\\Agent\\Handoff\\Handoff` defines when a question should be routed to a specific agent. Its
+description is what the orchestrator's model reads to make its decision, so describe the agent's domain in natural
+language::
 
-    use Symfony\AI\Agent\MultiAgent\Handoff;
+    use Symfony\AI\Agent\Handoff\Handoff;
 
     $handoffs = [
-        new Handoff(
-            to: $technical,
-            when: ['bug', 'error', 'exception', 'technical'],
-        ),
-        new Handoff(
-            to: $billing,
-            when: ['invoice', 'payment', 'billing', 'subscription'],
-        ),
+        new Handoff($technical, 'bugs, errors, exceptions and other technical problems'),
+        new Handoff($billing, 'invoices, payments, billing and subscriptions'),
+        new Handoff($fallback, 'general or otherwise unmatched requests'),
     ];
 
-Step 5: Build the MultiAgent
-----------------------------
+A handoff can also carry a condition, so it is only offered when it applies::
 
-The :class:`Symfony\\AI\\Agent\\MultiAgent\\MultiAgent` ties everything together. It takes the
-orchestrator, an array of handoffs, and a fallback agent that handles questions that do not match
-any specialist::
+    new Handoff($billing, 'invoices and payments', condition: fn () => $user->hasSubscription());
 
-    use Symfony\AI\Agent\MultiAgent\MultiAgent;
+Step 5: Give the Handoffs to the Orchestrator
+---------------------------------------------
+
+Handoffs live on the orchestrating agent. Before it answers itself, it asks the model which of its handoffs should
+handle the request; when none is picked, it simply answers on its own::
 
     $fallback = new Agent(
         $platform,
@@ -97,10 +92,11 @@ any specialist::
         name: 'fallback',
     );
 
-    $multiAgent = new MultiAgent(
-        orchestrator: $orchestrator,
+    $multiAgent = new Agent(
+        $platform,
+        'gpt-5-mini',
+        instruction: 'You are an agent orchestrator that routes user questions to specialized agents.',
         handoffs: $handoffs,
-        fallback: $fallback,
     );
 
 Step 6: Route Questions Automatically
@@ -128,22 +124,22 @@ the question and routes it to the appropriate specialist automatically::
 
 .. tip::
 
-    You can add as many specialist agents as you need. Each handoff is evaluated independently,
-    so the orchestrator can route to any number of domains. For debugging, pass a PSR-3 logger to
-    the ``MultiAgent`` constructor to see which agent handles each request.
+    You can add as many specialist agents as you need. To observe the routing, iterate the agent's execution with
+    ``run()``: the handoff is reported as a ``Progress`` update of the ``handoff`` stage. The
+    ``HandoffRequested`` and ``HandoffCompleted`` events carry the same information, and a listener on
+    ``HandoffRequested`` can override or cancel the target.
 
 Step 7: Show Which Agent Answers
 --------------------------------
 
 Routing is invisible from the outside: the caller asks a question and gets an answer, with no clue
-which specialist produced it. Iterating the multi-agent instead of reading its result lets you show
-that, because the delegated agents report their own steps into the very same execution. The routing
-itself arrives as a ``Progress`` update of the ``handoff`` stage, carrying the orchestrator's
-:class:`Symfony\\AI\\Agent\\MultiAgent\\Handoff\\Decision` as payload::
+which specialist produced it. Iterating the agent instead of reading its result lets you show that,
+because the agent it hands off to reports its own steps into the very same execution. The handoff
+itself arrives as a ``Progress`` update of the ``handoff`` stage, carrying the name of the agent that
+takes over as payload::
 
     use Symfony\AI\Agent\Execution\Update\Progress;
     use Symfony\AI\Agent\Execution\Update\Result;
-    use Symfony\AI\Agent\MultiAgent\Handoff\Decision;
 
     $messages = new MessageBag(
         Message::ofUser('I get a "Call to undefined method" error in my controller.'),
@@ -151,10 +147,7 @@ itself arrives as a ``Progress`` update of the ``handoff`` stage, carrying the o
 
     foreach ($multiAgent->call($messages) as $update) {
         if ($update instanceof Progress && 'handoff' === $update->getStage()) {
-            $decision = $update->getPayload();
-            \assert($decision instanceof Decision);
-
-            echo $update->getMessage().' Reason: '.$decision->getReasoning().\PHP_EOL;
+            echo $update->getMessage().\PHP_EOL; // Delegating to agent "technical".
 
             continue;
         }
@@ -168,17 +161,15 @@ itself arrives as a ``Progress`` update of the ``handoff`` stage, carrying the o
         }
     }
 
-The message names the agent that actually runs, while the decision explains why the orchestrator
-picked it - the two differ when the orchestrator selects an agent that no handoff defines, in which
-case the fallback answers instead. See the
+Every update after the handoff comes from the agent that took over, so the loop shows the specialist
+working. See the
 `orchestrator-iterable.php <https://github.com/symfony/ai/blob/main/examples/multi-agent/orchestrator-iterable.php>`_
 example for a runnable version of this loop.
 
 .. note::
 
-    The orchestrator's own routing round is machinery, not answer: its ``model_request`` and
-    ``tool_call`` updates are forwarded so you can show that a decision is being made, but the
-    deltas that spell out the ``Decision`` are not. With the ``stream`` option, the ``delta``
+    Picking the agent is machinery, not answer: the routing round is not reported as an update of its
+    own, the ``handoff`` update announces its outcome. With the ``stream`` option, the ``delta``
     updates you receive are therefore only those of the agent that answers.
 
 Learn More
