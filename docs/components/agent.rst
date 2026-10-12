@@ -1092,6 +1092,10 @@ The built-in :class:`Symfony\\AI\\Agent\\Context\\Instruction` is what used to b
 platform content objects (``Image``, ``Audio``, ``Document``, ...) passed as context items get attached to the user
 message.
 
+Context items are runtime objects and are never persisted: a handoff, for example, holds the agent it hands off to.
+Only what processors turn into messages ends up in a conversation, so pass the items again on every call, either on
+the agent or per call.
+
 Context Processors
 ~~~~~~~~~~~~~~~~~~
 

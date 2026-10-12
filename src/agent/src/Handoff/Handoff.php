@@ -17,6 +17,8 @@ use Symfony\AI\Agent\Exception\InvalidArgumentException;
 /**
  * Defines a possible handoff to another agent.
  *
+ * As a context item it is a runtime object holding a live agent and closure, it is never persisted.
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class Handoff
