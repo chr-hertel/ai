@@ -23,12 +23,10 @@ use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
 use Symfony\AI\Agent\Handoff\Handoff;
+use Symfony\AI\Agent\Handoff\History;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
-use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
-use Symfony\AI\Platform\Message\MessageInterface;
-use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Tool\Tool;
@@ -71,9 +69,7 @@ final class HandoffProcessor implements ContextProcessorInterface
             return;
         }
 
-        $userMessages = array_filter($request->getMessageBag()->getMessages(), static fn (MessageInterface $message): bool => $message instanceof UserMessage);
-        $userMessage = array_pop($userMessages);
-        if (!$userMessage instanceof UserMessage) {
+        if (null === $request->getMessageBag()->getUserMessage()) {
             return;
         }
 
@@ -99,7 +95,7 @@ final class HandoffProcessor implements ContextProcessorInterface
 
         // the target brings its own instruction and handoffs, the delegating agent's must not leak into it
         $targetContext = $request->getContext()->without(Instruction::class)->without(Handoff::class);
-        $delegation = $target->call($userMessage, $targetContext, $this->targetOptions($request->getOptions()));
+        $delegation = $target->call($handoff->getHistory()->apply($request->getMessageBag()), $targetContext, $this->targetOptions($request->getOptions()));
 
         if (null !== $this->eventDispatcher) {
             $eventDispatcher = $this->eventDispatcher;
@@ -144,7 +140,7 @@ final class HandoffProcessor implements ContextProcessorInterface
     {
         $names = array_map(static fn (Handoff $handoff): string => $handoff->getTo()->getName(), $handoffs);
 
-        $messages = new MessageBag(Message::forSystem($this->buildInstruction($handoffs)), ...$this->routingMessages($conversation));
+        $messages = History::window($this->routingWindow)->apply($conversation)->withSystemMessage(Message::forSystem($this->buildInstruction($handoffs)));
         $deferredDecision = $this->platform->invoke($model, $messages, ['response_format' => $this->decisionFormat($names)]);
         $cancellation?->activate($deferredDecision->getRawResult());
 
@@ -180,22 +176,6 @@ final class HandoffProcessor implements ContextProcessorInterface
         } catch (UnexpectedResultTypeException|\JsonException) {
             return null;
         }
-    }
-
-    /**
-     * The most recent conversational messages, with assistant messages reduced to their text, so the window never
-     * starts in the middle of a tool call.
-     *
-     * @return list<MessageInterface>
-     */
-    private function routingMessages(MessageBag $conversation): array
-    {
-        $messages = \array_slice($conversation->withoutSystemMessage()->withoutToolMessages()->getMessages(), -$this->routingWindow);
-
-        return array_map(
-            static fn (MessageInterface $message): MessageInterface => $message instanceof AssistantMessage ? Message::ofAssistant($message->asText() ?? '') : $message,
-            $messages,
-        );
     }
 
     /**

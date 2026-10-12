@@ -189,6 +189,32 @@ language. Handoffs are context items, so collect them in a
         </tbody>
     </table>
 </div>
+<p>By default, the agent a request is handed off to receives the whole conversation, without the orchestrator's
+system message and tool calls. A <a href="https://github.com/symfony/ai/blob/main/src/agent/src/Handoff/History.php" class="reference external" title="Symfony\AI\Agent\Handoff\History" rel="external noopener noreferrer" target="_blank">History</a> narrows that down per handoff:</p>
+<div translate="no" class="highlight-php notranslate">
+    <table class="highlighttable">
+        <tbody>
+            <tr>
+                <td class="linenos">
+                    <div class="linenodiv">
+                        <pre>1
+2
+3
+4</pre>
+                    </div>
+                </td>
+                <td class="code">
+                    <div class="highlight">
+                        <pre class="hljs php"><span class="hljs-keyword">use</span> <span class="hljs-title">Symfony</span>\<span class="hljs-title">AI</span>\<span class="hljs-title">Agent</span>\<span class="hljs-title">Handoff</span>\<span class="hljs-title">History</span>;
+
+<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>technical</span>, <span class="hljs-string">'bugs and errors'</span>, <span class="hljs-attr">history</span>: History::<span class="hljs-title invoke__">window</span>(<span class="hljs-number">4</span>)); <span class="hljs-comment">// the four most recent messages</span>
+<span class="hljs-keyword">new</span> <span class="hljs-title invoke__">Handoff</span>(<span class="hljs-variable"><span class="hljs-variable-other-marker">$</span>billing</span>, <span class="hljs-string">'invoices and payments'</span>, <span class="hljs-attr">history</span>: History::<span class="hljs-title invoke__">lastMessage</span>()); <span class="hljs-comment">// only the latest question</span></pre>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 <p>To decide, the orchestrator's model reads the ten most recent messages of the conversation, so a follow-up like
 "yes, the one from May" is routed with its context. It can only pick one of the applicable handoffs, or none. Pass a
 <code translate="no" class="notranslate">HandoffProcessor</code> with a different <code translate="no" class="notranslate">routingWindow</code> to change how many messages it reads.</p>

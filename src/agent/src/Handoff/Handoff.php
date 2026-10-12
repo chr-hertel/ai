@@ -24,11 +24,13 @@ final class Handoff
     /**
      * @param string                  $description natural-language description of when this handoff applies
      * @param (\Closure(): bool)|null $condition   optional programmatic guard
+     * @param History|null            $history     the part of the conversation the target receives, the whole conversation by default
      */
     public function __construct(
         private readonly AgentInterface $to,
         private readonly string $description,
         private readonly ?\Closure $condition = null,
+        private readonly ?History $history = null,
     ) {
         if ('' === $description) {
             throw new InvalidArgumentException('A handoff must have a non-empty description.');
@@ -43,6 +45,11 @@ final class Handoff
     public function getDescription(): string
     {
         return $this->description;
+    }
+
+    public function getHistory(): History
+    {
+        return $this->history ?? History::conversation();
     }
 
     public function isApplicable(): bool
