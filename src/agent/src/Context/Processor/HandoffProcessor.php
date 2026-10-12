@@ -89,7 +89,7 @@ final class HandoffProcessor implements ContextProcessorInterface
         $targetContext = $request->getContext()->without(Instruction::class)->without(Handoff::class);
         $delegation = $target->call($userMessage, $targetContext, $request->getOptions());
 
-        $context->delegate($this->completing($delegation, $context->getAgent(), $target));
+        $context->delegate($this->completing($delegation, $context->getAgent(), $target), $target->getName());
     }
 
     private function decide(string $model, string $prompt, ?Cancellation $cancellation): ?Decision

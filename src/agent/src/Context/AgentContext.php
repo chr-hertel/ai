@@ -33,6 +33,8 @@ final class AgentContext
 
     private ?Execution $delegation = null;
 
+    private ?string $delegationTarget = null;
+
     public function __construct(
         private readonly AgentInterface $agent,
         private readonly ?Cancellation $cancellation = null,
@@ -50,21 +52,29 @@ final class AgentContext
     }
 
     /**
-     * Hands the run over to the given execution: the runner skips the remaining processors and the model, and
-     * forwards the updates and the result of that execution instead.
+     * Hands the run over to the given execution: the runner skips the remaining processors and the model, forwards
+     * the updates of that execution, and completes the run with its result.
+     *
+     * @param string|null $target names the delegate in the result metadata as `delegated_to`
      */
-    public function delegate(Execution $execution): void
+    public function delegate(Execution $execution, ?string $target = null): void
     {
         if (null !== $this->delegation) {
             throw new LogicException('The run has already been delegated.');
         }
 
         $this->delegation = $execution;
+        $this->delegationTarget = $target;
     }
 
     public function getDelegation(): ?Execution
     {
         return $this->delegation;
+    }
+
+    public function getDelegationTarget(): ?string
+    {
+        return $this->delegationTarget;
     }
 
     public function reportProgress(string $stage, string $message = '', mixed $payload = null): void
