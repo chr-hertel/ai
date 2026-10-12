@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Tests\Handoff;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
@@ -25,10 +26,12 @@ use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
 use Symfony\AI\Agent\Handoff\Handoff;
+use Symfony\AI\Agent\Handoff\History;
 use Symfony\AI\Agent\MockAgent;
 use Symfony\AI\Agent\Tests\Fixtures\RecordingProcessor;
 use Symfony\AI\Agent\Tests\Fixtures\SuspendingConverter;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\MessageInterface;
@@ -41,6 +44,7 @@ use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ThinkingResult;
+use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Test\InMemoryPlatform;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
@@ -505,6 +509,78 @@ final class HandoffTest extends TestCase
         new HandoffProcessor(new InMemoryPlatform('Hi'), routingWindow: 0);
     }
 
+    /**
+     * @param list<string> $expected
+     */
+    #[DataProvider('provideHistories')]
+    public function testTheTargetReceivesTheConversationAsItsHistoryDefines(?History $history, array $expected)
+    {
+        $received = null;
+        $target = $this->capturingTarget($received);
+
+        $agent = new Agent(
+            $this->decidingPlatform('technical'),
+            'gpt-4o',
+            context: new Context(new Handoff($target, 'technical problems', history: $history)),
+        );
+
+        $toolCall = new ToolCall('call_1', 'lookup');
+        $agent->call(new MessageBag(
+            Message::forSystem('The caller instruction.'),
+            Message::ofUser('My app crashes.'),
+            Message::ofAssistant($toolCall),
+            Message::ofToolCall($toolCall, 'No crash reports.'),
+            Message::ofAssistant('Which version do you use?'),
+            Message::ofUser('Version 2.'),
+        ))->getResult();
+
+        $this->assertInstanceOf(MessageBag::class, $received);
+        $this->assertNull($received->getSystemMessage());
+        $this->assertSame($expected, array_map(
+            static fn (MessageInterface $message): string => $message->getRole()->value.': '.($message instanceof UserMessage || $message instanceof AssistantMessage ? $message->asText() : ''),
+            $received->getMessages(),
+        ));
+    }
+
+    /**
+     * @return iterable<string, array{History|null, list<string>}>
+     */
+    public static function provideHistories(): iterable
+    {
+        yield 'conversation by default' => [null, ['user: My app crashes.', 'assistant: Which version do you use?', 'user: Version 2.']];
+        yield 'conversation' => [History::conversation(), ['user: My app crashes.', 'assistant: Which version do you use?', 'user: Version 2.']];
+        yield 'last message' => [History::lastMessage(), ['user: Version 2.']];
+        yield 'window' => [History::window(2), ['assistant: Which version do you use?', 'user: Version 2.']];
+    }
+
+    public function testTheInstructionOfTheDelegatingAgentNeverReachesTheTarget()
+    {
+        $received = null;
+        $platform = $this->decidingPlatform('technical');
+
+        // positioned after the InstructionProcessor, which rendered the instruction into a system message by then
+        $agent = new Agent(
+            $platform,
+            'gpt-4o',
+            [new HandoffProcessor($platform)],
+            instruction: 'You route requests.',
+            context: new Context(new Handoff($this->capturingTarget($received), 'technical problems')),
+        );
+        $agent->call('My app crashes.')->getResult();
+
+        $this->assertInstanceOf(MessageBag::class, $received);
+        $this->assertNull($received->getSystemMessage());
+        $this->assertCount(1, $received);
+    }
+
+    public function testAHistoryWindowMustContainAMessage()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('A history window must contain at least one message.');
+
+        History::window(0);
+    }
+
     public function testAHandoffRequiresADescription()
     {
         $this->expectException(InvalidArgumentException::class);
@@ -567,5 +643,18 @@ final class HandoffTest extends TestCase
 
             return new ObjectResult(['agentName' => \in_array($text, $seen, true) ? $agentName : '', 'reasoning' => 'Based on the conversation.']);
         });
+    }
+
+    private function capturingTarget(?MessageBag &$received): AgentInterface
+    {
+        $target = $this->createStub(AgentInterface::class);
+        $target->method('getName')->willReturn('technical');
+        $target->method('call')->willReturnCallback(static function (MessageBag $messages) use (&$received): Execution {
+            $received = $messages;
+
+            return new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('The technical agent answered.')));
+        });
+
+        return $target;
     }
 }

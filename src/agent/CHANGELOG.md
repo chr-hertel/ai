@@ -17,6 +17,7 @@ CHANGELOG
  * [BC BREAK] Remove the `MultiAgent` namespace; handoffs are now `Handoff\Handoff` context items, given to the `Agent` through its context or per call
  * Add `Context\Processor\HandoffProcessor`: before answering, an agent with handoffs asks the model which of them should handle the request and delegates to it, falling back to answering itself. The routing reads a configurable window of the most recent conversation messages (`routingWindow`, default 10), and the model can only pick one of the applicable handoffs. The `Agent` registers it as its first processor, unless one is given among its context processors
  * Add `Context\AgentContext::delegate()` to hand a run over to another execution instead of invoking the model: its updates are forwarded, and its result completes the run like a model answer, named by the `delegated_to` result metadata; plus `AgentContext::getCancellation()`
+ * Add `Handoff\History` to define per handoff which part of the conversation its target receives: the whole conversation by default, a window of the most recent messages, or the latest user message
  * Add `HandoffRequested` and `HandoffCompleted` events; a listener on `HandoffRequested` can override or cancel the target agent
  * Handoffs are reported as a `Progress` update of the `handoff` stage, the delegated agent's own updates are forwarded into the caller's execution, and the target agent receives the caller's context without the delegating agent's `Instruction` and `Handoff` items
 
