@@ -16,6 +16,8 @@ CHANGELOG
  * [BC BREAK] The `multi_agent` configuration now builds an `Agent` carrying handoffs instead of a `MultiAgent`
    service: `ai.multi_agent.*` is the orchestrating agent with the configured handoffs, and the `fallback` agent is
    registered as a catch-all handoff. The configuration keys are unchanged
+ * Register an `ai.agent.<name>.handoff_processor` context processor with priority `0` per agent, so processors with
+   a higher priority run before a handoff skips the remaining ones
  * Fix the `memory` agent option: a string was passed to `StaticMemoryProvider`, whose constructor takes a list of
    facts, so a configured string memory failed to instantiate
 

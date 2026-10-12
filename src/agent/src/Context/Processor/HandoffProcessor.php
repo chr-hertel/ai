@@ -26,6 +26,7 @@ use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Tool\Tool;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -85,7 +86,7 @@ final class HandoffProcessor implements ContextProcessorInterface
 
         // the target brings its own instruction and handoffs, the delegating agent's must not leak into it
         $targetContext = $request->getContext()->without(Instruction::class)->without(Handoff::class);
-        $delegation = $target->call($userMessage, $targetContext, $request->getOptions());
+        $delegation = $target->call($userMessage, $targetContext, $this->targetOptions($request->getOptions()));
 
         if (null !== $this->eventDispatcher) {
             $eventDispatcher = $this->eventDispatcher;
@@ -98,6 +99,29 @@ final class HandoffProcessor implements ContextProcessorInterface
         }
 
         $context->delegate($delegation, $target->getName());
+    }
+
+    /**
+     * Drops the tools exposed by the delegating agent's ToolProcessor, the target exposes its own toolbox.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    private function targetOptions(array $options): array
+    {
+        if (!isset($options['tools']) || !\is_array($options['tools']) || [] === $options['tools']) {
+            return $options;
+        }
+
+        $options['tools'] = array_values(array_filter($options['tools'], static fn (mixed $tool): bool => !$tool instanceof Tool));
+
+        // an empty tools option would allow no tool at all, while the list only consisted of the exposed tools
+        if ([] === $options['tools']) {
+            unset($options['tools']);
+        }
+
+        return $options;
     }
 
     private function decide(string $model, string $prompt, ?Cancellation $cancellation): ?Decision

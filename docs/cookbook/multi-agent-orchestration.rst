@@ -104,6 +104,12 @@ its handoffs should handle the request; when none is picked, it simply answers o
 Because handoffs are context items, you can also offer them for a single call only:
 ``$agent->call($messages, new Context(new Handoff($technical, '...')))``.
 
+.. caution::
+
+    Routing runs before the other context processors of the orchestrator, and a handoff skips them. If a
+    processor must apply to every request, like an input guardrail, pass a ``HandoffProcessor`` yourself and
+    place it after that processor: ``new Agent($platform, $model, [$guardrail, new HandoffProcessor($platform)])``.
+
 Step 6: Route Questions Automatically
 -------------------------------------
 

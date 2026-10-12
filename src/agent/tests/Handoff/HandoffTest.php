@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
 use Symfony\AI\Agent\Event\HandoffCompleted;
 use Symfony\AI\Agent\Event\HandoffRequested;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
@@ -25,7 +26,9 @@ use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
 use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\MockAgent;
+use Symfony\AI\Agent\Tests\Fixtures\RecordingProcessor;
 use Symfony\AI\Agent\Tests\Fixtures\SuspendingConverter;
+use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Result\MultiPartResult;
@@ -35,6 +38,8 @@ use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ThinkingResult;
 use Symfony\AI\Platform\Test\InMemoryPlatform;
+use Symfony\AI\Platform\Tool\ExecutionReference;
+use Symfony\AI\Platform\Tool\Tool;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -320,6 +325,69 @@ final class HandoffTest extends TestCase
         $this->expectExceptionMessage('The agent execution was canceled.');
 
         $fiber->resume();
+    }
+
+    public function testProcessorsBeforeAGivenHandoffProcessorRunOnADelegatedRun()
+    {
+        $technical = new MockAgent(['Hello there' => 'The technical agent answered.'], 'technical');
+        $platform = $this->decidingPlatform('technical');
+        $before = new RecordingProcessor();
+        $after = new RecordingProcessor();
+
+        $agent = new Agent(
+            $platform,
+            'gpt-4o',
+            [$before, new HandoffProcessor($platform), $after],
+            context: new Context(new Handoff($technical, 'bugs, errors and other technical problems')),
+        );
+
+        $this->assertSame('The technical agent answered.', $agent->call('Hello there')->getContent());
+        $this->assertTrue($before->processed);
+        $this->assertNotNull($before->result);
+        $this->assertFalse($after->processed);
+        $this->assertNull($after->result);
+    }
+
+    public function testCustomProcessorsAreSkippedOnADelegatedRunByDefault()
+    {
+        $technical = new MockAgent(['Hello there' => 'The technical agent answered.'], 'technical');
+        $custom = new RecordingProcessor();
+
+        $agent = new Agent(
+            $this->decidingPlatform('technical'),
+            'gpt-4o',
+            [$custom],
+            context: new Context(new Handoff($technical, 'bugs, errors and other technical problems')),
+        );
+
+        $this->assertSame('The technical agent answered.', $agent->call('Hello there')->getContent());
+        $this->assertFalse($custom->processed);
+    }
+
+    public function testTheTargetDoesNotGetTheToolsOfTheDelegatingAgent()
+    {
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([new Tool(new ExecutionReference('ClassTool', 'method'), 'orchestrator_tool', 'A tool of the orchestrator.', null)]);
+
+        $target = $this->createMock(AgentInterface::class);
+        $target->method('getName')->willReturn('technical');
+        $target->expects($this->once())
+            ->method('call')
+            ->with($this->anything(), $this->anything(), ['server' => true])
+            ->willReturn(new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('The technical agent answered.'))));
+
+        $platform = $this->decidingPlatform('technical');
+
+        // positioned after the ToolProcessor, which exposed the orchestrator's tools in the options by then
+        $agent = new Agent(
+            $platform,
+            'gpt-4o',
+            [new HandoffProcessor($platform)],
+            context: new Context(new Handoff($target, 'bugs, errors and other technical problems')),
+            toolbox: $toolbox,
+        );
+
+        $this->assertSame('The technical agent answered.', $agent->call('Hello there', options: ['server' => true])->getContent());
     }
 
     public function testAHandoffRequiresADescription()
