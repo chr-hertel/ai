@@ -11,7 +11,6 @@
 
 namespace Symfony\AI\Agent\Context\Processor;
 
-use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Context\AgentContext;
 use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\ContextProcessorInterface;
@@ -19,7 +18,6 @@ use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Event\HandoffCompleted;
 use Symfony\AI\Agent\Event\HandoffRequested;
 use Symfony\AI\Agent\Execution\Cancellation;
-use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
@@ -89,7 +87,17 @@ final class HandoffProcessor implements ContextProcessorInterface
         $targetContext = $request->getContext()->without(Instruction::class)->without(Handoff::class);
         $delegation = $target->call($userMessage, $targetContext, $request->getOptions());
 
-        $context->delegate($this->completing($delegation, $context->getAgent(), $target), $target->getName());
+        if (null !== $this->eventDispatcher) {
+            $eventDispatcher = $this->eventDispatcher;
+            $source = $context->getAgent();
+
+            // result callbacks run before the result is yielded, so a consumer stopping at the result still sees the event
+            $delegation->onResult(static function (ResultUpdate $update) use ($eventDispatcher, $source, $target): void {
+                $eventDispatcher->dispatch(new HandoffCompleted($source, $target, $update->getResult()));
+            });
+        }
+
+        $context->delegate($delegation, $target->getName());
     }
 
     private function decide(string $model, string $prompt, ?Cancellation $cancellation): ?Decision
@@ -111,30 +119,6 @@ final class HandoffProcessor implements ContextProcessorInterface
         }
 
         return $decision instanceof Decision ? $decision : null;
-    }
-
-    /**
-     * Dispatches {@see HandoffCompleted} once the delegated execution produced its result.
-     */
-    private function completing(Execution $delegation, AgentInterface $source, AgentInterface $target): Execution
-    {
-        if (null === $this->eventDispatcher) {
-            return $delegation;
-        }
-
-        $eventDispatcher = $this->eventDispatcher;
-        $cancellation = new Cancellation();
-
-        return new Execution(static function () use ($delegation, $source, $target, $eventDispatcher, $cancellation): \Generator {
-            foreach ($cancellation->forward($delegation) as $update) {
-                // the consumer may stop at the result, so the event has to be dispatched before yielding it
-                if ($update instanceof ResultUpdate) {
-                    $eventDispatcher->dispatch(new HandoffCompleted($source, $target, $update->getResult()));
-                }
-
-                yield $update;
-            }
-        }, $delegation->isStreamed(), $cancellation);
     }
 
     /**

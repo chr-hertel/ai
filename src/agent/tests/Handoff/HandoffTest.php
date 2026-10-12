@@ -167,6 +167,32 @@ final class HandoffTest extends TestCase
         $this->assertSame('The technical agent answered.', $completed->getResult()->getContent());
     }
 
+    public function testTheHandoffCompletedEventArrivesBeforeTheResult()
+    {
+        $technical = new MockAgent(['Hello there' => 'The technical agent answered.'], 'technical');
+
+        $order = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(HandoffCompleted::class, static function () use (&$order): void {
+            $order[] = 'handoff_completed';
+        });
+
+        $agent = new Agent(
+            $this->decidingPlatform('technical'),
+            'gpt-4o',
+            context: new Context(new Handoff($technical, 'bugs, errors and other technical problems')),
+            eventDispatcher: $dispatcher,
+        );
+
+        foreach ($agent->call('Hello there') as $update) {
+            if ($update instanceof ResultUpdate) {
+                $order[] = 'result';
+            }
+        }
+
+        $this->assertSame(['handoff_completed', 'result'], $order);
+    }
+
     public function testAListenerCanCancelTheHandoff()
     {
         $technical = new MockAgent([], 'technical');
