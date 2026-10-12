@@ -1162,6 +1162,23 @@ processor can call back into it::
         $result = $context->getAgent()->call(...);
     }
 
+Delegating a Run
+~~~~~~~~~~~~~~~~
+
+A processor can hand the whole run over to another execution, for example the execution of another agent. The
+runner then skips the model and forwards the updates of that execution to the consumer::
+
+    public function process(AgentRequest $request, AgentContext $context): void
+    {
+        $execution = $this->specialist->call($request->getMessageBag());
+
+        $context->delegate($execution, $this->specialist->getName());
+    }
+
+The result of the delegated execution completes the run like an answer of the model: the result-aware processors see
+it, and the ``ExecutionCompleted`` event is dispatched. The optional second argument names the delegate in the result
+metadata as ``delegated_to``. Canceling the execution also cancels the delegated one.
+
 Agent Memory Management
 -----------------------
 

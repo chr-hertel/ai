@@ -67,6 +67,19 @@ final class HandoffTest extends TestCase
         $this->assertSame('The technical agent answered.', $agent->call('Hello there')->getContent());
     }
 
+    public function testTheResultNamesTheAgentItWasDelegatedTo()
+    {
+        $technical = new MockAgent(['Hello there' => 'The technical agent answered.'], 'technical');
+
+        $agent = new Agent(
+            $this->decidingPlatform('technical'),
+            'gpt-4o',
+            context: new Context(new Handoff($technical, 'bugs, errors and other technical problems')),
+        );
+
+        $this->assertSame('technical', $agent->call('Hello there')->getResult()->getMetadata()->get('delegated_to'));
+    }
+
     public function testItAnswersItselfWhenTheModelPicksNoAgent()
     {
         $technical = new MockAgent([], 'technical');
