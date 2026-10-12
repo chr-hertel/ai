@@ -1097,6 +1097,10 @@ The ``model`` option replaces the model of the agent for a single call::
 
     $result = $agent->call('Hello!', options: ['model' => 'gpt-4o-mini']);
 
+Context items are runtime objects and are never persisted: a handoff, for example, holds the agent it hands off to.
+Only what processors turn into messages ends up in a conversation, so pass the items again on every call, either on
+the agent or per call.
+
 Context Processors
 ~~~~~~~~~~~~~~~~~~
 
