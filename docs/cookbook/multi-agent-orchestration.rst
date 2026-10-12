@@ -81,6 +81,10 @@ A handoff can also carry a condition, so it is only offered when it applies::
 
     new Handoff($billing, 'invoices and payments', condition: fn () => $user->hasSubscription());
 
+To decide, the orchestrator's model reads the ten most recent messages of the conversation, so a follow-up like
+"yes, the one from May" is routed with its context. It can only pick one of the applicable handoffs, or none. Pass a
+``HandoffProcessor`` with a different ``routingWindow`` to change how many messages it reads.
+
 Step 5: Give the Handoffs to the Orchestrator
 ---------------------------------------------
 

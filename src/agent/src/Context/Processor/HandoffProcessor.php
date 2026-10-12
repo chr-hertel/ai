@@ -17,15 +17,20 @@ use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Event\HandoffCompleted;
 use Symfony\AI\Agent\Event\HandoffRequested;
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Handoff\Decision;
 use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\MessageInterface;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\Tool\Tool;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -37,10 +42,17 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  */
 final class HandoffProcessor implements ContextProcessorInterface
 {
+    /**
+     * @param int $routingWindow the number of most recent conversation messages the routing decision is based on
+     */
     public function __construct(
         private readonly PlatformInterface $platform,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly int $routingWindow = 10,
     ) {
+        if ($routingWindow < 1) {
+            throw new InvalidArgumentException('The routing window must contain at least one message.');
+        }
     }
 
     public static function supportedTypes(): array
@@ -59,12 +71,13 @@ final class HandoffProcessor implements ContextProcessorInterface
             return;
         }
 
-        $userMessage = $request->getMessageBag()->withoutSystemMessage()->getUserMessage();
-        if (null === $userMessage) {
+        $userMessages = array_filter($request->getMessageBag()->getMessages(), static fn (MessageInterface $message): bool => $message instanceof UserMessage);
+        $userMessage = array_pop($userMessages);
+        if (!$userMessage instanceof UserMessage) {
             return;
         }
 
-        $decision = $this->decide($request->getModel(), $this->buildPrompt($handoffs, $userMessage->asText() ?? ''), $context->getCancellation());
+        $decision = $this->decide($request->getModel(), $handoffs, $request->getMessageBag(), $context->getCancellation());
         if (!$decision instanceof Decision || !$decision->hasAgent()) {
             return;
         }
@@ -124,9 +137,15 @@ final class HandoffProcessor implements ContextProcessorInterface
         return $options;
     }
 
-    private function decide(string $model, string $prompt, ?Cancellation $cancellation): ?Decision
+    /**
+     * @param list<Handoff> $handoffs
+     */
+    private function decide(string $model, array $handoffs, MessageBag $conversation, ?Cancellation $cancellation): ?Decision
     {
-        $deferredDecision = $this->platform->invoke($model, new MessageBag(Message::ofUser($prompt)), ['response_format' => Decision::class]);
+        $names = array_map(static fn (Handoff $handoff): string => $handoff->getTo()->getName(), $handoffs);
+
+        $messages = new MessageBag(Message::forSystem($this->buildInstruction($handoffs)), ...$this->routingMessages($conversation));
+        $deferredDecision = $this->platform->invoke($model, $messages, ['response_format' => $this->decisionFormat($names)]);
         $cancellation?->activate($deferredDecision->getRawResult());
 
         try {
@@ -137,12 +156,80 @@ final class HandoffProcessor implements ContextProcessorInterface
             // reasoning models wrap the decision into a multi-part result next to their thinking
             $decision = $deferredDecision->asObject();
         } catch (UnexpectedResultTypeException) {
-            return null;
+            // without the structured output listener the platform answers with the JSON as text
+            $decision = $this->decodeText($deferredDecision);
         } finally {
             $cancellation?->deactivate();
         }
 
-        return $decision instanceof Decision ? $decision : null;
+        if ($decision instanceof Decision) {
+            return $decision;
+        }
+
+        if (!\is_array($decision) || !\is_string($decision['agentName'] ?? null) || !\is_string($decision['reasoning'] ?? null)) {
+            return null;
+        }
+
+        return new Decision($decision['agentName'], $decision['reasoning']);
+    }
+
+    private function decodeText(DeferredResult $result): mixed
+    {
+        try {
+            return json_decode($result->asText(), true, flags: \JSON_THROW_ON_ERROR);
+        } catch (UnexpectedResultTypeException|\JsonException) {
+            return null;
+        }
+    }
+
+    /**
+     * The most recent conversational messages, with assistant messages reduced to their text, so the window never
+     * starts in the middle of a tool call.
+     *
+     * @return list<MessageInterface>
+     */
+    private function routingMessages(MessageBag $conversation): array
+    {
+        $messages = \array_slice($conversation->withoutSystemMessage()->withoutToolMessages()->getMessages(), -$this->routingWindow);
+
+        return array_map(
+            static fn (MessageInterface $message): MessageInterface => $message instanceof AssistantMessage ? Message::ofAssistant($message->asText() ?? '') : $message,
+            $messages,
+        );
+    }
+
+    /**
+     * Restricts the selectable agent names to the applicable handoffs, an empty name answers without handoff.
+     *
+     * @param list<string> $names
+     *
+     * @return array<string, mixed>
+     */
+    private function decisionFormat(array $names): array
+    {
+        return [
+            'type' => 'json_schema',
+            'json_schema' => [
+                'name' => 'Decision',
+                'schema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'agentName' => [
+                            'type' => 'string',
+                            'enum' => [...$names, ''],
+                            'description' => 'The name of the selected agent, or an empty string if none of them matches.',
+                        ],
+                        'reasoning' => [
+                            'type' => 'string',
+                            'description' => 'The reasoning behind the selection.',
+                        ],
+                    ],
+                    'required' => ['agentName', 'reasoning'],
+                    'additionalProperties' => false,
+                ],
+                'strict' => true,
+            ],
+        ];
     }
 
     /**
@@ -162,33 +249,22 @@ final class HandoffProcessor implements ContextProcessorInterface
     /**
      * @param list<Handoff> $handoffs
      */
-    private function buildPrompt(array $handoffs, string $userQuestion): string
+    private function buildInstruction(array $handoffs): string
     {
-        $descriptions = [];
-        $names = [];
-        foreach ($handoffs as $handoff) {
-            $name = $handoff->getTo()->getName();
-            $descriptions[] = \sprintf('- %s: %s', $name, $handoff->getDescription());
-            $names[] = $name;
-        }
+        $agents = implode(\PHP_EOL, array_map(
+            static fn (Handoff $handoff): string => \sprintf('- %s: %s', $handoff->getTo()->getName(), $handoff->getDescription()),
+            $handoffs,
+        ));
 
-        $agentList = implode("\n", $descriptions);
-        $validAgents = implode('", "', $names);
-
-        return <<<PROMPT
-            You are an intelligent agent orchestrator. Based on the user's question, determine which specialized agent should handle the request.
-
-            User question: "{$userQuestion}"
+        return <<<INSTRUCTION
+            You are an agent orchestrator. Based on the conversation, select the specialized agent that should handle
+            the latest request of the user.
 
             Available agents and their capabilities:
-            {$agentList}
+            {$agents}
 
-            Analyze the user's question and select the most appropriate agent to handle this request.
-            Return an empty string ("") for agentName if no specific agent matches the request criteria.
-
-            Available agent names: "{$validAgents}"
-
-            Provide your selection and explain your reasoning.
-            PROMPT;
+            Select the name of the most appropriate agent, or an empty string if none of them matches the request.
+            Explain your reasoning.
+            INSTRUCTION;
     }
 }
