@@ -19,6 +19,7 @@ CHANGELOG
  * Add `Handoff\History` to define per handoff which part of the conversation its target receives: the whole conversation by default, a window of the most recent messages, or the latest user message
  * Add `HandoffRequested` and `HandoffCompleted` events; a listener on `HandoffRequested` can override or cancel the target agent
  * Handoffs are reported as a `Progress` update of the `handoff` stage, the delegated agent's own updates are forwarded into the caller's execution, and the target agent receives the caller's context without the delegating agent's `Instruction` and `Handoff` items
+ * Add a `Store` namespace (`MessageStoreInterface`, `ManagedStoreInterface`, `InMemoryStore`): when a store is passed to the `Agent`, the runner loads the conversation before the call and persists it with the answer afterwards, making the agent stateful; the conversation is stored without the system message, and a delegated answer carries `delegated_to` in its message metadata
 
 0.14
 ----
