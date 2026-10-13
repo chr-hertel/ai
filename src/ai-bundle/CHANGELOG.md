@@ -4,6 +4,7 @@ CHANGELOG
 0.15
 ----
 
+ * [BC BREAK] Replace the `ai.platform.json_schema.describer` tag and its `ai.platform.json_schema.describer.*` services with the `ai.platform.json_schema.enricher`, `ai.platform.json_schema.class_resolver` and `ai.platform.json_schema.definition_processor` tags; `ai.toolbox.json_schema.describer` is removed
  * Tag the MCP toolboxes of `mcp_server` tool entries with `kernel.reset`, so long-running workers refresh the tool list of a remote MCP server between requests and messages
 
 0.14

@@ -4,6 +4,7 @@ CHANGELOG
 0.15
 ----
 
+ * [BC BREAK] Replace `Toolbox\MapToolArgumentsDescriber` with `Toolbox\MapToolArgumentsSchemaFactory`, a decorator of `Platform\Contract\JsonSchema\SchemaFactoryInterface`; `ReflectionToolFactory` and `MemoryToolFactory` accept any `SchemaFactoryInterface`
  * Add `Progress::STAGE_MODEL_REQUEST`, `Progress::STAGE_DELTA`, `Progress::STAGE_TOOL_CALL` and `Progress::STAGE_HANDOFF` constants for the stage names this package itself reports, used internally wherever a stage was matched or constructed with a raw string
 
 0.14

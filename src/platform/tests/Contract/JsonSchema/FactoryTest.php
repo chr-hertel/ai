@@ -455,7 +455,7 @@ final class FactoryTest extends TestCase
                 ],
                 'fallback' => [
                     'type' => ['string', 'null'],
-                    'enum' => ['and', 'or', 'not'],
+                    'enum' => ['and', 'or', 'not', null],
                     'description' => 'Optional fallback mode',
                 ],
             ],
