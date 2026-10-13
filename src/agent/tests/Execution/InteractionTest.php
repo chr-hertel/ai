@@ -13,14 +13,18 @@ namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
+use Symfony\AI\Agent\Context\Context;
 use Symfony\AI\Agent\Exception\InteractionRequiredException;
 use Symfony\AI\Agent\Execution\InteractionReason;
 use Symfony\AI\Agent\Execution\InteractionResponse;
 use Symfony\AI\Agent\Execution\Update\Interaction;
+use Symfony\AI\Agent\Handoff\Decision;
+use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Exception\ToolInteractionException;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Toolbox;
+use Symfony\AI\Platform\Result\ObjectResult;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ToolCall;
@@ -142,6 +146,31 @@ final class InteractionTest extends TestCase
             ->getResult();
 
         $this->assertTrue($tool->executed);
+    }
+
+    public function testAnInteractionOfAHandoffTargetReachesTheConsumer()
+    {
+        $toolbox = new Toolbox([new AskingTool()]);
+        $booking = new Agent($this->platformCallingTool('ask_user'), 'gpt-4o', toolbox: $toolbox, name: 'booking');
+        $orchestrator = new Agent(
+            new InMemoryPlatform(static fn (): ResultInterface => new ObjectResult(new Decision('booking', 'The user wants to book.'))),
+            'gpt-4o',
+            context: new Context(new Handoff($booking, 'bookings')),
+        );
+
+        $asked = null;
+        $result = $orchestrator->call('Book it.')
+            ->onInteraction(static function (Interaction $interaction) use (&$asked): InteractionResponse {
+                $asked = $interaction;
+
+                return new InteractionResponse('Window seat, please.');
+            })
+            ->getResult();
+
+        $this->assertInstanceOf(Interaction::class, $asked);
+        $this->assertSame('Which seat do you want?', $asked->getPrompt());
+        $this->assertSame('Booked.', $result->getContent());
+        $this->assertSame('booking', $result->getMetadata()->get('delegated_to'));
     }
 
     private function agentWithTool(object $tool, ?InMemoryPlatform $platform = null): Agent
