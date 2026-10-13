@@ -19,6 +19,7 @@ use Symfony\AI\Agent\Handoff\Handoff;
 use Symfony\AI\Agent\Handoff\History;
 use Symfony\AI\Agent\Store\InMemoryStore;
 use Symfony\AI\Platform\Message\AssistantMessage;
+use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\ObjectResult;
@@ -87,6 +88,42 @@ final class StatefulHandoffTest extends TestCase
         $this->assertSame([1, 3], $seen);
         $this->assertCount(4, $store->load());
         $this->assertCount(4, $targetStore->load());
+    }
+
+    public function testTheRoutingIsBasedOnTheStoredConversation()
+    {
+        $store = new InMemoryStore();
+        $store->save(new MessageBag(
+            Message::ofUser('I have a question about my invoice from May.'),
+            Message::ofAssistant('Sure, what is it about?'),
+        ));
+
+        $routingPlatform = new InMemoryPlatform(static function (mixed $model, MessageBag $input, array $options): ResultInterface {
+            if (!isset($options['response_format'])) {
+                return new TextResult('The orchestrator answers.');
+            }
+
+            foreach ($input->getMessages() as $message) {
+                if ($message instanceof UserMessage && str_contains($message->asText() ?? '', 'invoice')) {
+                    return new ObjectResult(new Decision('billing', 'The conversation is about an invoice.'));
+                }
+            }
+
+            return new ObjectResult(new Decision('', 'Nothing matches.'));
+        });
+
+        $billing = new Agent(new InMemoryPlatform('The billing agent answered.'), 'gpt-4o', name: 'billing');
+        $agent = new Agent(
+            $routingPlatform,
+            'gpt-4o',
+            context: new Context(new Handoff($billing, 'invoices and payments')),
+            store: $store,
+        );
+
+        $result = $agent->call('Why is it that high?')->getResult();
+
+        $this->assertSame('The billing agent answered.', $result->getContent());
+        $this->assertSame('billing', $result->getMetadata()->get('delegated_to'));
     }
 
     /**
