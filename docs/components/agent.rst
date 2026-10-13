@@ -208,6 +208,8 @@ conversation. A store whose backing storage has a lifecycle can additionally imp
 :class:`Symfony\\AI\\Agent\\Store\\ManagedStoreInterface` to expose ``setup()`` and ``drop()``; the agent never
 calls them, that is up to your application.
 
+The store holds the conversation without the system message, as the instruction is rendered again on every call.
+
 Events
 ------
 

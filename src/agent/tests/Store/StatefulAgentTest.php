@@ -13,11 +13,14 @@ namespace Symfony\AI\Agent\Tests\Store;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
+use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\Instruction;
 use Symfony\AI\Agent\Store\InMemoryStore;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\SystemMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ResultInterface;
@@ -87,6 +90,28 @@ final class StatefulAgentTest extends TestCase
         $this->assertSame('My name is Wilhelm.', $messages[0]->asText());
         $this->assertInstanceOf(UserMessage::class, $messages[1]);
         $this->assertSame('What is my name?', $messages[1]->asText());
+    }
+
+    public function testTheInstructionIsRenderedPerCallAndNotPersisted()
+    {
+        $instructions = [];
+        $platform = new InMemoryPlatform(static function (mixed $model, MessageBag $input) use (&$instructions): TextResult {
+            $instructions[] = $input->getSystemMessage()?->getContent();
+
+            return new TextResult('Hi!');
+        });
+
+        $store = new InMemoryStore();
+        $agent = new Agent($platform, 'gpt-4o', store: $store);
+
+        $agent->call('My name is Wilhelm.', new Context(new Instruction('Be formal.')))->getResult();
+        $agent->call('What is my name?', new Context(new Instruction('Be casual.')))->getResult();
+
+        $this->assertSame(['Be formal.', 'Be casual.'], $instructions);
+        $this->assertCount(4, $store->load());
+        foreach ($store->load()->getMessages() as $message) {
+            $this->assertNotInstanceOf(SystemMessage::class, $message);
+        }
     }
 
     public function testWithoutAStoreTheAgentStaysStateless()
