@@ -210,6 +210,13 @@ calls them, that is up to your application.
 
 The store holds the conversation without the system message, as the instruction is rendered again on every call.
 
+When an agent hands a run off to another agent (see :doc:`/cookbook/multi-agent-orchestration`), its store persists
+the delegated turn like any other: the answer of the target is appended with the name of the target as
+``delegated_to`` in the message metadata. The stored conversation is also what the handoff decision is based on, so a
+follow-up question is routed by the whole conversation. A handoff target usually needs no store of its own, as it
+receives the conversation from the delegating agent. If it keeps one anyway, pass ``History::lastMessage()`` to the
+``Handoff``, otherwise the target sees the earlier messages twice.
+
 Events
 ------
 

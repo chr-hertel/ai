@@ -391,6 +391,9 @@ final class Runner
         }
 
         $answer = Message::ofAssistant($result instanceof ObjectResult ? json_encode($result->getContent(), \JSON_THROW_ON_ERROR) : $result);
+        if ($result->getMetadata()->has('delegated_to')) {
+            $answer->getMetadata()->add('delegated_to', $result->getMetadata()->get('delegated_to'));
+        }
 
         // the instruction is rendered per call, a stored system message would keep the first one forever
         $this->store->save($request->getMessageBag()->withoutSystemMessage()->with($answer));
