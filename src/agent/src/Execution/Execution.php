@@ -11,8 +11,10 @@
 
 namespace Symfony\AI\Agent\Execution;
 
+use Symfony\AI\Agent\Exception\InteractionRequiredException;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Agent\Execution\Update\Interaction;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result;
 use Symfony\AI\Platform\Metadata\Metadata;
@@ -36,6 +38,10 @@ use Symfony\AI\Platform\Result\TypedResultTrait;
  * The typed accessors of {@see TypedResultTrait} narrow the result (asText(), asObject(), ...) or, with the
  * stream option, its deltas (asStream(), asTextStream(), asStreamedObject(), ...).
  *
+ * An {@see Interaction} update blocks: the execution only continues once an
+ * {@see InteractionResponse} is sent back, either by an onInteraction() handler
+ * or with Generator::send() when iterating.
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  *
  * @implements \IteratorAggregate<int, UpdateInterface>
@@ -51,6 +57,11 @@ final class Execution implements \IteratorAggregate, ResultInterface
      * @var list<callable(Progress): void>
      */
     private array $progressCallbacks = [];
+
+    /**
+     * @var list<callable(Interaction): (InteractionResponse|null)>
+     */
+    private array $interactionCallbacks = [];
 
     /**
      * @var list<callable(Result): void>
@@ -101,6 +112,16 @@ final class Execution implements \IteratorAggregate, ResultInterface
     }
 
     /**
+     * @param callable(Interaction): (InteractionResponse|null) $callback
+     */
+    public function onInteraction(callable $callback): self
+    {
+        $this->interactionCallbacks[] = $callback;
+
+        return $this;
+    }
+
+    /**
      * @param callable(Result): void $callback
      */
     public function onResult(callable $callback): self
@@ -133,6 +154,8 @@ final class Execution implements \IteratorAggregate, ResultInterface
 
     /**
      * Drives the execution to completion and returns the final result.
+     *
+     * @throws InteractionRequiredException when the execution pauses for human interaction but no handler is registered
      */
     public function getResult(): ResultInterface
     {
@@ -144,10 +167,22 @@ final class Execution implements \IteratorAggregate, ResultInterface
             throw new RuntimeException('The agent execution was canceled.');
         }
 
-        foreach ($this->consume() as $update) {
+        $generator = $this->consume();
+
+        while ($generator->valid()) {
+            $update = $generator->current();
+
+            if ($update instanceof Interaction) {
+                $generator->send($this->resolveInteraction($update));
+
+                continue;
+            }
+
             if ($update instanceof Result) {
                 return $update->getResult();
             }
+
+            $generator->next();
         }
 
         if ($this->canceled) {
@@ -206,6 +241,23 @@ final class Execution implements \IteratorAggregate, ResultInterface
         }
     }
 
+    private function resolveInteraction(Interaction $interaction): InteractionResponse
+    {
+        if ([] === $this->interactionCallbacks) {
+            throw new InteractionRequiredException($interaction);
+        }
+
+        $response = null;
+        foreach ($this->interactionCallbacks as $callback) {
+            $returned = $callback($interaction);
+            if ($returned instanceof InteractionResponse) {
+                $response = $returned;
+            }
+        }
+
+        return $response ?? new InteractionResponse();
+    }
+
     /**
      * Runs the agent and passes its updates through, keeping the final result and its metadata
      * and invoking the registered callbacks along the way, whichever way the execution is consumed.
@@ -229,11 +281,15 @@ final class Execution implements \IteratorAggregate, ResultInterface
             return;
         }
 
+        $generator = ($this->factory)();
+
         try {
-            foreach (($this->factory)() as $update) {
+            while ($generator->valid()) {
                 if ($this->canceled) {
                     break;
                 }
+
+                $update = $generator->current();
 
                 if ($update instanceof Result) {
                     // the final result carries the metadata aggregated over all rounds, e.g. token usage
@@ -251,12 +307,15 @@ final class Execution implements \IteratorAggregate, ResultInterface
                     }
                 }
 
-                yield $update;
+                // an answer to an Interaction is sent back into the agent's own generator
+                $response = yield $update;
 
                 // @phpstan-ignore if.alwaysFalse (cancellation can happen while the generator is suspended)
                 if ($this->canceled) {
                     break;
                 }
+
+                $generator->send($response);
             }
         } catch (\Throwable $exception) {
             if (!$this->canceled) {
