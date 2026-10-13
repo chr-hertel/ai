@@ -391,9 +391,10 @@ final class Runner
             return;
         }
 
-        $answer = $result instanceof ObjectResult ? json_encode($result->getContent(), \JSON_THROW_ON_ERROR) : $result;
+        $answer = Message::ofAssistant($result instanceof ObjectResult ? json_encode($result->getContent(), \JSON_THROW_ON_ERROR) : $result);
 
-        $this->store->save($request->getMessageBag()->with(Message::ofAssistant($answer)));
+        // the instruction is rendered per call, a stored system message would keep the first one forever
+        $this->store->save($request->getMessageBag()->withoutSystemMessage()->with($answer));
     }
 
     /**
