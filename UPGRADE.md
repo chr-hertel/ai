@@ -14,7 +14,7 @@ Agent
 AI Bundle
 ---------
 
- * The `ai.platform.json_schema.describer` tag is removed. Tag a `Symfony\Component\JsonSchema\Enricher\PropertySchemaEnricherInterface`
+ * The `ai.platform.json_schema.describer` tag is removed. Tag a `Symfony\Component\JsonSchema\PropertySchemaEnricher\PropertySchemaEnricherInterface`
    with `ai.platform.json_schema.enricher`, a `ClassSchemaResolverInterface` with `ai.platform.json_schema.class_resolver` or a
    `DefinitionProcessorInterface` with `ai.platform.json_schema.definition_processor` instead.
  * The `ai.platform.json_schema.describer.*` and `ai.toolbox.json_schema.describer` services are removed.
