@@ -1,9 +1,45 @@
 UPGRADE FROM 0.14 to 0.15
 =========================
 
+Agent
+-----
+
+ * `Toolbox\MapToolArgumentsDescriber` is replaced by `Toolbox\MapToolArgumentsSchemaFactory`, which decorates the schema factory instead of its describer:
+
+   ```diff
+   -$factory = new Factory(new MapToolArgumentsDescriber(new Describer()));
+   +$factory = new MapToolArgumentsSchemaFactory(new Factory());
+   ```
+
+AI Bundle
+---------
+
+ * The `ai.platform.json_schema.describer` tag is removed. Tag a `Symfony\Component\JsonSchema\PropertySchemaEnricher\PropertySchemaEnricherInterface`
+   with `ai.platform.json_schema.enricher`, a `ClassSchemaResolverInterface` with `ai.platform.json_schema.class_resolver` or a
+   `DefinitionProcessorInterface` with `ai.platform.json_schema.definition_processor` instead.
+ * The `ai.platform.json_schema.describer.*` and `ai.toolbox.json_schema.describer` services are removed.
+
 Platform
 --------
 
+ * `Contract\JsonSchema\Factory` is built on the `symfony/json-schema` component. The `Contract\JsonSchema\Describer`
+   and `Contract\JsonSchema\Subject` namespaces are removed: implement the component's `PropertySchemaEnricherInterface`,
+   `ClassSchemaResolverInterface` or `DefinitionProcessorInterface` instead of a describer, and pass them to the factory:
+
+   ```diff
+   -$factory = new Factory(new Describer([
+   -    new SerializerDescriber(),
+   -    new TypeInfoDescriber(),
+   -    new MethodDescriber(),
+   -    new PropertyInfoDescriber(),
+   -    new SchemaAttributeDescriber($providers),
+   -]));
+   +$factory = new Factory([
+   +    new ValidatorConstraintsEnricher(),
+   +    new SchemaAttributeEnricher($providers),
+   +]);
+   ```
+ * A nullable enum lists `null` among its `enum` values, and an untyped `array` property no longer gets an `items` keyword.
  * The Albert bridge no longer exposes environmental impacts under the `carbon` result metadata.
  * They are now available under `impacts`, with the energy consumption reported directly by Albert:
 

@@ -4,6 +4,10 @@ CHANGELOG
 0.15
 ----
 
+ * [BC BREAK] Build `Contract\JsonSchema\Factory` on the `symfony/json-schema` component; the `Contract\JsonSchema\Describer` and `Contract\JsonSchema\Subject` namespaces are removed in favor of the component's property schema enrichers, class schema resolvers and definition processors
+ * Add `Contract\JsonSchema\SchemaFactoryInterface`, implemented by `Contract\JsonSchema\Factory`
+ * Add `Contract\JsonSchema\Enricher\SchemaAttributeEnricher` and `Contract\JsonSchema\Enricher\ValidatorConstraintsEnricher`, replacing `SchemaAttributeDescriber` and `ValidatorConstraintsDescriber`
+ * Add `Contract\JsonSchema\ClassSchemaResolver\DiscriminatorMapSchemaResolver`, describing a class with a serializer discriminator map as the union of its mapped classes, each restricting the type property to its discriminator values
  * Add `Exception\RetryableExceptionInterface`, implemented by `ServerException` and `RateLimitExceededException`, so a consumer wiring platform calls into a queue with a retry policy can tell a transient failure from a permanent one without enumerating every exception class itself
 
 0.14
