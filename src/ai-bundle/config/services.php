@@ -71,7 +71,6 @@ use Symfony\AI\Platform\Bridge\VertexAi\Contract\GeminiContract as VertexAiGemin
 use Symfony\AI\Platform\Bridge\VertexAi\ModelCatalog as VertexAiModelCatalog;
 use Symfony\AI\Platform\Bridge\Voyage\ModelCatalog as VoyageModelCatalog;
 use Symfony\AI\Platform\Contract;
-use Symfony\AI\Platform\Contract\JsonSchema\ClassSchemaResolver\DiscriminatorMapSchemaResolver;
 use Symfony\AI\Platform\Contract\JsonSchema\Enricher\SchemaAttributeEnricher;
 use Symfony\AI\Platform\Contract\JsonSchema\Enricher\ValidatorConstraintsEnricher;
 use Symfony\AI\Platform\Contract\JsonSchema\Factory as SchemaFactory;
@@ -208,12 +207,6 @@ return static function (ContainerConfigurator $container): void {
                 tagged_iterator('ai.platform.json_schema.provider', indexAttribute: 'key'),
             ])
             ->tag('ai.platform.json_schema.enricher', ['priority' => -10])
-        ->set('ai.platform.json_schema.discriminator_map', DiscriminatorMapSchemaResolver::class)
-            ->args([
-                service('serializer.mapping.class_metadata_factory')->ignoreOnInvalid(),
-            ])
-            ->tag('ai.platform.json_schema.class_resolver')
-            ->tag('ai.platform.json_schema.definition_processor')
         ->set('ai.platform.json_schema.class_resolver.native', NativeClassSchemaResolver::class)
             ->tag('ai.platform.json_schema.class_resolver', ['priority' => -100])
         ->set('ai.platform.json_schema_factory', SchemaFactory::class)
