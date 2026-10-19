@@ -26,6 +26,7 @@ use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Store\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
@@ -78,6 +79,7 @@ final class Runner
         private readonly bool $excludeToolMessages = false,
         private readonly bool $includeSources = false,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?MessageStoreInterface $store = null,
         private readonly ToolResultConverter $resultConverter = new ToolResultConverter(),
     ) {
     }
@@ -90,6 +92,11 @@ final class Runner
      */
     public function run(AgentInterface $agent, string $model, MessageBag $messages, Context $context, array $options, ?Cancellation $cancellation = null): \Generator
     {
+        if (null !== $this->store) {
+            // the stored conversation precedes the messages of this call
+            $messages = $this->store->load()->merge($messages);
+        }
+
         $request = new AgentRequest($model, $messages, $options, $context);
         $agentContext = new AgentContext($agent, $cancellation);
 
@@ -332,6 +339,8 @@ final class Runner
             $processor->processResult($agentResult, $agentContext);
         }
 
+        $this->persist($request, $agentResult->getResult());
+
         $this->eventDispatcher?->dispatch(new ExecutionCompleted($agent, $agentResult));
 
         yield new ResultUpdate($agentResult->getResult());
@@ -370,6 +379,24 @@ final class Runner
         }
 
         return $result;
+    }
+
+    /**
+     * Appends the answer to the conversation and persists it, so the next call continues where this one left off.
+     */
+    private function persist(AgentRequest $request, ResultInterface $result): void
+    {
+        if (null === $this->store) {
+            return;
+        }
+
+        $answer = Message::ofAssistant($result instanceof ObjectResult ? json_encode($result->getContent(), \JSON_THROW_ON_ERROR) : $result);
+        if ($result->getMetadata()->has('delegated_to')) {
+            $answer->getMetadata()->add('delegated_to', $result->getMetadata()->get('delegated_to'));
+        }
+
+        // the instruction is rendered per call, a stored system message would keep the first one forever
+        $this->store->save($request->getMessageBag()->withoutSystemMessage()->with($answer));
     }
 
     /**
