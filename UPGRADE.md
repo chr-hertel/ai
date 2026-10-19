@@ -1,6 +1,92 @@
 UPGRADE FROM 0.14 to 0.15
 =========================
 
+Agent
+-----
+
+ * The input/output processor pipeline has been replaced by a `Context` of data objects, each processed by a
+   matching `Context\ContextProcessorInterface`. `InputProcessorInterface`, `OutputProcessorInterface`, `Input`,
+   `Output`, `AgentAwareInterface`, `AgentAwareTrait` and the `AsInputProcessor`/`AsOutputProcessor` attributes have
+   been removed. `AgentInterface::call()` takes the context as its second argument, so options move to the third
+   one:
+
+   ```diff
+   -$agent->call($messages, ['stream' => true]);
+   +$agent->call($messages, options: ['stream' => true]);
+   ```
+
+   A custom processor becomes a context processor. `supportedTypes()` declares which context items it consumes; an
+   empty list marks it as global, so it always runs:
+
+   ```diff
+   -final class MyProcessor implements InputProcessorInterface
+   +final class MyProcessor implements ContextProcessorInterface
+    {
+   -    public function processInput(Input $input): void
+   +    public static function supportedTypes(): array
+   +    {
+   +        return [];
+   +    }
+   +
+   +    public function process(AgentRequest $request, AgentContext $context): void
+        {
+   -        $input->getMessageBag()->add($message);
+   +        $request->getMessageBag()->add($message);
+        }
+    }
+   ```
+
+   An `OutputProcessorInterface` becomes a `ResultAwareContextProcessorInterface` with `processResult(AgentResult)`,
+   and `AgentAwareInterface`/`AgentAwareTrait` are gone: the `AgentContext` handed to every processor exposes the
+   running agent via `getAgent()`.
+
+   The `Agent` constructor takes a single `$contextProcessors` argument instead of `$inputProcessors` and
+   `$outputProcessors`, so `$name` moves up by one position:
+
+   ```diff
+   -$agent = new Agent($platform, $model, $inputProcessors, $outputProcessors, 'my_agent');
+   +$agent = new Agent($platform, $model, $contextProcessors, 'my_agent');
+   ```
+
+   Custom `AgentInterface` implementations must adopt the new signature of `call()`:
+
+   ```diff
+   -public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
+   +public function call(string|MessageBag|UserMessage $input, Context $context = new Context(), array $options = []): Execution
+   ```
+
+   The processors passed to the `Agent` run after the system prompt is injected, and before the tools are exposed.
+
+ * `SystemPromptInputProcessor` has been removed. The system prompt is now a `Context\Instruction`, passed to the
+   `Agent` constructor:
+
+   ```diff
+   -$processor = new SystemPromptInputProcessor('You are a helpful assistant.');
+   -$agent = new Agent($platform, $model, [$processor]);
+   +$agent = new Agent($platform, $model, instruction: 'You are a helpful assistant.');
+   ```
+
+   Its `include_tools` behaviour is preserved through the `includeToolsInInstruction` argument. An instruction passed
+   in the context replaces it for a single call: `$agent->call($input, new Context(new Instruction(...)))`.
+   `SystemPromptInputProcessor::getSystemPrompt()` has no replacement.
+
+ * `Memory\MemoryInputProcessor` moved to `Context\Processor\MemoryProcessor`, and `MemoryProviderInterface::load()`
+   now receives a `Context\AgentRequest`:
+
+   ```diff
+   -public function load(Input $input): array
+   +public function load(AgentRequest $request): array
+   ```
+
+ * `ModelOverrideInputProcessor` has been removed. The `model` option overrides the agent's model out of the box:
+
+   ```diff
+   -$agent = new Agent($platform, $model, [new ModelOverrideInputProcessor()]);
+   -$agent->call($messages, ['model' => 'gpt-4o-mini']);
+   +$agent = new Agent($platform, $model);
+   +$agent->call($messages, options: ['model' => 'gpt-4o-mini']);
+   ```
+
 MCP Bundle
 ----------
 
@@ -96,6 +182,22 @@ AI Bundle
    -$name = $definition->getTag('ai.platform')[0]['name']; // 'failover'
    +$name = $definition->getTag('ai.platform')[0]['name']; // 'main'
    ```
+
+ * The `ai.agent.input_processor` and `ai.agent.output_processor` tags have been replaced by a single
+   `ai.agent.context_processor` tag, and the `AsInputProcessor`/`AsOutputProcessor` attributes by
+   `AsContextProcessor`:
+
+   ```diff
+   -#[AsInputProcessor(agent: 'ai.agent.my_agent')]
+   -final class MyProcessor implements InputProcessorInterface
+   +#[AsContextProcessor(agent: 'ai.agent.my_agent')]
+   +final class MyProcessor implements ContextProcessorInterface
+   ```
+
+   The `ai.agent.*.system_prompt_processor` and `ai.tool.agent_processor.*` services were replaced by
+   `ai.agent.*.instruction_processor` (priority `100`) and `ai.agent.*.tool_processor` (priority `-100`), and the
+   `ai.agent.*.memory_input_processor` service was renamed to `ai.agent.*.memory_processor`. The `prompt`, `tools`, `max_tool_calls`, `exclude_tool_messages` and `include_sources`
+   configuration keys are unchanged.
 
 Store
 -----

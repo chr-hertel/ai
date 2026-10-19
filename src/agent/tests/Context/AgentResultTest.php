@@ -9,15 +9,15 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\Agent\Tests;
+namespace Symfony\AI\Agent\Tests\Context;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Agent\Output;
+use Symfony\AI\Agent\Context\AgentResult;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\TextResult;
 
-final class OutputTest extends TestCase
+final class AgentResultTest extends TestCase
 {
     public function testConstructorSetsProperties()
     {
@@ -25,7 +25,7 @@ final class OutputTest extends TestCase
         $result = new TextResult('Test content');
         $options = ['temperature' => 0.5];
 
-        $output = new Output('gpt-4', $result, $messageBag, $options);
+        $output = new AgentResult('gpt-4', $result, $messageBag, $options);
 
         $this->assertSame('gpt-4', $output->getModel());
         $this->assertSame($result, $output->getResult());
@@ -38,7 +38,7 @@ final class OutputTest extends TestCase
         $messageBag = new MessageBag();
         $result = new TextResult('Content');
 
-        $output = new Output('claude-3', $result, $messageBag);
+        $output = new AgentResult('claude-3', $result, $messageBag, []);
 
         $this->assertSame('claude-3', $output->getModel());
         $this->assertSame($result, $output->getResult());
@@ -51,7 +51,7 @@ final class OutputTest extends TestCase
         $messageBag = new MessageBag();
         $result = new TextResult('Test');
 
-        $output = new Output('test-model', $result, $messageBag);
+        $output = new AgentResult('test-model', $result, $messageBag, []);
 
         $this->assertSame('test-model', $output->getModel());
     }
@@ -61,7 +61,7 @@ final class OutputTest extends TestCase
         $messageBag = new MessageBag();
         $result = new TextResult('Expected content');
 
-        $output = new Output('model', $result, $messageBag);
+        $output = new AgentResult('model', $result, $messageBag, []);
 
         $retrievedResult = $output->getResult();
 
@@ -73,7 +73,7 @@ final class OutputTest extends TestCase
     {
         $messageBag = new MessageBag();
         $originalResult = new TextResult('Original');
-        $output = new Output('model', $originalResult, $messageBag);
+        $output = new AgentResult('model', $originalResult, $messageBag, []);
 
         $newResult = new TextResult('New content');
         $output->setResult($newResult);
@@ -90,7 +90,7 @@ final class OutputTest extends TestCase
         $messageBag->add(Message::ofAssistant('Assistant reply'));
 
         $result = new TextResult('Content');
-        $output = new Output('model', $result, $messageBag);
+        $output = new AgentResult('model', $result, $messageBag, []);
 
         $retrievedMessageBag = $output->getMessageBag();
 
@@ -104,7 +104,7 @@ final class OutputTest extends TestCase
         $result = new TextResult('Content');
         $options = ['max_tokens' => 500, 'temperature' => 0.8];
 
-        $output = new Output('model', $result, $messageBag, $options);
+        $output = new AgentResult('model', $result, $messageBag, $options);
 
         $this->assertSame($options, $output->getOptions());
         $this->assertSame(500, $output->getOptions()['max_tokens']);
@@ -116,7 +116,7 @@ final class OutputTest extends TestCase
         $messageBag = new MessageBag();
         $result = new TextResult('Content');
 
-        $output = new Output('original-model', $result, $messageBag);
+        $output = new AgentResult('original-model', $result, $messageBag, []);
 
         $this->assertSame('original-model', $output->getModel());
     }
@@ -127,7 +127,7 @@ final class OutputTest extends TestCase
         $messageBag->add(Message::ofUser('Test'));
 
         $result = new TextResult('Content');
-        $output = new Output('model', $result, $messageBag);
+        $output = new AgentResult('model', $result, $messageBag, []);
 
         $retrievedBag = $output->getMessageBag();
         $this->assertSame($messageBag, $retrievedBag);
@@ -139,7 +139,7 @@ final class OutputTest extends TestCase
         $result = new TextResult('Content');
         $options = ['key' => 'value'];
 
-        $output = new Output('model', $result, $messageBag, $options);
+        $output = new AgentResult('model', $result, $messageBag, $options);
 
         $this->assertSame($options, $output->getOptions());
     }
