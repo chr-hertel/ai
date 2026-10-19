@@ -161,7 +161,7 @@ the stream without producing a final result::
         echo $delta->getText();
     }
 
-Cancellation is idempotent, propagates to the agents a ``MultiAgent`` or ``SpeechAgent`` delegates to, and makes
+Cancellation is idempotent, propagates to the agents an agent hands off to or a ``SpeechAgent`` delegates to, and makes
 ``getResult()`` throw a :class:`Symfony\\AI\\Agent\\Exception\\RuntimeException` instead of returning a partial
 answer. See the
 `execution-cancellation.php <https://github.com/symfony/ai/blob/main/examples/agent/execution-cancellation.php>`_
@@ -1097,6 +1097,10 @@ The ``model`` option replaces the model of the agent for a single call::
 
     $result = $agent->call('Hello!', options: ['model' => 'gpt-4o-mini']);
 
+Context items are runtime objects and are never persisted: a handoff, for example, holds the agent it hands off to.
+Only what processors turn into messages ends up in a conversation, so pass the items again on every call, either on
+the agent or per call.
+
 Context Processors
 ~~~~~~~~~~~~~~~~~~
 
@@ -1177,6 +1181,33 @@ processor can call back into it::
     {
         $result = $context->getAgent()->call(...);
     }
+
+Delegating a Run
+~~~~~~~~~~~~~~~~
+
+A processor can hand the whole run over to another execution, for example the execution of another agent. The
+runner then skips the model and forwards the updates of that execution to the consumer::
+
+    public function process(AgentRequest $request, AgentContext $context): void
+    {
+        $execution = $this->specialist->call($request->getMessageBag());
+
+        $context->delegate($execution, $this->specialist->getName());
+    }
+
+The result of the delegated execution completes the run like an answer of the model: the result-aware processors see
+it, and the ``ExecutionCompleted`` event is dispatched. The optional second argument names the delegate in the result
+metadata as ``delegated_to``. Canceling the execution also cancels the delegated one.
+
+A delegation short-circuits the processor chain: every processor after the delegating one is skipped, including its
+``processResult()``. The built-in :class:`Symfony\\AI\\Agent\\Context\\Processor\\HandoffProcessor` runs first
+by default, so a processor that must apply to every request - an input guardrail, a budget check - has to run before
+it. To do so, pass your own ``HandoffProcessor`` among the context processors, after the ones that must run first.
+The agent then does not add its default one::
+
+    use Symfony\AI\Agent\Context\Processor\HandoffProcessor;
+
+    $agent = new Agent($platform, $model, [$guardrail, new HandoffProcessor($platform), $memoryProcessor]);
 
 Agent Memory Management
 -----------------------

@@ -12,14 +12,25 @@
 namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Agent\Context\AgentContext;
+use Symfony\AI\Agent\Context\AgentRequest;
 use Symfony\AI\Agent\Context\Context;
+use Symfony\AI\Agent\Context\ContextProcessorInterface;
 use Symfony\AI\Agent\Context\Processor\ToolProcessor;
+use Symfony\AI\Agent\Event\ExecutionCompleted;
+use Symfony\AI\Agent\Event\ExecutionStarted;
+use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
+use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Agent\Execution\Cancellation;
+use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Execution\UpdateInterface;
 use Symfony\AI\Agent\MockAgent;
+use Symfony\AI\Agent\Tests\Fixtures\DelegatingProcessor;
+use Symfony\AI\Agent\Tests\Fixtures\RecordingProcessor;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Source\Source;
@@ -57,6 +68,7 @@ use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\TokenUsage\TokenUsageAggregation;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class RunnerTest extends TestCase
 {
@@ -901,6 +913,119 @@ final class RunnerTest extends TestCase
         $metadata = $result->getMetadata();
         $this->assertTrue($metadata->has('sources'));
         $this->assertCount(1, $metadata->get('sources'));
+    }
+
+    public function testAProcessorCanDelegateTheRunToAnotherExecution()
+    {
+        $platform = $this->createMock(PlatformInterface::class);
+        $platform->expects($this->never())->method('invoke');
+
+        $delegating = new DelegatingProcessor(new Execution(static function (): \Generator {
+            yield new Progress('delegated', 'Working elsewhere.');
+            yield new ResultUpdate(new TextResult('Delegated answer'));
+        }), 'other');
+
+        $skipped = new class implements ContextProcessorInterface {
+            public static function supportedTypes(): array
+            {
+                return [];
+            }
+
+            public function process(AgentRequest $request, AgentContext $context): void
+            {
+                throw new LogicException('A processor after the delegating one must not run.');
+            }
+        };
+
+        $updates = $this->collectUpdates(new Runner($platform, [$delegating, $skipped]), new MessageBag());
+
+        $this->assertCount(2, $updates);
+        $this->assertInstanceOf(Progress::class, $updates[0]);
+        $this->assertSame('delegated', $updates[0]->getStage());
+        $this->assertInstanceOf(ResultUpdate::class, $updates[1]);
+        $this->assertSame('Delegated answer', $updates[1]->getResult()->getContent());
+        $this->assertSame('other', $updates[1]->getResult()->getMetadata()->get('delegated_to'));
+    }
+
+    public function testADelegatedRunWithoutTargetCarriesNoDelegationMetadata()
+    {
+        $delegating = new DelegatingProcessor(new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Delegated answer'))));
+
+        $updates = $this->collectUpdates(new Runner($this->createStub(PlatformInterface::class), [$delegating]), new MessageBag());
+
+        $this->assertCount(1, $updates);
+        $this->assertInstanceOf(ResultUpdate::class, $updates[0]);
+        $this->assertFalse($updates[0]->getResult()->getMetadata()->has('delegated_to'));
+    }
+
+    public function testADelegatedRunDispatchesTheExecutionEventsOnce()
+    {
+        $dispatched = [];
+        $dispatcher = new EventDispatcher();
+        foreach ([ExecutionStarted::class, ExecutionCompleted::class] as $event) {
+            $dispatcher->addListener($event, static function (object $event) use (&$dispatched): void {
+                $dispatched[] = $event::class;
+            });
+        }
+
+        $delegating = new DelegatingProcessor(new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Delegated answer'))), 'other');
+        $runner = new Runner($this->createStub(PlatformInterface::class), [$delegating], eventDispatcher: $dispatcher);
+
+        $this->collectUpdates($runner, new MessageBag());
+
+        $this->assertSame([ExecutionStarted::class, ExecutionCompleted::class], $dispatched);
+    }
+
+    public function testOnlyTheProcessorsThatRanSeeTheDelegatedResult()
+    {
+        $before = new RecordingProcessor();
+        $delegating = new DelegatingProcessor(new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Delegated answer'))), 'other');
+        $after = new RecordingProcessor();
+
+        $this->collectUpdates(new Runner($this->createStub(PlatformInterface::class), [$before, $delegating, $after]), new MessageBag());
+
+        $this->assertTrue($before->processed);
+        $this->assertNotNull($before->result);
+        $this->assertSame('Delegated answer', $before->result->getResult()->getContent());
+        $this->assertFalse($after->processed);
+        $this->assertNull($after->result);
+    }
+
+    public function testCancelingADelegatedRunEndsWithoutResultAndCompletion()
+    {
+        $cancellation = new Cancellation();
+        $delegating = new DelegatingProcessor(new Execution(static function (): \Generator {
+            yield new Progress('delegated', 'Working elsewhere.');
+            yield new ResultUpdate(new TextResult('Delegated answer'));
+        }), 'other');
+
+        $completed = false;
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(ExecutionCompleted::class, static function () use (&$completed): void {
+            $completed = true;
+        });
+
+        $runner = new Runner($this->createStub(PlatformInterface::class), [$delegating], eventDispatcher: $dispatcher);
+
+        $updates = [];
+        foreach ($runner->run(new MockAgent(), 'gpt-4', new MessageBag(), new Context(), [], $cancellation) as $update) {
+            $updates[] = $update;
+            $cancellation->request();
+        }
+
+        $this->assertCount(1, $updates);
+        $this->assertInstanceOf(Progress::class, $updates[0]);
+        $this->assertFalse($completed);
+    }
+
+    public function testADelegatedExecutionWithoutResultFails()
+    {
+        $delegating = new DelegatingProcessor(new Execution(static fn (): \Generator => yield new Progress('delegated', 'Working elsewhere.')));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The delegated execution finished without a result.');
+
+        $this->collectUpdates(new Runner($this->createStub(PlatformInterface::class), [$delegating]), new MessageBag());
     }
 
     public function testItYieldsProgressUpdatesForTheModelRequestAndEachToolCall()

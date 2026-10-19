@@ -23,6 +23,7 @@ use Symfony\AI\Agent\Event\ExecutionStarted;
 use Symfony\AI\Agent\Event\ModelRequested;
 use Symfony\AI\Agent\Event\ModelResponded;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
+use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
@@ -90,7 +91,7 @@ final class Runner
     public function run(AgentInterface $agent, string $model, MessageBag $messages, Context $context, array $options, ?Cancellation $cancellation = null): \Generator
     {
         $request = new AgentRequest($model, $messages, $options, $context);
-        $agentContext = new AgentContext($agent);
+        $agentContext = new AgentContext($agent, $cancellation);
 
         $started = new ExecutionStarted($agent, $request);
         $this->eventDispatcher?->dispatch($started);
@@ -100,8 +101,33 @@ final class Runner
             return;
         }
 
+        $processed = [];
         foreach ($this->applicableProcessors($context) as $processor) {
             $processor->process($request, $agentContext);
+            $processed[] = $processor;
+            yield from $agentContext->flushUpdates();
+
+            if ($cancellation?->isRequested()) {
+                return;
+            }
+
+            $delegation = $agentContext->getDelegation();
+            if (null === $delegation) {
+                continue;
+            }
+
+            $result = yield from $this->forwardDelegation($delegation, $cancellation);
+            if (null === $result) {
+                return;
+            }
+
+            if (null !== $target = $agentContext->getDelegationTarget()) {
+                $result->getMetadata()->add('delegated_to', $target);
+            }
+
+            yield from $this->complete($agent, $result, $request, $agentContext, $processed);
+
+            return;
         }
 
         $model = $request->getModel();
@@ -191,7 +217,7 @@ final class Runner
             $result->getMetadata()->add('sources', $sources);
         }
 
-        yield from $this->complete($agent, $result, $request, $agentContext);
+        yield from $this->complete($agent, $result, $request, $agentContext, $processed);
     }
 
     /**
@@ -288,15 +314,17 @@ final class Runner
     }
 
     /**
-     * Runs the result-aware processors and yields the final result.
+     * Runs the result-aware processors among the ones that processed the request, and yields the final result.
+     *
+     * @param list<ContextProcessorInterface> $processed
      *
      * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    private function complete(AgentInterface $agent, ResultInterface $result, AgentRequest $request, AgentContext $agentContext): \Generator
+    private function complete(AgentInterface $agent, ResultInterface $result, AgentRequest $request, AgentContext $agentContext, array $processed): \Generator
     {
         $agentResult = new AgentResult($request->getModel(), $result, $request->getMessageBag(), $request->getOptions());
 
-        foreach ($this->applicableProcessors($request->getContext()) as $processor) {
+        foreach ($processed as $processor) {
             if (!$processor instanceof ResultAwareContextProcessorInterface) {
                 continue;
             }
@@ -307,6 +335,41 @@ final class Runner
         $this->eventDispatcher?->dispatch(new ExecutionCompleted($agent, $agentResult));
 
         yield new ResultUpdate($agentResult->getResult());
+    }
+
+    /**
+     * Forwards the updates of a delegated execution, and returns its result instead of yielding it.
+     *
+     * @return \Generator<int, UpdateInterface, mixed, ResultInterface|null> null if the run was canceled
+     */
+    private function forwardDelegation(Execution $delegation, ?Cancellation $cancellation): \Generator
+    {
+        $updates = ($cancellation?->forward($delegation) ?? $delegation)->getIterator();
+        $result = null;
+
+        while ($updates->valid()) {
+            $update = $updates->current();
+
+            if ($update instanceof ResultUpdate) {
+                $result = $update->getResult();
+                $updates->next();
+
+                continue;
+            }
+
+            // an answer sent back by the consumer belongs to the delegated execution
+            $updates->send(yield $update);
+        }
+
+        if ($cancellation?->isRequested()) {
+            return null;
+        }
+
+        if (null === $result) {
+            throw new RuntimeException('The delegated execution finished without a result.');
+        }
+
+        return $result;
     }
 
     /**

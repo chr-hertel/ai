@@ -1,20 +1,22 @@
 === Technical Question ===
 Question: I get this error in my php code: "Call to undefined method App\Controller\UserController::getName()" - this is my line of code: $user->getName() where $user is an instance of User entity.
 
-Answer: That message means PHP thinks $user is an instance of App\Controller\UserController (your controller class), not your entity. Common causes and how to fix:
+Answer: The error "Call to undefined method App\Controller\UserController::getName()" indicates that PHP is trying to call the `getName()` method on your `UserController` class instead of an instance of the `User` entity.
 
-1) Verify what $user actually is
-- Dump its class: var_dump(get_class($user)); die; (or dump($user) / dd($user) in Symfony).
-This will show whe...
+Here are a few steps to troubleshoot the issue:
+
+1. **Check the `$user` Variable**: E...
 
 === General Question ===
 Question: Can you give me a lasagne recipe?
 
-Answer: Sure — here’s a reliable, classic lasagne recipe (serves 6–8) with options for béchamel or ricotta, plus a vegetarian swap and make-ahead/freezing tips.
+Answer: Sure — here’s a reliable recipe for a classic meat lasagne (Bolognese + béchamel) that serves about 6–8.
 
-Times
-- Prep: 30–45 minutes (longer if you make sauce from scratch)
-- Cook: 45–50 minutes
-- Rest: 15 minutes
-
-Ingredients (classic meat...
+Ingredients
+- For the ragu (meat sauce):
+  - 2 tbsp olive oil
+  - 1 onion, finely chopped
+  - 1 carrot, finely chopped
+  - 1 celery stalk, finely chopped
+  - 2 garlic cloves, minced
+  - 5...

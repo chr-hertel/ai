@@ -19,6 +19,11 @@ CHANGELOG
    settings (`max_tool_calls`, `exclude_tool_messages`, `include_sources`) are passed to the `Agent` directly
  * Register the built-in instruction, attachment and tool processors of every agent as context processor services with
    the priorities `100`, `90` and `-100`, so custom processors can be ordered around them
+ * [BC BREAK] The `multi_agent` configuration now builds an `Agent` carrying handoffs instead of a `MultiAgent`
+   service: `ai.multi_agent.*` is the orchestrating agent with the configured handoffs, and the `fallback` agent is
+   registered as a catch-all handoff. The configuration keys are unchanged
+ * Register an `ai.agent.<name>.handoff_processor` context processor with priority `0` per agent, so processors with
+   a higher priority run before a handoff skips the remaining ones
 
 0.14
 ----
