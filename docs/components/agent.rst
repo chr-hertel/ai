@@ -127,6 +127,33 @@ before advancing any of them::
     The tool-calling loop is part of a single execution: the agent keeps invoking the model and executing the tools
     it requests until the model answers without asking for further tools.
 
+Continuing a Conversation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The agent doesn't change the message bag you pass to it. To continue the conversation, use
+``getMessages()`` of the execution. It returns your messages followed by the messages of the run: the
+tool calls with their results and the final answer. The returned bag keeps the ID of your bag, so it
+can be stored and passed to the next call::
+
+    $messages = new MessageBag(Message::ofUser('What time is it?'));
+    $messages = $agent->call($messages)->getMessages();
+
+    $messages = $messages->with(Message::ofUser('And in Tokyo?'));
+    $messages = $agent->call($messages)->getMessages();
+
+The system prompt and the memory added by input processors are not part of the returned messages, they
+are added again on every call.
+
+Each assistant message carries the metadata of its own model request, like the token usage or the finish
+reason, while the metadata of the execution aggregates all requests of the run. With ``includeSources``
+enabled, the final answer carries :ref:`tool sources <agent-tool-sources>` as well::
+
+    foreach ($messages as $message) {
+        if ($message instanceof AssistantMessage) {
+            echo $message->getMetadata()->get('token_usage')?->getTotalTokens().\PHP_EOL;
+        }
+    }
+
 Streaming
 ~~~~~~~~~
 
@@ -724,6 +751,8 @@ If you want to expose the underlying error to the LLM, you can throw a custom ex
             return $user->getAge();
         }
     }
+
+.. _agent-tool-sources:
 
 Tool Sources
 ~~~~~~~~~~~~

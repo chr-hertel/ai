@@ -31,13 +31,13 @@ $messages = new MessageBag(
 $messages = $messages->with(Message::ofUser('What is the capital of France?'));
 $execution = $agent->call($messages);
 echo 'Turn 1: '.$execution->asText().\PHP_EOL;
-$messages = $messages->with(Message::ofAssistant($execution->getResult()));
+$messages = $execution->getMessages();
 
 // tool call
 $messages = $messages->with(Message::ofUser('What time is it right now?'));
 $execution = $agent->call($messages);
 echo 'Turn 2: '.$execution->asText().\PHP_EOL;
-$messages = $messages->with(Message::ofAssistant($execution->getResult()));
+$messages = $execution->getMessages();
 
 // another chat - the previous assistant turn (tool call + final answer) must be replayed via the
 // Anthropic AssistantMessageNormalizer, including any tool_use / tool_result / thinking blocks.

@@ -145,10 +145,9 @@ final class AgentCallCommand extends Command
                 break;
             }
 
-            $messages = $messages->with(Message::ofUser($userInput));
-
             try {
-                $result = $agent->call($messages)->getResult();
+                $execution = $agent->call($messages->with(Message::ofUser($userInput)));
+                $result = $execution->getResult();
 
                 if ($result instanceof TextResult) {
                     $io->write('<fg=yellow>Assistant</>:');
@@ -156,7 +155,7 @@ final class AgentCallCommand extends Command
                     $io->writeln($result->getContent());
                     $io->newLine();
 
-                    $messages = $messages->with(Message::ofAssistant($result));
+                    $messages = $execution->getMessages();
                 } else {
                     $io->error('Unexpected response type from agent');
                 }

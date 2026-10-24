@@ -161,6 +161,20 @@ final class ResultNormalizerTest extends TestCase
                     'content' => [
                         'foo' => 'bar',
                     ],
+                    'text' => null,
+                ],
+            ],
+        ];
+        yield ObjectResult::class.'-text' => [
+            new ObjectResult(['foo' => 'bar'], '{"foo": "bar"}'),
+            [
+                'class' => ObjectResult::class,
+                'payload' => [
+                    'type' => 'array',
+                    'content' => [
+                        'foo' => 'bar',
+                    ],
+                    'text' => '{"foo": "bar"}',
                 ],
             ],
         ];
@@ -171,6 +185,7 @@ final class ResultNormalizerTest extends TestCase
                 'payload' => [
                     'type' => 'stdClass',
                     'content' => [],
+                    'text' => null,
                 ],
             ],
         ];

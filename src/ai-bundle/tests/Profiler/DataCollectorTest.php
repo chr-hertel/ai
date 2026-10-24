@@ -13,7 +13,6 @@ namespace Symfony\AI\AiBundle\Tests\Profiler;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MockAgent;
@@ -421,10 +420,7 @@ class DataCollectorTest extends TestCase
 
     public function testCollectsDataForChat()
     {
-        $agent = $this->createMock(AgentInterface::class);
-        $agent->expects($this->once())->method('call')->willReturn($this->execution(new TextResult('foo')));
-
-        $chat = new Chat($agent, new InMemoryStore());
+        $chat = new Chat(new MockAgent(['Hello World' => 'foo']), new InMemoryStore());
 
         $traceableChat = new TraceableChat($chat, new MonotonicClock());
 
