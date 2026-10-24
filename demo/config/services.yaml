@@ -29,4 +29,5 @@ services:
         exclude:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
+            - '../src/Movies/Movie.php'
             - '../src/Kernel.php'
