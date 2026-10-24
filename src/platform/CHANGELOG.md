@@ -6,6 +6,7 @@ CHANGELOG
 
  * Add `Serializer\MessageNormalizer` and `Serializer\MessageBagNormalizer` for persisting messages and message bags losslessly, including ids, metadata and all content types; `addedAt` is derived from the message id instead of the time of normalization
  * Add `MessageBag::withId()`
+ * Add `ObjectResult::getText()` holding the JSON the model answered with, which `Message::ofAssistant()` maps to text
  * [BC BREAK] Make `MessageBag` immutable: remove `add()`, `prepend()` and `removeSystemMessage()` in favor of `with()`, `withSystemMessage()` and `withoutSystemMessage()`, `replace()` returns a copy, and copies no longer share their metadata
  * Add `CachedModelCatalog` decorator that caches the lookups of any `ModelCatalogInterface`, so API-based catalogs (e.g. the Ollama bridge) can persist resolutions across requests
 
