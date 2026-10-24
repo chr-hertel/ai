@@ -16,6 +16,7 @@ use Symfony\AI\Platform\Message\Content\ExecutableCode;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\Role;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
@@ -30,7 +31,8 @@ $messages = new MessageBag(
 );
 
 $execution = $agent->call($messages, ['server_tools' => $serverTools]);
-$messages = $messages->with($assistant = Message::ofAssistant($execution->getResult()));
+$messages = $execution->getMessages();
+$assistant = $messages->latestAs(Role::Assistant);
 
 output()->writeln('<info>====== Turn 1 ======</info>');
 foreach ($assistant->getContent() as $part) {

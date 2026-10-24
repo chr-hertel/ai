@@ -37,10 +37,7 @@ final class Chat
     {
         $messages = $this->loadMessages();
 
-        $messages = $messages->with(Message::ofUser($message));
-        $result = $this->agent->call($messages)->asText();
-
-        $messages = $messages->with(Message::ofAssistant($result));
+        $messages = $this->agent->call($messages->with(Message::ofUser($message)))->getMessages();
 
         $this->saveMessages($messages);
     }

@@ -47,7 +47,7 @@ foreach ($execution->asStream() as $delta) {
 }
 output()->writeln('');
 
-$messages = $messages->with(Message::ofAssistant($execution->getResult()));
+$messages = $execution->getMessages();
 
 $messages = $messages->with(Message::ofUser('What did I just ask you?'));
 $execution = $agent->call($messages, $options);
@@ -60,6 +60,6 @@ foreach ($execution->asStream() as $delta) {
 }
 output()->writeln('');
 
-$messages = $messages->with(Message::ofAssistant($execution->getResult()));
+$messages = $execution->getMessages();
 
 print_conversation_shape($messages);
