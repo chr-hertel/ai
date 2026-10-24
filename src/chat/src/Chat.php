@@ -38,14 +38,14 @@ final class Chat implements ChatInterface
     {
         $messages = $this->store->load();
 
-        $messages->add($message);
+        $messages = $messages->with($message);
 
         // the execution is lazy, reading its result runs the agent and returns the underlying result
         $result = $this->agent->call($messages)->getResult();
 
         $assistantMessage = Message::ofAssistant($result);
         $assistantMessage->getMetadata()->merge($result->getMetadata());
-        $messages->add($assistantMessage);
+        $messages = $messages->with($assistantMessage);
 
         $this->store->save($messages);
 
@@ -55,7 +55,7 @@ final class Chat implements ChatInterface
     public function stream(UserMessage $message): \Generator
     {
         $messages = $this->store->load();
-        $messages->add($message);
+        $messages = $messages->with($message);
 
         $execution = $this->agent->call($messages, ['stream' => true]);
 
@@ -63,7 +63,7 @@ final class Chat implements ChatInterface
 
         $assistantMessage = Message::ofAssistant($execution->getResult());
         $assistantMessage->getMetadata()->merge($execution->getMetadata());
-        $messages->add($assistantMessage);
+        $messages = $messages->with($assistantMessage);
 
         $this->store->save($messages);
     }

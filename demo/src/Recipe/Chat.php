@@ -54,7 +54,7 @@ final class Chat
     {
         $messages = $this->loadMessages();
 
-        $messages->add(Message::ofUser($message));
+        $messages = $messages->with(Message::ofUser($message));
 
         $this->saveMessages($messages);
     }
@@ -99,7 +99,7 @@ final class Chat
 
         $assistantMessage = Message::ofAssistant($recipe->toString());
         $assistantMessage->getMetadata()->add('recipe', $recipe);
-        $messages->add($assistantMessage);
+        $messages = $messages->with($assistantMessage);
 
         $this->saveMessages($messages);
 

@@ -46,7 +46,7 @@ final class Chat
         $messages = $this->loadMessages();
 
         $userMessage = Message::ofUser($message);
-        $messages->add($userMessage);
+        $messages = $messages->with($userMessage);
 
         $this->saveMessages($messages);
 
@@ -74,7 +74,7 @@ final class Chat
         }
 
         $assistantMessage = Message::ofAssistant($response);
-        $messages->add($assistantMessage);
+        $messages = $messages->with($assistantMessage);
         $this->saveMessages($messages);
 
         return $assistantMessage;

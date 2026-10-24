@@ -34,18 +34,18 @@ $messages = new MessageBag(
     Message::forSystem('You are a helpful assistant.'),
 );
 
-$messages->add(Message::ofUser('What time is it right now?'));
+$messages = $messages->with(Message::ofUser('What time is it right now?'));
 $execution = $agent->call($messages, $options);
 
 $assistant = Message::ofAssistant($execution->getResult());
 output()->writeln('<info>Turn 1:</info> '.$assistant->asText());
-$messages->add($assistant);
+$messages = $messages->with($assistant);
 
-$messages->add(Message::ofUser('What did I just ask you?'));
+$messages = $messages->with(Message::ofUser('What did I just ask you?'));
 $execution = $agent->call($messages, $options);
 
 $assistant = Message::ofAssistant($execution->getResult());
 output()->writeln('<info>Turn 2:</info> '.$assistant->asText());
-$messages->add($assistant);
+$messages = $messages->with($assistant);
 
 print_conversation_shape($messages);

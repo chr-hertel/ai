@@ -59,34 +59,6 @@ class MessageBag implements \Countable, \IteratorAggregate
         return $messages;
     }
 
-    public function add(MessageInterface $message): void
-    {
-        $this->messages[] = $message;
-    }
-
-    /**
-     * Mutable counterpart of {@see self::with()} that prepends the message in place.
-     */
-    public function prepend(MessageInterface $message): void
-    {
-        array_unshift($this->messages, $message);
-    }
-
-    /**
-     * Mutable counterpart of {@see self::withoutSystemMessage()} that removes the system message in place.
-     */
-    public function removeSystemMessage(): void
-    {
-        $messages = [];
-        foreach ($this->messages as $message) {
-            if (!$message instanceof SystemMessage) {
-                $messages[] = $message;
-            }
-        }
-
-        $this->messages = $messages;
-    }
-
     /**
      * @return list<MessageInterface>
      */
@@ -134,7 +106,7 @@ class MessageBag implements \Countable, \IteratorAggregate
     public function with(MessageInterface $message): self
     {
         $messages = clone $this;
-        $messages->add($message);
+        $messages->messages[] = $message;
 
         return $messages;
     }
@@ -166,15 +138,19 @@ class MessageBag implements \Countable, \IteratorAggregate
             throw new InvalidArgumentException(\sprintf('No message found for Uuid: "%s".', $uuid->toRfc4122()));
         }
 
-        $this->messages[$position] = $newMessage;
+        $messages = clone $this;
+        $messages->messages[$position] = $newMessage;
 
-        return $this;
+        return $messages;
     }
 
     public function withoutSystemMessage(): self
     {
         $messages = clone $this;
-        $messages->removeSystemMessage();
+        $messages->messages = array_values(array_filter(
+            $this->messages,
+            static fn (MessageInterface $message): bool => !$message instanceof SystemMessage,
+        ));
 
         return $messages;
     }
@@ -208,7 +184,7 @@ class MessageBag implements \Countable, \IteratorAggregate
     public function withSystemMessage(SystemMessage $message): self
     {
         $messages = $this->withoutSystemMessage();
-        $messages->prepend($message);
+        array_unshift($messages->messages, $message);
 
         return $messages;
     }

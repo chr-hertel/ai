@@ -32,7 +32,7 @@ $messages = new MessageBag(
 );
 
 $execution = $agent->call($messages, $options);
-$messages->add($assistant = Message::ofAssistant($execution->getResult()));
+$messages = $messages->with($assistant = Message::ofAssistant($execution->getResult()));
 
 output()->writeln('<info>====== Turn 1 ======</info>');
 foreach ($assistant->getContent() as $part) {
@@ -48,6 +48,6 @@ foreach ($assistant->getContent() as $part) {
 echo \PHP_EOL;
 
 output()->writeln('<info>====== Turn 2 ======</info>');
-$messages->add(Message::ofUser('What number did your snippet print? Answer with the number only.'));
+$messages = $messages->with(Message::ofUser('What number did your snippet print? Answer with the number only.'));
 $execution = $agent->call($messages, $options);
 output()->writeln('<comment>Assistant:</comment> '.$execution->asText());

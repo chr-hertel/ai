@@ -1,6 +1,12 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * [BC BREAK] The agent no longer changes the given `MessageBag`: input processors replace it with `Input::setMessageBag()`, and the tool loop runs on its own copy
+ * [BC BREAK] Remove the `excludeToolMessages` argument of `Agent`, tool messages never reach the caller's `MessageBag`
+
 0.15
 ----
 

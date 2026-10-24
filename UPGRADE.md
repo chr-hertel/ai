@@ -1,14 +1,41 @@
 UPGRADE FROM 0.15 to 0.16
 =========================
 
+Agent
+-----
+
+ * The agent no longer changes the `MessageBag` it is called with. The system prompt, memory and the messages of
+   the tool loop stay out of it, so add the answer to your own bag:
+
+   ```diff
+    $execution = $agent->call($messages);
+   -$messages->add(Message::ofAssistant($execution->getResult()));
+   +$messages = $messages->with(Message::ofAssistant($execution->getResult()));
+   ```
+
+ * Input processors must replace the `MessageBag` instead of changing it:
+
+   ```diff
+   -$input->getMessageBag()->add($message);
+   +$input->setMessageBag($input->getMessageBag()->with($message));
+   ```
+
+ * The `excludeToolMessages` argument of `Agent` has been removed, tool messages never reach the caller's
+   `MessageBag` anymore.
+
 AI Bundle
 ---------
+
+ * The `exclude_tool_messages` agent option has been removed, tool messages never reach the caller's `MessageBag`
+   anymore.
 
  * The `ai.chat.message_bag.normalizer` service has been renamed to `ai.platform.message_normalizer` and is registered
    without `symfony/ai-chat` as well.
 
 Chat
 ----
+
+ * `Chat` no longer persists the system prompt and the tool messages of a turn, only the user message and the answer.
 
  * `MessageNormalizer` has been removed. Use `Symfony\AI\Platform\Serializer\MessageNormalizer` instead, which no longer
    needs the `ToolCallNormalizer` next to it. It still reads messages persisted with the old format, but writes all
@@ -23,6 +50,19 @@ Chat
    -    new ToolCallNormalizer(),
         new MessageNormalizer(),
     ], [new JsonEncoder()]);
+   ```
+
+Platform
+--------
+
+ * `MessageBag` is immutable. `add()`, `prepend()` and `removeSystemMessage()` have been removed, use the methods
+   returning a copy instead, and `replace()` returns a copy as well:
+
+   ```diff
+   -$messages->add(Message::ofUser('Hello'));
+   -$messages->prepend(Message::forSystem('You are a pirate.'));
+   +$messages = $messages->with(Message::ofUser('Hello'));
+   +$messages = $messages->withSystemMessage(Message::forSystem('You are a pirate.'));
    ```
 
 UPGRADE FROM 0.14 to 0.15

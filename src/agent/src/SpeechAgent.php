@@ -131,8 +131,7 @@ final class SpeechAgent implements AgentInterface
         $cancellation->activate($result->getRawResult());
 
         $text = new Text($result->asText());
-        $messages->replace($latestUserMessage->getId(), Message::ofUser($text));
 
-        return $messages;
+        return $messages->replace($latestUserMessage->getId(), Message::ofUser($text));
     }
 }

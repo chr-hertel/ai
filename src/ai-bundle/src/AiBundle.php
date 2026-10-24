@@ -1571,7 +1571,6 @@ final class AiBundle extends AbstractBundle
             $agentDefinition
                 ->setArgument('$toolbox', new Reference('ai.toolbox.'.$name))
                 ->setArgument('$maxToolCalls', $config['max_tool_calls'])
-                ->setArgument('$excludeToolMessages', $config['exclude_tool_messages'])
                 ->setArgument('$includeSources', $config['include_sources'])
                 ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE));
 

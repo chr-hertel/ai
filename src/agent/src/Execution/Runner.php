@@ -59,7 +59,6 @@ final class Runner
         private readonly ?ToolboxInterface $toolbox = null,
         private readonly ?ToolExecutorInterface $toolExecutor = null,
         private readonly ?int $maxToolCalls = 50,
-        private readonly bool $excludeToolMessages = false,
         private readonly bool $includeSources = false,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ToolResultConverter $resultConverter = new ToolResultConverter(),
@@ -74,7 +73,6 @@ final class Runner
     public function run(string $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null): \Generator
     {
         [$options, $allowedTools] = $this->exposeTools($options);
-        $messages = $this->excludeToolMessages ? clone $messages : $messages;
 
         $sources = new SourceCollection();
         $metadata = new Metadata();
@@ -126,9 +124,9 @@ final class Runner
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
             $toolResults = yield from $this->toolExecutor->execute($toolCalls);
 
-            $messages->add($assistantMessage ?? Message::ofAssistant($result));
+            $messages = $messages->with($assistantMessage ?? Message::ofAssistant($result));
             foreach ($toolResults as $i => $toolResult) {
-                $messages->add(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
+                $messages = $messages->with(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
 
                 if (null !== $toolResult->getSources()) {
                     $sources = $sources->merge($toolResult->getSources());
