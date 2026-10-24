@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * Add a `doctrine` store, keeping vectors in an `#[Embedding]` field of a Doctrine entity
+
 0.15
 ----
 
