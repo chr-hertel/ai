@@ -440,7 +440,6 @@ final class AiBundle extends AbstractBundle
         }
 
         if (!ContainerBuilder::willBeAvailable('symfony/ai-chat', Chat::class, ['symfony/ai-bundle'])) {
-            $builder->removeDefinition('ai.chat.message_bag.normalizer');
             $builder->removeDefinition('ai.command.setup_message_store');
             $builder->removeDefinition('ai.command.drop_message_store');
         }

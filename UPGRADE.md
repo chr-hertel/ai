@@ -1,3 +1,30 @@
+UPGRADE FROM 0.15 to 0.16
+=========================
+
+AI Bundle
+---------
+
+ * The `ai.chat.message_bag.normalizer` service has been renamed to `ai.platform.message_normalizer` and is registered
+   without `symfony/ai-chat` as well.
+
+Chat
+----
+
+ * `MessageNormalizer` has been removed. Use `Symfony\AI\Platform\Serializer\MessageNormalizer` instead, which no longer
+   needs the `ToolCallNormalizer` next to it. It still reads messages persisted with the old format, but writes all
+   content as `parts`, and no longer adds `addedAt` to the metadata of denormalized messages:
+
+   ```diff
+   -use Symfony\AI\Chat\MessageNormalizer;
+   +use Symfony\AI\Platform\Serializer\MessageNormalizer;
+
+    $serializer = new Serializer([
+        new ArrayDenormalizer(),
+   -    new ToolCallNormalizer(),
+        new MessageNormalizer(),
+    ], [new JsonEncoder()]);
+   ```
+
 UPGRADE FROM 0.14 to 0.15
 =========================
 

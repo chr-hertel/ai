@@ -332,7 +332,8 @@ class AiBundleTest extends TestCase
     {
         $container = $this->buildContainer($this->getFullConfig());
 
-        $this->assertTrue($container->hasDefinition('ai.chat.message_bag.normalizer'));
+        $this->assertTrue($container->hasDefinition('ai.platform.message_normalizer'));
+        $this->assertTrue($container->hasDefinition('ai.platform.message_bag_normalizer'));
     }
 
     public function testResponseFormatFactoryServiceIsRegistered()

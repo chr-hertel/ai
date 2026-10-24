@@ -290,6 +290,33 @@ final class MessageBagTest extends TestCase
         $this->assertTrue($messageBag->containsImage());
     }
 
+    public function testWithIdReturnsCopyWithGivenId()
+    {
+        $id = Uuid::v7();
+        $messageBag = new MessageBag(Message::ofUser('Hello!'));
+        $messageBag->getMetadata()->add('key', 'value');
+
+        $newMessageBag = $messageBag->withId($id);
+
+        $this->assertNotSame($messageBag, $newMessageBag);
+        $this->assertSame($id, $newMessageBag->getId());
+        $this->assertFalse($messageBag->getId()->equals($id));
+        $this->assertSame($messageBag->getMessages(), $newMessageBag->getMessages());
+        $this->assertSame('value', $newMessageBag->getMetadata()->get('key'));
+    }
+
+    public function testCopiesDoNotShareMetadata()
+    {
+        $messageBag = new MessageBag();
+        $messageBag->getMetadata()->add('key', 'value');
+
+        $newMessageBag = $messageBag->with(Message::ofUser('Hello!'));
+        $newMessageBag->getMetadata()->add('other', 'value');
+
+        $this->assertFalse($messageBag->getMetadata()->has('other'));
+        $this->assertSame('value', $newMessageBag->getMetadata()->get('key'));
+    }
+
     public function testItCanHandleMetadata()
     {
         $messageBag = new MessageBag();

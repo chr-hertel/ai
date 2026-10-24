@@ -39,9 +39,24 @@ class MessageBag implements \Countable, \IteratorAggregate
         $this->id = Uuid::v7();
     }
 
+    public function __clone()
+    {
+        if (null !== $this->metadata) {
+            $this->metadata = clone $this->metadata;
+        }
+    }
+
     public function getId(): AbstractUid&TimeBasedUidInterface
     {
         return $this->id;
+    }
+
+    public function withId(AbstractUid&TimeBasedUidInterface $id): static
+    {
+        $messages = clone $this;
+        $messages->id = $id;
+
+        return $messages;
     }
 
     public function add(MessageInterface $message): void
