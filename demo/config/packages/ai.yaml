@@ -66,12 +66,12 @@ ai:
             tools: false
         wikipedia:
             platform: 'ai.platform.openai'
-            model:
-                name: 'gpt-5-mini'
+            model: 'gpt-5.4-mini'
             prompt:
                 text: |
                     Please answer the users question based on Wikipedia, only use information provided in the messages.
                     If you don't know the answer, say so. Be concise and to the point. Use markdown formatting.
+                    Before every tool call, tell the user in one short sentence what you are about to look up and why.
                 include_tools: true
             tools:
                 - 'Symfony\AI\Agent\Bridge\Wikipedia\Wikipedia'
