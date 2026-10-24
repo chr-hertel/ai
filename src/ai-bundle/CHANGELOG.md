@@ -7,6 +7,7 @@ CHANGELOG
  * [BC BREAK] Replace the `setup_options` of the `mariadb`, `mongodb`, `pinecone`, `postgres`, `redis` and `s3vectors` stores by store keys: `dimensions`, `metric`, `cloud`, `region`, `vector_type`, `index_method`, `index_opclass` and `index_fields`
  * [BC BREAK] Remove the `setup_options.force_database_creation` option of the `surrealdb` store, use `ai:store:setup --option forceDatabaseCreation=true` instead
  * [BC BREAK] Rename the `similarity` (`elasticsearch`, `manticoresearch`, `mongodb`), `metric_type` (`milvus`), `space_type` (`opensearch`), `strategy` (`surrealdb`) and `distance` (`mariadb`, `neo4j`, `postgres`, `qdrant`, `redis`, `sqlite`) store keys to `metric`, and the `vector_dimension` key of the `sqlite` and `supabase` stores to `dimensions`
+ * Add a `doctrine` store, keeping vectors in an `#[Embedding]` field of a Doctrine entity, and embedding the entity on flush and through `ai:store:index` when a `vectorizer` is configured
 
 0.15
 ----
