@@ -4,7 +4,7 @@ CHANGELOG
 0.16
 ----
 
- * Add `Serializer\MessageNormalizer` and `Serializer\MessageBagNormalizer` for persisting messages and message bags losslessly, including ids, metadata and all content types; `addedAt` is derived from the message id instead of the time of normalization
+ * Add `Serializer\MessageNormalizer` and `Serializer\MessageBagNormalizer` for persisting messages and message bags losslessly, including ids, metadata and all content types; objects in the metadata keep their type, the platform's token usage and finish reason are handled directly and other objects are handed to the serializer; `addedAt` is derived from the message id instead of the time of normalization
  * Add `MessageBag::withId()`
  * Add `ObjectResult::getText()` holding the JSON the model answered with, which `Message::ofAssistant()` maps to text
  * [BC BREAK] Make `MessageBag` immutable: remove `add()`, `prepend()` and `removeSystemMessage()` in favor of `with()`, `withSystemMessage()` and `withoutSystemMessage()`, `replace()` returns a copy, and copies no longer share their metadata
