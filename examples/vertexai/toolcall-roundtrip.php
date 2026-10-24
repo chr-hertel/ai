@@ -31,12 +31,12 @@ $messages = new MessageBag(
 $messages = $messages->with(Message::ofUser('What is the capital of France?'));
 $execution = $agent->call($messages);
 echo 'Turn 1: '.$execution->asText().\PHP_EOL;
-$messages = $messages->with(Message::ofAssistant($execution->getResult()));
+$messages = $execution->getMessages();
 
 $messages = $messages->with(Message::ofUser('What time is it right now, and which European capitals do you know about via your tools?'));
 $execution = $agent->call($messages);
 echo 'Turn 2: '.$execution->asText().\PHP_EOL;
-$messages = $messages->with(Message::ofAssistant($execution->getResult()));
+$messages = $execution->getMessages();
 
 $messages = $messages->with(Message::ofUser('What was the first question I asked you?'));
 $execution = $agent->call($messages);

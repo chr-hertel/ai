@@ -73,9 +73,11 @@ final class Chat
             yield $response .= $delta;
         }
 
-        $assistantMessage = Message::ofAssistant($response);
-        $messages = $messages->with($assistantMessage);
+        $messages = $execution->getMessages();
         $this->saveMessages($messages);
+
+        $assistantMessage = $messages->latestAs(Role::Assistant);
+        \assert($assistantMessage instanceof AssistantMessage);
 
         return $assistantMessage;
     }

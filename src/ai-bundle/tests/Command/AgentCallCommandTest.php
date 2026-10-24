@@ -19,8 +19,10 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\MockAgent;
 use Symfony\AI\AiBundle\Command\AgentCallCommand;
 use Symfony\AI\AiBundle\Exception\RuntimeException;
+use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\Component\Console\Application;
@@ -56,12 +58,10 @@ final class AgentCallCommandTest extends TestCase
 
     public function testCommandExecutesWithValidAgent()
     {
-        $agent = $this->createMock(AgentInterface::class);
-        $result = new TextResult('Hello! How can I help you today?');
-
-        $agent->expects($this->once())
-            ->method('call')
-            ->willReturn($this->execution($result));
+        $agent = new MockAgent([
+            'Hello' => 'Hello! How can I help you today?',
+            'Thanks' => static fn (MessageBag $messages): string => \sprintf('You sent %d messages.', \count($messages)),
+        ]);
 
         $agents = [
             'test' => $agent,
@@ -73,7 +73,7 @@ final class AgentCallCommandTest extends TestCase
         $commandTester = new CommandTester($command);
 
         // Simulate user input
-        $commandTester->setInputs(['Hello', 'exit']);
+        $commandTester->setInputs(['Hello', 'Thanks', 'exit']);
 
         $commandTester->execute([
             'agent' => 'test',
@@ -86,6 +86,8 @@ final class AgentCallCommandTest extends TestCase
         $this->assertStringContainsString('Type your message and press Enter', $output);
         $this->assertStringContainsString('Assistant', $output);
         $this->assertStringContainsString('Hello! How can I help you today?', $output);
+        $this->assertStringContainsString('You sent 3 messages.', $output);
+        $this->assertStringNotContainsString('Error', $output);
         $this->assertStringContainsString('Goodbye!', $output);
     }
 

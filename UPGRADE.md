@@ -35,7 +35,8 @@ AI Bundle
 Chat
 ----
 
- * `Chat` no longer persists the system prompt and the tool messages of a turn, only the user message and the answer.
+ * `Chat` no longer persists the system prompt. The assistant messages of a turn carry the metadata of their own model
+   request instead of the metadata aggregated over the turn.
 
  * `MessageNormalizer` has been removed. Use `Symfony\AI\Platform\Serializer\MessageNormalizer` instead, which no longer
    needs the `ToolCallNormalizer` next to it. It still reads messages persisted with the old format, but writes all

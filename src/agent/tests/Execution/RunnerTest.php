@@ -446,6 +446,23 @@ final class RunnerTest extends TestCase
         $this->assertSame([$source1, $source2], iterator_to_array($sources));
     }
 
+    public function testSourcesEndUpOnTheAnswerWithSettingOn()
+    {
+        $toolCall = new ToolCall('call_1234', 'tool_sources');
+        $source = new Source('Relevant Article', 'http://example.com/article', 'Content of article about the topic');
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('execute')->willReturn(new ToolResult($toolCall, 'Response based on the article.', new SourceCollection([$source])));
+
+        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Final response based on the article.'));
+        $updates = $this->collectUpdates($this->createRunner($platform, $toolbox, includeSources: true), new MessageBag());
+
+        $resultUpdate = end($updates);
+        $this->assertInstanceOf(ResultUpdate::class, $resultUpdate);
+        $answer = $resultUpdate->getMessages()?->getMessages()[2];
+        $this->assertInstanceOf(AssistantMessage::class, $answer);
+        $this->assertSame([$source], iterator_to_array($answer->getMetadata()->get('sources')));
+    }
+
     public function testSourcesDoNotEndUpInResultMetadataWithSettingOff()
     {
         $toolCall = new ToolCall('call_1234', 'tool_sources', ['arg1' => 'value1']);
