@@ -124,7 +124,7 @@ final class Runner
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
             $toolResults = yield from $this->toolExecutor->execute($toolCalls);
 
-            $messages = $messages->with($assistantMessage ?? Message::ofAssistant($result));
+            $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
             foreach ($toolResults as $i => $toolResult) {
                 $messages = $messages->with(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
 
@@ -138,10 +138,17 @@ final class Runner
 
             if ($event->hasResult()) {
                 $result = $event->getResult();
+                $assistantMessage = null;
 
                 break;
             }
         }
+
+        $roundMetadata = $result->getMetadata()->all();
+        if ($this->includeSources) {
+            $roundMetadata['sources'] = $sources;
+        }
+        $answer = fn (): MessageBag => $messages->with($this->toAssistantMessage($result, $assistantMessage, $roundMetadata));
 
         // Merged in order, so mergeable values like the token usage add up and the final result's own values win
         $metadata->merge($result->getMetadata());
@@ -151,7 +158,20 @@ final class Runner
             $result->getMetadata()->add('sources', $sources);
         }
 
-        yield new ResultUpdate($result);
+        yield new ResultUpdate($result, $answer);
+    }
+
+    /**
+     * The round's answer as assistant message, carrying the metadata of that round only, like its token usage.
+     *
+     * @param array<string, mixed> $metadata
+     */
+    private function toAssistantMessage(ResultInterface $result, ?AssistantMessage $streamedMessage, array $metadata): AssistantMessage
+    {
+        $message = $streamedMessage ?? Message::ofAssistant($result);
+        $message->getMetadata()->set($metadata);
+
+        return $message;
     }
 
     /**
