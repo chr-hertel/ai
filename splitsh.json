@@ -38,6 +38,7 @@
         "ai-monolog-mate-extension": "src/mate/src/Bridge/Monolog",
         "ai-symfony-mate-extension": "src/mate/src/Bridge/Symfony",
         "mcp-bundle": "src/mcp-bundle",
+        "ai-open-telemetry-bridge": "src/open-telemetry-bridge",
         "ai-platform": {
             "prefixes": [{ "from": "src/platform", "to": "", "excludes": ["src/Bridge"] }]
         },
