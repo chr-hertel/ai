@@ -38,15 +38,13 @@ $messages = new MessageBag(
 $messages = $messages->with(Message::ofUser('What time is it right now?'));
 $execution = $agent->call($messages, $options);
 
-$assistant = Message::ofAssistant($execution->getResult());
-output()->writeln('<info>Turn 1:</info> '.$assistant->asText());
-$messages = $messages->with($assistant);
+$messages = $execution->getMessages();
+output()->writeln('<info>Turn 1:</info> '.$execution->asText());
 
 $messages = $messages->with(Message::ofUser('What did I just ask you?'));
 $execution = $agent->call($messages, $options);
 
-$assistant = Message::ofAssistant($execution->getResult());
-output()->writeln('<info>Turn 2:</info> '.$assistant->asText());
-$messages = $messages->with($assistant);
+$messages = $execution->getMessages();
+output()->writeln('<info>Turn 2:</info> '.$execution->asText());
 
 print_conversation_shape($messages);
