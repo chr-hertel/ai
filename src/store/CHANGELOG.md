@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * Add `Bridge\Doctrine` store, keeping vectors in an `#[Embedding]` field of a Doctrine entity, embedding entities in batches or on flush, and returning entities when queried, on PostgreSQL/pgvector and SQLite/sqlite-vec
+
 0.14
 ----
 
