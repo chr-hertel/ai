@@ -66,27 +66,22 @@ final class MovieTest extends TestCase
         }
     }
 
-    public function testFromFileExposesRawMarkdown()
-    {
-        $movie = Movie::fromFile(self::FIXTURES_DIR.'/cloud-atlas.md');
-
-        $this->assertStringContainsString('## Plot', $movie->rawMarkdown);
-        $this->assertStringContainsString('**Director:** The Wachowskis', $movie->rawMarkdown);
-    }
-
-    public function testJsonSerializeReturnsCompactModelFacingProjection()
+    public function testIndexableContentDescribesTheMovie()
     {
         $movie = Movie::fromFile(self::FIXTURES_DIR.'/the-matrix.md');
 
-        $data = $movie->jsonSerialize();
+        $lines = explode(\PHP_EOL, $movie->getIndexableContent());
 
-        // exactly the fields the agent needs — no full plot or raw markdown
-        $this->assertSame(['slug', 'title', 'year', 'director', 'cast', 'summary'], array_keys($data));
-        $this->assertSame('the-matrix', $data['slug']);
-        $this->assertSame('The Matrix', $data['title']);
-        $this->assertSame(1999, $data['year']);
-        $this->assertSame('The Wachowskis', $data['director']);
-        $this->assertSame('Keanu Reeves', $data['cast'][0]); // cast reduced to names only
-        $this->assertSame($movie->plot[0], $data['summary']); // summary is the first plot paragraph
+        $this->assertSame('The Matrix (1999)', $lines[0]);
+        $this->assertSame('Directed by The Wachowskis', $lines[1]);
+        $this->assertStringStartsWith('Starring Keanu Reeves as Neo, ', $lines[2]);
+        $this->assertSame($movie->plot, \array_slice($lines, 3));
+    }
+
+    public function testIndexableContentLeavesOutMissingDetails()
+    {
+        $movie = new Movie('untitled', 'Untitled', null, null, null, [], ['A plot.']);
+
+        $this->assertSame('Untitled'.\PHP_EOL.'A plot.', $movie->getIndexableContent());
     }
 }
