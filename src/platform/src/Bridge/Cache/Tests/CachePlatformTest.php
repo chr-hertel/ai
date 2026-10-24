@@ -81,7 +81,6 @@ final class CachePlatformTest extends TestCase
         ]);
 
         $this->assertCount(3, $adapter->getValues());
-        $this->assertArrayHasKey(\sprintf('symfonyfoo%s', $messageBag->getId()->toRfc4122()), $adapter->getValues());
         $this->assertTrue($deferredResult->getMetadata()->has('cached_at'));
         $this->assertSame('test content', $deferredResult->getResult()->getContent());
 
@@ -90,71 +89,70 @@ final class CachePlatformTest extends TestCase
         ]);
 
         $this->assertCount(3, $adapter->getValues());
-        $this->assertArrayHasKey(\sprintf('symfonyfoo%s', $messageBag->getId()->toRfc4122()), $adapter->getValues());
         $this->assertSame('test content', $secondDeferredResult->getResult()->getContent());
         $this->assertTrue($secondDeferredResult->getMetadata()->has('cached_at'));
         $this->assertSame($deferredResult->getMetadata()->get('cached_at'), $secondDeferredResult->getMetadata()->get('cached_at'));
     }
 
-    public function testPlatformCanReturnCachedResultWhenCalledTwiceWithSeparateMessageBag()
+    public function testPlatformReturnsCachedResultForSeparateMessageBagWithSameContent()
+    {
+        $platform = $this->createMock(PlatformInterface::class);
+        $platform->expects($this->once())->method('invoke')->willReturn(new DeferredResult(
+            new PlainConverter(new TextResult('test content')), new InMemoryRawResult(),
+        ));
+
+        $cachedPlatform = new CachePlatform($platform, cache: new TagAwareAdapter(new ArrayAdapter()));
+
+        $deferredResult = $cachedPlatform->invoke('foo', new MessageBag(Message::ofUser('Hello there')), ['prompt_cache_key' => 'symfony']);
+        $secondDeferredResult = $cachedPlatform->invoke('foo', new MessageBag(Message::ofUser('Hello there')), ['prompt_cache_key' => 'symfony']);
+
+        $this->assertSame('test content', $secondDeferredResult->getResult()->getContent());
+        $this->assertSame($deferredResult->getMetadata()->get('cached_at'), $secondDeferredResult->getMetadata()->get('cached_at'));
+    }
+
+    public function testPlatformDoesNotReturnCachedResultWhenMessageBagGrows()
+    {
+        $platform = $this->createMock(PlatformInterface::class);
+        $platform->expects($this->exactly(2))->method('invoke')->willReturnOnConsecutiveCalls(
+            new DeferredResult(new PlainConverter(new TextResult('first')), new InMemoryRawResult()),
+            new DeferredResult(new PlainConverter(new TextResult('second')), new InMemoryRawResult()),
+        );
+
+        $cachedPlatform = new CachePlatform($platform, cache: new TagAwareAdapter(new ArrayAdapter()));
+        $messageBag = new MessageBag(Message::ofUser('Hello there'));
+
+        $first = $cachedPlatform->invoke('foo', $messageBag, ['prompt_cache_key' => 'symfony']);
+        $second = $cachedPlatform->invoke('foo', $messageBag->with(Message::ofAssistant('first'))->with(Message::ofUser('And now?')), ['prompt_cache_key' => 'symfony']);
+
+        $this->assertSame('first', $first->getResult()->getContent());
+        $this->assertSame('second', $second->getResult()->getContent());
+    }
+
+    public function testPlatformDoesNotShareCacheBetweenDifferentOptions()
     {
         $platform = $this->createMock(PlatformInterface::class);
         $platform->expects($this->exactly(2))->method('invoke')->willReturn(new DeferredResult(
             new PlainConverter(new TextResult('test content')), new InMemoryRawResult(),
         ));
 
-        $adapter = new ArrayAdapter();
+        $cachedPlatform = new CachePlatform($platform, cache: new TagAwareAdapter(new ArrayAdapter()));
 
-        $cachedPlatform = new CachePlatform(
-            $platform,
-            cache: new TagAwareAdapter($adapter),
-        );
+        $cachedPlatform->invoke('foo', 'bar', ['prompt_cache_key' => 'symfony', 'temperature' => 0.1]);
+        $cachedPlatform->invoke('foo', 'bar', ['prompt_cache_key' => 'symfony', 'temperature' => 0.9]);
+    }
 
-        $messageBag = new MessageBag(
-            Message::ofUser('Hello there'),
-        );
+    public function testPlatformBypassesCacheForOptionsThatCannotBeHashed()
+    {
+        $platform = $this->createMock(PlatformInterface::class);
+        $platform->expects($this->exactly(2))->method('invoke')->willReturn(new DeferredResult(
+            new PlainConverter(new TextResult('test content')), new InMemoryRawResult(),
+        ));
 
-        $deferredResult = $cachedPlatform->invoke('foo', $messageBag, [
-            'prompt_cache_key' => 'symfony',
-        ]);
+        $cachedPlatform = new CachePlatform($platform, cache: new TagAwareAdapter(new ArrayAdapter()));
+        $options = ['prompt_cache_key' => 'symfony', 'callback' => static fn () => null];
 
-        $this->assertCount(3, $adapter->getValues());
-        $this->assertArrayHasKey(\sprintf('symfonyfoo%s', $messageBag->getId()->toRfc4122()), $adapter->getValues());
-        $this->assertTrue($deferredResult->getMetadata()->has('cached_at'));
-        $this->assertSame('test content', $deferredResult->getResult()->getContent());
-
-        $secondDeferredResult = $cachedPlatform->invoke('foo', $messageBag, [
-            'prompt_cache_key' => 'symfony',
-        ]);
-
-        $this->assertCount(3, $adapter->getValues());
-        $this->assertArrayHasKey(\sprintf('symfonyfoo%s', $messageBag->getId()->toRfc4122()), $adapter->getValues());
-        $this->assertSame('test content', $secondDeferredResult->getResult()->getContent());
-        $this->assertTrue($secondDeferredResult->getMetadata()->has('cached_at'));
-        $this->assertSame($deferredResult->getMetadata()->get('cached_at'), $secondDeferredResult->getMetadata()->get('cached_at'));
-
-        $secondMessageBag = new MessageBag(
-            Message::ofUser('Hello there'),
-        );
-
-        $deferredResult = $cachedPlatform->invoke('foo', $secondMessageBag, [
-            'prompt_cache_key' => 'symfony',
-        ]);
-
-        $this->assertCount(5, $adapter->getValues());
-        $this->assertArrayHasKey(\sprintf('symfonyfoo%s', $secondMessageBag->getId()->toRfc4122()), $adapter->getValues());
-        $this->assertTrue($deferredResult->getMetadata()->has('cached_at'));
-        $this->assertSame('test content', $deferredResult->getResult()->getContent());
-
-        $secondDeferredResult = $cachedPlatform->invoke('foo', $secondMessageBag, [
-            'prompt_cache_key' => 'symfony',
-        ]);
-
-        $this->assertCount(5, $adapter->getValues());
-        $this->assertArrayHasKey(\sprintf('symfonyfoo%s', $secondMessageBag->getId()->toRfc4122()), $adapter->getValues());
-        $this->assertSame('test content', $secondDeferredResult->getResult()->getContent());
-        $this->assertTrue($secondDeferredResult->getMetadata()->has('cached_at'));
-        $this->assertSame($deferredResult->getMetadata()->get('cached_at'), $secondDeferredResult->getMetadata()->get('cached_at'));
+        $this->assertFalse($cachedPlatform->invoke('foo', 'bar', $options)->getMetadata()->has('cached_at'));
+        $cachedPlatform->invoke('foo', 'bar', $options);
     }
 
     public function testPlatformCachesContentObjectInput()

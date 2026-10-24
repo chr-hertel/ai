@@ -38,8 +38,7 @@ final class Agent implements AgentInterface
      * @param InputProcessorInterface[]  $inputProcessors
      * @param OutputProcessorInterface[] $outputProcessors
      * @param non-empty-string           $model
-     * @param bool                       $excludeToolMessages keeps the messages appended during tool calling out of the caller's message bag
-     * @param bool                       $includeSources      exposes the sources collected during tool calling as `sources` result metadata
+     * @param bool                       $includeSources   exposes the sources collected during tool calling as `sources` result metadata
      */
     public function __construct(
         PlatformInterface $platform,
@@ -50,7 +49,6 @@ final class Agent implements AgentInterface
         ?ToolboxInterface $toolbox = null,
         ?ToolExecutorInterface $toolExecutor = null,
         ?int $maxToolCalls = 50,
-        bool $excludeToolMessages = false,
         bool $includeSources = false,
         ?EventDispatcherInterface $eventDispatcher = null,
     ) {
@@ -63,7 +61,6 @@ final class Agent implements AgentInterface
             $toolbox,
             $toolExecutor,
             $maxToolCalls,
-            $excludeToolMessages,
             $includeSources,
             $eventDispatcher,
         );

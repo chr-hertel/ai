@@ -39,13 +39,13 @@ final class Chat
         $this->filesystem->dumpFile($path, base64_decode($base64audio));
 
         $messages = $this->loadMessages();
-        $messages->add(Message::ofUser(Audio::fromFile($path)));
+        $messages = $messages->with(Message::ofUser(Audio::fromFile($path)));
 
         $result = $this->agent->call($messages)->getResult();
 
         $text = $result->getMetadata()->get('text');
         $assistantMessage = Message::ofAssistant($text);
-        $messages->add($assistantMessage);
+        $messages = $messages->with($assistantMessage);
 
         if ($result instanceof BinaryResult) {
             $assistantMessage->getMetadata()->add('speech', $result->toDataUri('audio/mpeg'));

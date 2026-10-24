@@ -214,9 +214,9 @@ Tool calling can be enabled by passing a toolbox to the agent::
 
     $agent = new Agent($platform, $model, toolbox: $toolbox);
 
-When the model calls a tool, the agent runs the tool loop and appends the exchange to the
-message bag: the assistant turn the provider produced - its text, thinking blocks and tool
-calls as one message - followed by the tool results.
+When the model calls a tool, the agent runs the tool loop on its own copy of the message bag:
+the assistant turn the provider produced - its text, thinking blocks and tool calls as one
+message - followed by the tool results. The message bag you pass in stays unchanged.
 
 Carry the final answer into the next turn by passing the result itself to
 :method:`Symfony\\AI\\Platform\\Message\\Message::ofAssistant`, which keeps the thinking
@@ -224,7 +224,7 @@ blocks and signatures providers validate when the conversation is replayed::
 
     $execution = $agent->call($messages);
 
-    $messages->add(Message::ofAssistant($execution->getResult()));
+    $messages = $messages->with(Message::ofAssistant($execution->getResult()));
 
 Streamed results work the same way, see :doc:`the Platform component </components/platform>`.
 
@@ -958,34 +958,6 @@ occupies the process for its full duration.
 
 * `Parallel Tool Calls with Fibers`_
 
-Excluding Tool Messages from MessageBag
----------------------------------------
-
-Sometimes you might wish to exclude the tool messages (:class:`Symfony\\AI\\Platform\\Message\\AssistantMessage` containing :class:`Symfony\\AI\\Platform\\Result\\ToolCall` parts and :class:`Symfony\\AI\\Platform\\Message\\ToolCallMessage`
-containing the result) in the context. Enable the ``excludeToolMessages`` flag of the :class:`Symfony\\AI\\Agent\\Agent`
-to ensure those messages will be removed from your :class:`Symfony\\AI\\Platform\\Message\\MessageBag`::
-
-    use Symfony\AI\Agent\Agent;
-    use Symfony\AI\Agent\Toolbox\Toolbox;
-
-    // Platform instantiation
-
-    $messages = new MessageBag(
-        Message::forSystem(<<<PROMPT
-            Please answer all user questions only using the my-tool tool.
-            Do not add information and if you cannot find an answer, say so.
-            PROMPT),
-        Message::ofUser('...') // The user's question.
-    );
-
-    $tool = new MyTool();
-
-    $toolbox = new Toolbox([$tool]);
-
-    $agent = new Agent($platform, $model, toolbox: $toolbox, excludeToolMessages: true);
-    $result = $agent->call($messages);
-    // $messages will now exclude the tool messages
-
 Built-in Tools
 ~~~~~~~~~~~~~~
 
@@ -1075,8 +1047,8 @@ and are able to mutate both on top of the :class:`Symfony\\AI\\Agent\\Input` ins
             $options['foo'] = 'bar';
             $input->setOptions($options);
 
-            // mutate MessageBag
-            $input->getMessageBag()->add(Message::ofAssistant(sprintf('Please answer using the locale %s', $this->locale)));
+            // replace the MessageBag, it's immutable
+            $input->setMessageBag($input->getMessageBag()->with(Message::ofAssistant(sprintf('Please answer using the locale %s', $this->locale))));
         }
     }
 

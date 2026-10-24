@@ -28,8 +28,11 @@ use Symfony\AI\Platform\FinishReason\FinishReasonCase;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\File;
 use Symfony\AI\Platform\Message\Content\Text;
+use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\ToolCallMessage;
+use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\BinaryResult;
@@ -58,6 +61,11 @@ use Symfony\AI\Platform\Tool\Tool;
 
 final class RunnerTest extends TestCase
 {
+    /**
+     * @var list<MessageBag>
+     */
+    private array $invokedMessages = [];
+
     public function testWithoutRegisteredToolsTheToolsOptionStaysUntouched()
     {
         $toolbox = $this->createStub(ToolboxInterface::class);
@@ -169,7 +177,7 @@ final class RunnerTest extends TestCase
         $result = $this->drive($this->createRunner($platform, $toolbox), $messageBag, ['tools' => ['tool1']]);
 
         $this->assertSame('Final response', $result->getContent());
-        $toolCallMessage = $messageBag->getMessages()[1];
+        $toolCallMessage = $this->lastInvokedMessages()->getMessages()[1];
         $this->assertInstanceOf(ToolCallMessage::class, $toolCallMessage);
         $this->assertSame('Tool "unknown" was not found', $toolCallMessage->asText());
     }
@@ -246,7 +254,7 @@ final class RunnerTest extends TestCase
 
         $this->drive($this->createRunner($platform, $toolbox), $messageBag);
 
-        $toolCallMessage = $messageBag->getMessages()[1];
+        $toolCallMessage = $this->lastInvokedMessages()->getMessages()[1];
         $this->assertInstanceOf(ToolCallMessage::class, $toolCallMessage);
         $this->assertSame('Tool1 response', $toolCallMessage->asText());
     }
@@ -269,7 +277,7 @@ final class RunnerTest extends TestCase
 
         $this->drive($this->createRunner($platform, $toolbox), $messageBag, ['tools' => [['type' => 'web_search']]]);
 
-        $toolCallMessage = $messageBag->getMessages()[1];
+        $toolCallMessage = $this->lastInvokedMessages()->getMessages()[1];
         $this->assertInstanceOf(ToolCallMessage::class, $toolCallMessage);
         $this->assertSame('Tool1 response', $toolCallMessage->asText());
     }
@@ -302,7 +310,7 @@ final class RunnerTest extends TestCase
         $this->assertSame(['tools' => [$this->functionTool('tool2', 'description2'), $serverTool]], $options);
     }
 
-    public function testToolCallMessagesEndUpInTheCallersMessageBag()
+    public function testToolCallMessagesReachTheNextRoundButNotTheCallersMessageBag()
     {
         $toolCall = new ToolCall('id1', 'tool1', ['arg1' => 'value1']);
         $toolbox = $this->createMock(ToolboxInterface::class);
@@ -311,31 +319,19 @@ final class RunnerTest extends TestCase
             ->method('execute')
             ->willReturn(new ToolResult($toolCall, 'Test response'));
 
-        $messageBag = new MessageBag();
+        $messageBag = new MessageBag(Message::ofUser('Hello'));
+        $roles = [];
+        $results = [new ToolCallResult([$toolCall]), new TextResult('Final response')];
+        $platform = MockPlatformFactory::createPlatform(static function ($model, array $input) use (&$roles, &$results): ResultInterface {
+            $roles[] = array_column($input['messages'], 'role');
 
-        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Final response'));
-        $this->drive($this->createRunner($platform, $toolbox, excludeToolMessages: false), $messageBag);
+            return array_shift($results);
+        });
 
-        $this->assertCount(2, $messageBag);
-        $this->assertInstanceOf(AssistantMessage::class, $messageBag->getMessages()[0]);
-        $this->assertInstanceOf(ToolCallMessage::class, $messageBag->getMessages()[1]);
-    }
+        $this->drive($this->createRunner($platform, $toolbox), $messageBag);
 
-    public function testToolCallMessagesAreKeptOutOfTheCallersMessageBagWhenExcluded()
-    {
-        $toolCall = new ToolCall('id1', 'tool1', ['arg1' => 'value1']);
-        $toolbox = $this->createMock(ToolboxInterface::class);
-        $toolbox
-            ->expects($this->once())
-            ->method('execute')
-            ->willReturn(new ToolResult($toolCall, 'Test response'));
-
-        $messageBag = new MessageBag();
-
-        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Final response'));
-        $this->drive($this->createRunner($platform, $toolbox, excludeToolMessages: true), $messageBag);
-
-        $this->assertCount(0, $messageBag);
+        $this->assertSame([['user'], ['user', 'assistant', 'tool']], $roles);
+        $this->assertCount(1, $messageBag);
     }
 
     public function testMultiPartResultContainingAToolCallGetsExecuted()
@@ -380,7 +376,7 @@ final class RunnerTest extends TestCase
 
         $this->assertInstanceOf(TextResult::class, $actual);
 
-        $assistantMessage = $messages->getMessages()[0];
+        $assistantMessage = $this->lastInvokedMessages()->getMessages()[0];
         $this->assertInstanceOf(AssistantMessage::class, $assistantMessage);
         $this->assertSame([$toolCall], $assistantMessage->getToolCalls());
         $this->assertInstanceOf(File::class, $assistantMessage->getContent()[0]);
@@ -594,7 +590,7 @@ final class RunnerTest extends TestCase
         $this->drive($this->createRunner($platform, $toolbox), $messages);
 
         $assistantMessages = array_values(array_filter(
-            $messages->getMessages(),
+            $this->lastInvokedMessages()->getMessages(),
             static fn ($message): bool => $message instanceof AssistantMessage,
         ));
 
@@ -1007,7 +1003,6 @@ final class RunnerTest extends TestCase
         PlatformInterface $platform,
         ToolboxInterface $toolbox,
         ?int $maxToolCalls = 50,
-        bool $excludeToolMessages = false,
         bool $includeSources = false,
     ): Runner {
         return new Runner(
@@ -1015,22 +1010,54 @@ final class RunnerTest extends TestCase
             $toolbox,
             new SequentialToolExecutor($toolbox),
             $maxToolCalls,
-            $excludeToolMessages,
             $includeSources,
         );
     }
 
-    private function platform(ResultInterface ...$results): Platform
+    private function platform(ResultInterface ...$results): PlatformInterface
     {
         $invocation = 0;
 
-        return MockPlatformFactory::createPlatform(static function () use (&$invocation, $results): ResultInterface {
+        $platform = MockPlatformFactory::createPlatform(static function () use (&$invocation, $results): ResultInterface {
             if (!isset($results[$invocation])) {
                 throw new \LogicException(\sprintf('The platform was invoked %d times, but only %d results are configured.', $invocation + 1, \count($results)));
             }
 
             return $results[$invocation++];
         });
+
+        $record = function (MessageBag $messages): void {
+            $this->invokedMessages[] = $messages;
+        };
+
+        return new class($platform, $record) implements PlatformInterface {
+            public function __construct(
+                private readonly PlatformInterface $platform,
+                private readonly \Closure $record,
+            ) {
+            }
+
+            public function invoke(string|Model $model, array|string|object $input, array $options = []): DeferredResult
+            {
+                if ($input instanceof MessageBag) {
+                    ($this->record)($input);
+                }
+
+                return $this->platform->invoke($model, $input, $options);
+            }
+
+            public function getModelCatalog(): ModelCatalogInterface
+            {
+                return $this->platform->getModelCatalog();
+            }
+        };
+    }
+
+    private function lastInvokedMessages(): MessageBag
+    {
+        $this->assertNotSame([], $this->invokedMessages);
+
+        return $this->invokedMessages[array_key_last($this->invokedMessages)];
     }
 }
 

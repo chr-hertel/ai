@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * [BC BREAK] Remove the `exclude_tool_messages` agent option, tool messages never reach the caller's `MessageBag`
+
 0.15
 ----
 

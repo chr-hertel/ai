@@ -28,19 +28,19 @@ $messages = new MessageBag(
 );
 
 // plain chat
-$messages->add(Message::ofUser('What is the capital of France?'));
+$messages = $messages->with(Message::ofUser('What is the capital of France?'));
 $execution = $agent->call($messages);
 echo 'Turn 1: '.$execution->asText().\PHP_EOL;
-$messages->add(Message::ofAssistant($execution->getResult()));
+$messages = $messages->with(Message::ofAssistant($execution->getResult()));
 
 // tool call
-$messages->add(Message::ofUser('What time is it right now?'));
+$messages = $messages->with(Message::ofUser('What time is it right now?'));
 $execution = $agent->call($messages);
 echo 'Turn 2: '.$execution->asText().\PHP_EOL;
-$messages->add(Message::ofAssistant($execution->getResult()));
+$messages = $messages->with(Message::ofAssistant($execution->getResult()));
 
 // another chat - the previous assistant turn (tool call + final answer) must be replayed via the
 // Anthropic AssistantMessageNormalizer, including any tool_use / tool_result / thinking blocks.
-$messages->add(Message::ofUser('What was the first question I asked you?'));
+$messages = $messages->with(Message::ofUser('What was the first question I asked you?'));
 $execution = $agent->call($messages);
 echo 'Turn 3: '.$execution->asText().\PHP_EOL;

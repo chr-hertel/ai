@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * [BC BREAK] Remove `MessageNormalizer` in favor of `Symfony\AI\Platform\Serializer\MessageNormalizer`
+
 0.13
 ----
 

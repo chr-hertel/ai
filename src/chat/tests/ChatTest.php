@@ -74,8 +74,8 @@ final class ChatTest extends TestCase
         $existingAssistantMessage = Message::ofAssistant('I cannot provide weather information.');
 
         $existingMessages = new MessageBag();
-        $existingMessages->add($existingUserMessage);
-        $existingMessages->add($existingAssistantMessage);
+        $existingMessages = $existingMessages->with($existingUserMessage);
+        $existingMessages = $existingMessages->with($existingAssistantMessage);
 
         $this->store->save($existingMessages);
 
@@ -142,8 +142,8 @@ final class ChatTest extends TestCase
     public function testItStreamsAndPreservesExistingConversation()
     {
         $existingMessages = new MessageBag();
-        $existingMessages->add(Message::ofUser('What is the weather?'));
-        $existingMessages->add(Message::ofAssistant('I cannot provide weather information.'));
+        $existingMessages = $existingMessages->with(Message::ofUser('What is the weather?'));
+        $existingMessages = $existingMessages->with(Message::ofAssistant('I cannot provide weather information.'));
 
         $store = new InMemoryStore();
         $store->save($existingMessages);
