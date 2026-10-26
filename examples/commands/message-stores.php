@@ -13,18 +13,17 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 use Doctrine\DBAL\DriverManager;
 use MongoDB\Client as MongoDbClient;
-use Symfony\AI\Chat\Bridge\Cache\MessageStore as CacheStore;
-use Symfony\AI\Chat\Bridge\Doctrine\DoctrineDbalMessageStore;
-use Symfony\AI\Chat\Bridge\Meilisearch\MessageStore as MeilisearchMessageStore;
-use Symfony\AI\Chat\Bridge\MongoDb\MessageStore as MongoDbMessageStore;
-use Symfony\AI\Chat\Bridge\Pogocache\MessageStore as PogocacheMessageStore;
-use Symfony\AI\Chat\Bridge\Redis\MessageStore as RedisMessageStore;
-use Symfony\AI\Chat\Bridge\Session\MessageStore as SessionMessageStore;
-use Symfony\AI\Chat\Bridge\SurrealDb\MessageStore as SurrealDbMessageStore;
-use Symfony\AI\Chat\Command\DropStoreCommand;
-use Symfony\AI\Chat\Command\SetupStoreCommand;
-use Symfony\AI\Chat\InMemory\Store as InMemoryStore;
-use Symfony\AI\Platform\Serializer\MessageNormalizer;
+use Symfony\AI\Agent\Bridge\Cache\MessageStore as CacheStore;
+use Symfony\AI\Agent\Bridge\Doctrine\DoctrineDbalMessageStore;
+use Symfony\AI\Agent\Bridge\Meilisearch\MessageStore as MeilisearchMessageStore;
+use Symfony\AI\Agent\Bridge\MongoDb\MessageStore as MongoDbMessageStore;
+use Symfony\AI\Agent\Bridge\Pogocache\MessageStore as PogocacheMessageStore;
+use Symfony\AI\Agent\Bridge\Redis\MessageStore as RedisMessageStore;
+use Symfony\AI\Agent\Bridge\Session\MessageStore as SessionMessageStore;
+use Symfony\AI\Agent\Bridge\SurrealDb\MessageStore as SurrealDbMessageStore;
+use Symfony\AI\Agent\Command\DropMessageStoreCommand;
+use Symfony\AI\Agent\Command\SetupMessageStoreCommand;
+use Symfony\AI\Agent\MessageStore\InMemoryMessageStore;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MonotonicClock;
 use Symfony\Component\Console\Application;
@@ -35,9 +34,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
-use Symfony\Component\Serializer\Encoder\JsonEncoder;
-use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
-use Symfony\Component\Serializer\Serializer;
 
 $factories = [
     'cache' => static fn (): CacheStore => new CacheStore(new ArrayAdapter(), cacheKey: 'symfony'),
@@ -52,7 +48,7 @@ $factories = [
         new MonotonicClock(),
         'symfony',
     ),
-    'memory' => static fn (): InMemoryStore => new InMemoryStore('symfony'),
+    'memory' => static fn (): InMemoryMessageStore => new InMemoryMessageStore(),
     'mongodb' => static fn (): MongoDbMessageStore => new MongoDbMessageStore(
         new MongoDbClient('mongodb://symfony:symfony@127.0.0.1:27017'),
         'chat',
@@ -67,12 +63,7 @@ $factories = [
     'redis' => static fn (): RedisMessageStore => new RedisMessageStore(new Redis([
         'host' => 'localhost',
         'port' => 6379,
-    ]), 'symfony', new Serializer([
-        new ArrayDenormalizer(),
-        new MessageNormalizer(),
-    ], [
-        new JsonEncoder(),
-    ])),
+    ]), 'symfony'),
     'session' => static function (): SessionMessageStore {
         $request = Request::create('/');
         $request->setSession(new Session(new MockArraySessionStorage()));
@@ -99,8 +90,8 @@ $application = new Application();
 $application->setAutoExit(false);
 $application->setCatchExceptions(false);
 $application->addCommands([
-    new SetupStoreCommand(new ServiceLocator($factories)),
-    new DropStoreCommand(new ServiceLocator($factories)),
+    new SetupMessageStoreCommand(new ServiceLocator($factories)),
+    new DropMessageStoreCommand(new ServiceLocator($factories)),
 ]);
 
 $clock = new MonotonicClock();

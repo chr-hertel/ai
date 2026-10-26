@@ -75,4 +75,15 @@ final class InMemoryMessageStoreTest extends TestCase
 
         $store->save($messages);
     }
+
+    public function testDropRemovesAllConversations()
+    {
+        $store = new InMemoryMessageStore();
+        $messages = new MessageBag(Message::ofUser('Hello'));
+        $store->save($messages);
+
+        $store->drop();
+
+        $this->assertCount(0, $store->load($messages->getId()));
+    }
 }
