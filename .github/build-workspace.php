@@ -110,6 +110,7 @@ $rootJson['config']['allow-plugins'] = [
     'codewithkyrian/platform-package-installer' => true,
     'php-http/discovery' => true,
     'symfony/ai-mate-composer-plugin' => true,
+    'tbachert/spi' => false,
 ];
 
 file_put_contents(
