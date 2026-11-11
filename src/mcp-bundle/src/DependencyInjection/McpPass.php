@@ -17,6 +17,7 @@ use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Discovery\DocBlockParser;
+use Mcp\Capability\Discovery\ElementMetadataResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\ExceptionInterface as McpExceptionInterface;
@@ -26,11 +27,13 @@ use Mcp\Schema\ToolAnnotations;
 use Symfony\AI\McpBundle\App\McpAppReferenceHandler;
 use Symfony\AI\McpBundle\App\McpAppRenderer;
 use Symfony\AI\McpBundle\Exception\LogicException;
+use Symfony\AI\McpBundle\Security\IsGrantedGuard;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Registers container services carrying the SDK's MCP attributes with the MCP server builder.
@@ -85,6 +88,17 @@ final class McpPass implements CompilerPassInterface
         $serviceReferences = [];
         $registered = [];
         $unassigned = [];
+        $isGranted = [];
+
+        /** @var array<string, array<string, array{class-string, string}>> $appTools */
+        $appTools = $container->hasParameter('mcp.servers.app_tools') ? $container->getParameter('mcp.servers.app_tools') : [];
+        foreach ($appTools as $server => $tools) {
+            foreach ($tools as $name => [$class, $method]) {
+                if ($this->hasIsGrantedAttributes($class, $method)) {
+                    $isGranted[$server]['tool'][$name] = [$class, $method];
+                }
+            }
+        }
 
         foreach (self::ELEMENT_TAGS as $tag => $attributeClass) {
             foreach ($container->findTaggedServiceIds($tag) as $serviceId => $tags) {
@@ -169,6 +183,13 @@ final class McpPass implements CompilerPassInterface
                     foreach ($targets as $server) {
                         $builders[$server]->addMethodCall(self::TAG_CALLS[$tag], LiteralArguments::escape($arguments));
                     }
+
+                    if ($this->hasIsGrantedAttributes($class, $method)) {
+                        [$kind, $key] = $this->guardKey($class, $method, $attribute);
+                        foreach ($targets as $server) {
+                            $isGranted[$server][$kind][$key] = [$class, $method];
+                        }
+                    }
                 }
             }
         }
@@ -183,6 +204,7 @@ final class McpPass implements CompilerPassInterface
         $this->assertPatternsAreUsed($matcher);
 
         $container->setParameter('mcp.servers.unassigned', $unassigned);
+        $container->setParameter('mcp.servers.is_granted', $isGranted);
 
         /** @var array<string, array<string, string>> $appHandlers */
         $appHandlers = $container->hasParameter('mcp.servers.app_handlers') ? $container->getParameter('mcp.servers.app_handlers') : [];
@@ -203,6 +225,40 @@ final class McpPass implements CompilerPassInterface
 
             $this->configureAppReferenceHandler($container, $server, $serviceLocatorRef, $appTemplates[$server] ?? []);
         }
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function hasIsGrantedAttributes(string $class, string $method): bool
+    {
+        if (!class_exists(IsGranted::class)) {
+            return false;
+        }
+
+        $attributes = IsGrantedGuard::readAttributes($class, $method);
+        foreach ($attributes as $attribute) {
+            if (null !== $attribute->subject) {
+                throw new LogicException(\sprintf('The #[IsGranted] attribute of the MCP element "%s::%s()" has a subject, which MCP elements do not support.', $class, $method));
+            }
+        }
+
+        return [] !== $attributes;
+    }
+
+    /**
+     * @param class-string $class
+     *
+     * @return array{'tool'|'prompt'|'resource'|'resource_template', string}
+     */
+    private function guardKey(string $class, string $method, McpTool|McpPrompt|McpResource|McpResourceTemplate $attribute): array
+    {
+        return match (true) {
+            $attribute instanceof McpTool => ['tool', ElementMetadataResolver::resolveName(new \ReflectionMethod($class, $method), $attribute->name)],
+            $attribute instanceof McpPrompt => ['prompt', ElementMetadataResolver::resolveName(new \ReflectionMethod($class, $method), $attribute->name)],
+            $attribute instanceof McpResource => ['resource', $attribute->uri],
+            $attribute instanceof McpResourceTemplate => ['resource_template', $attribute->uriTemplate],
+        };
     }
 
     private function assertPatternsAreUsed(ElementMatcher $matcher): void

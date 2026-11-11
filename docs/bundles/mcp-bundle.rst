@@ -326,6 +326,65 @@ to a dedicated OAuth server rather than hand-rolling one:
   and resource-bound tokens on top of the MCP Bundle and ``league/oauth2-server-bundle``, for servers that
   need to run their own authorization server.
 
+Element Access Control
+......................
+
+Firewall rules protect a whole server. To protect single tools, prompts, resources or resource templates,
+add the ``#[IsGranted]`` attribute of Symfony Security to the element's method or class::
+
+    use Mcp\Capability\Attribute\McpTool;
+    use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+    final class ProposalTools
+    {
+        #[McpTool(name: 'submit_proposal')]
+        #[IsGranted('OAUTH2_SCOPE(proposals:write)')]
+        public function submitProposal(string $conference, string $title): ProposalResult
+        {
+            // ...
+        }
+    }
+
+A client that is not granted access doesn't see the element in ``tools/list``, ``prompts/list``,
+``resources/list`` or ``resources/templates/list``. When it calls the element anyway, the request is
+denied before the MCP server runs, so the firewall answers it like any other denied request. With the
+``access_token`` authenticator, a missing scope gets the ``insufficient_scope`` challenge that MCP clients
+use to ask for more scopes. Other transports, like STDIO, answer the call as if the element did not exist.
+
+``#[IsGranted]`` requires ``symfony/security-bundle``. The ``subject`` option is not supported, because a
+list request has no arguments to check against.
+
+For rules that don't fit an attribute, implement ``McpGuardInterface``. The service is autoconfigured and
+asked about every element of every server; tag it with ``mcp.guard`` and a ``server`` attribute to limit it
+to one server::
+
+    use Mcp\Schema\Prompt;
+    use Mcp\Schema\ResourceDefinition;
+    use Mcp\Schema\ResourceTemplate;
+    use Mcp\Schema\Tool;
+    use Symfony\AI\McpBundle\Guard\McpGuardInterface;
+    use Symfony\Bundle\SecurityBundle\Security;
+
+    final class BetaGuard implements McpGuardInterface
+    {
+        public function __construct(
+            private Security $security,
+        ) {
+        }
+
+        public function isGranted(Tool|Prompt|ResourceDefinition|ResourceTemplate $element): bool
+        {
+            if (!$element instanceof Tool || !str_starts_with($element->name, 'beta_')) {
+                return true;
+            }
+
+            return $this->security->isGranted('ROLE_BETA');
+        }
+    }
+
+An element must be granted by every guard. A denied element is left out of its list and answered as not
+found when a client requests it.
+
 Attribute Placement Patterns
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -36,10 +36,12 @@
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^11.5.53",
         "symfony/monolog-bundle": "^3.10 || ^4.0",
+        "symfony/security-http": "^7.3|^8.0",
         "symfony/twig-bundle": "^7.3|^8.0"
     },
     "suggest": {
-        "symfony/lock": "Required for a session lock with any store but \"file\"."
+        "symfony/lock": "Required for a session lock with any store but \"file\".",
+        "symfony/security-bundle": "Required for #[IsGranted] on MCP elements."
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
