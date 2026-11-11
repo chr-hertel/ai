@@ -5,6 +5,8 @@ CHANGELOG
 ---
 
  * Add `servers.<name>.http.max_body_bytes` to configure the maximum HTTP request body size
+ * Add `McpGuardInterface` to hide tools, prompts, resources and resource templates from a client and deny their use
+ * Add support for `#[IsGranted]` on tools, prompts, resources and resource templates
 
 0.15
 ----

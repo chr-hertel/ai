@@ -55,8 +55,10 @@ use Symfony\AI\McpBundle\Command\DebugCommand;
 use Symfony\AI\McpBundle\Command\McpCommand;
 use Symfony\AI\McpBundle\Controller\McpController;
 use Symfony\AI\McpBundle\DependencyInjection\McpAppPass;
+use Symfony\AI\McpBundle\DependencyInjection\McpGuardPass;
 use Symfony\AI\McpBundle\DependencyInjection\McpPass;
 use Symfony\AI\McpBundle\Exception\LogicException;
+use Symfony\AI\McpBundle\Guard\McpGuardInterface;
 use Symfony\AI\McpBundle\Http\MiddlewareFactory;
 use Symfony\AI\McpBundle\Profiler\DataCollector;
 use Symfony\AI\McpBundle\Routing\RouteLoader;
@@ -117,6 +119,9 @@ final class McpBundle extends AbstractBundle
         $builder->registerForAutoconfiguration(NotificationHandlerInterface::class)
             ->addTag('mcp.notification_handler');
 
+        $builder->registerForAutoconfiguration(McpGuardInterface::class)
+            ->addTag('mcp.guard');
+
         if ([] === $config['servers'] && [] === $config['clients']) {
             return;
         }
@@ -143,6 +148,7 @@ final class McpBundle extends AbstractBundle
         // included in the handler service locators McpPass builds.
         $container->addCompilerPass(new McpAppPass(), priority: 10);
         $container->addCompilerPass(new McpPass());
+        $container->addCompilerPass(new McpGuardPass());
     }
 
     /**
