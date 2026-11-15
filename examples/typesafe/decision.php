@@ -22,7 +22,7 @@ $platform = Factory::createPlatform(env('TYPESAFE_API_KEY'), http_client());
 
 $ticket = "Hi, I've been trying to connect my Stripe account for 3 days and it keeps failing. I'm losing sales. Please help ASAP.";
 
-// Jev reads the state once and answers every question against it, so triaging a ticket takes a single call
+// The model reads the ticket once and answers every question against it, so triaging it takes a single call
 $result = $platform->invoke('jev-latest', new Evaluation($ticket, [
     'department' => new ChoiceQuestion('Which team should handle this?', [
         'billing' => 'Payment or subscription issues',
@@ -34,11 +34,10 @@ $result = $platform->invoke('jev-latest', new Evaluation($ticket, [
         'Frustrated but civil',
         'Very angry, strong language',
     ]),
-    'is_urgent' => new NoulQuestion('Does the message convey urgency or time-sensitivity?'),
+    'is_urgent' => new NoulQuestion('Does the message convey urgency or time-sensitivity?', 'Urgent or time-sensitive', 'No time pressure'),
 ]));
 
-$answers = $result->asObject();
-assert($answers instanceof Answers);
+$answers = $result->asObject(Answers::class);
 
 $department = $answers->getChoice('department');
 echo sprintf('Department: %s (confidence: %.2f)', $department->getChoice(), $department->getConfidence()).\PHP_EOL;
