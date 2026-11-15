@@ -11,8 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\VertexAi\Contract;
 
+use Symfony\AI\Platform\Bridge\Gemini\GenerateContentClient;
 use Symfony\AI\Platform\Bridge\VertexAi\Gemini\Model;
-use Symfony\AI\Platform\Bridge\VertexAi\Gemini\ResultConverter;
 use Symfony\AI\Platform\Contract\Normalizer\ModelContractNormalizer;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\CodeExecution;
@@ -25,7 +25,7 @@ use Symfony\AI\Platform\Result\ToolCall;
 /**
  * @author Junaid Farooq <ulislam.junaid125@gmail.com>
  *
- * @phpstan-import-type Part from ResultConverter
+ * @phpstan-import-type Part from GenerateContentClient
  */
 final class AssistantMessageNormalizer extends ModelContractNormalizer
 {
@@ -88,7 +88,7 @@ final class AssistantMessageNormalizer extends ModelContractNormalizer
 
             if ($part instanceof CodeExecution) {
                 $codeExecutionResult = [
-                    'outcome' => $part->isSucceeded() ? ResultConverter::OUTCOME_OK : ResultConverter::OUTCOME_FAILED,
+                    'outcome' => $part->isSucceeded() ? GenerateContentClient::OUTCOME_OK : GenerateContentClient::OUTCOME_FAILED,
                     'output' => $part->getOutput() ?? '',
                 ];
                 if (null !== $part->getId()) {

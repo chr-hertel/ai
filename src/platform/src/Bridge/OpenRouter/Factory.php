@@ -12,12 +12,9 @@
 namespace Symfony\AI\Platform\Bridge\OpenRouter;
 
 use Symfony\AI\Platform\Bridge\Generic;
-use Symfony\AI\Platform\Bridge\OpenRouter\Decision\ModelClient as DecisionModelClient;
-use Symfony\AI\Platform\Bridge\OpenRouter\Decision\ResultConverter as DecisionResultConverter;
-use Symfony\AI\Platform\Bridge\OpenRouter\Rerank\ModelClient as RerankModelClient;
-use Symfony\AI\Platform\Bridge\OpenRouter\Rerank\ResultConverter as RerankResultConverter;
-use Symfony\AI\Platform\Bridge\OpenRouter\Speech\ModelClient as SpeechModelClient;
-use Symfony\AI\Platform\Bridge\OpenRouter\Speech\ResultConverter as SpeechResultConverter;
+use Symfony\AI\Platform\Bridge\OpenRouter\Decision\Client as DecisionClient;
+use Symfony\AI\Platform\Bridge\OpenRouter\Rerank\Client as RerankClient;
+use Symfony\AI\Platform\Bridge\OpenRouter\Speech\Client as SpeechClient;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -49,22 +46,15 @@ final class Factory
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
 
-        $modelClients = [
-            new Generic\Completions\ModelClient($httpClient, $baseUrl, $apiKey, '/v1/chat/completions'),
-            new Generic\Embeddings\ModelClient($httpClient, $baseUrl, $apiKey, '/v1/embeddings'),
-            new RerankModelClient($httpClient, $apiKey, $baseUrl),
-            new SpeechModelClient($httpClient, $apiKey, $baseUrl),
-            new DecisionModelClient($httpClient, $apiKey, $baseUrl),
-        ];
-        $resultConverters = [
-            new Generic\Completions\ResultConverter(),
-            new Generic\Embeddings\ResultConverter(),
-            new RerankResultConverter(),
-            new SpeechResultConverter(),
-            new DecisionResultConverter(),
-        ];
+        $transport = new Generic\Transport\HttpTransport($httpClient, $baseUrl, $apiKey);
 
-        return new Provider($name, $modelClients, $resultConverters, $modelCatalog, $contract, $eventDispatcher);
+        return new Provider($name, [
+            new Generic\ChatCompletionsClient($transport, '/v1/chat/completions'),
+            new Generic\EmbeddingsClient($transport, '/v1/embeddings'),
+            new RerankClient($httpClient, $apiKey, $baseUrl),
+            new SpeechClient($httpClient, $apiKey, $baseUrl),
+            new DecisionClient($httpClient, $apiKey, $baseUrl),
+        ], $modelCatalog, $contract, $eventDispatcher);
     }
 
     /**

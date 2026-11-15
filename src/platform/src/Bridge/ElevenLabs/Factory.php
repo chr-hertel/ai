@@ -45,8 +45,7 @@ final class Factory
 
         return new Provider(
             $name,
-            [new ElevenLabsClient($httpClient)],
-            [new ElevenLabsResultConverter($httpClient)],
+            [new TextToSpeechClient($httpClient), new SpeechToTextClient($httpClient)],
             $modelCatalog ?? new ModelCatalog($httpClient),
             $contract ?? ElevenLabsContract::create(),
             $eventDispatcher,

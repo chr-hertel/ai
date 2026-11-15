@@ -4,7 +4,8 @@ CHANGELOG
 1.0
 ---
 
- * Add Voxtral text-to-speech support through the dedicated `/v1/audio/speech` endpoint, exposing a `TextToSpeech` model, model client and result converter; the `voice` option maps to `voice_id`, and `ref_audio` clones a voice for a single request
+ * [BC BREAK] Replace the model clients and result converters with `ChatCompletionsClient`, `OcrClient`, `SpeechToTextClient`, `TextToSpeechClient` and the Generic `EmbeddingsClient`
+ * Add Voxtral text-to-speech support through the dedicated `/v1/audio/speech` endpoint, exposing a `TextToSpeech` model and `TextToSpeechClient`; the `voice` option maps to `voice_id`, and `ref_audio` clones a voice for a single request
  * Route `voxtral-mini-tts-latest` to the speech endpoint instead of chat completions, and add `voxtral-mini-tts-3-0`, `voxtral-mini-tts-3` and `voxtral-mini-tts-2603` to the model catalog
 
 0.14

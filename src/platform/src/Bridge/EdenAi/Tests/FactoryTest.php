@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\EdenAi\Tests;
 
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\EdenAi\Factory;
 use Symfony\AI\Platform\Bridge\EdenAi\ModelApiCatalog;
@@ -59,6 +60,21 @@ final class FactoryTest extends TestCase
         $this->assertTrue($provider->supports('image/object_detection/google'));
         $this->assertTrue($provider->supports('image/generation/openai'));
         $this->assertTrue($provider->supports('openai/gpt-4o'));
+    }
+
+    #[TestWith(['openai/gpt-4o', 'https://api.edenai.run/v3/chat/completions'])]
+    #[TestWith(['openai/text-embedding-3-small', 'https://api.edenai.run/v3/embeddings'])]
+    #[TestWith(['ocr/ocr/google', 'https://api.edenai.run/v3/universal-ai'])]
+    #[TestWith(['audio/tts/amazon/neural', 'https://api.edenai.run/v3/universal-ai'])]
+    #[TestWith(['audio/speech_to_text_async/openai', 'https://api.edenai.run/v3/universal-ai/async'])]
+    public function testItDispatchesEachModelToTheEndpointOfItsApi(string $model, string $expectedUrl)
+    {
+        $response = new MockResponse('{}');
+        $provider = Factory::createProvider('test-api-key', new MockHttpClient($response));
+
+        $provider->invoke($model, ['file' => 'https://example.com/input']);
+
+        $this->assertSame($expectedUrl, $response->getRequestUrl());
     }
 
     public function testCreateModelCatalogFetchesModelsFromBaseUrl()

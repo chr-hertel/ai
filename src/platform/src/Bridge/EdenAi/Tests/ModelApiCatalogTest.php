@@ -86,7 +86,7 @@ final class ModelApiCatalogTest extends TestCase
     }
 
     /**
-     * A subfeature without a result converter must stay hidden rather than fail later.
+     * A subfeature without a client must stay hidden rather than fail later.
      */
     public function testItHidesExpertSubfeaturesTheBridgeCannotConvert()
     {

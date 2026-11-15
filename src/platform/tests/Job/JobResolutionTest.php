@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Tests\Job;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
 use Symfony\AI\Platform\Job\JobClientInterface;
@@ -23,13 +24,12 @@ use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\Provider;
 use Symfony\AI\Platform\Result\BinaryResult;
+use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\JobResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
-use Symfony\AI\Platform\ResultConverterInterface;
 use Symfony\AI\Platform\Test\MockModelCatalog;
 use Symfony\AI\Platform\Test\MockModelClient;
-use Symfony\AI\Platform\Test\MockResultConverter;
 use Symfony\AI\Platform\TokenUsage\TokenUsageExtractorInterface;
 use Symfony\Component\Clock\MockClock;
 
@@ -44,7 +44,7 @@ final class JobResolutionTest extends TestCase
     public function testAStoredHandleResolvesThroughTheJobClientInAnotherProcess()
     {
         // Process one: start the job, keep nothing but the serialized handle.
-        $stored = $this->platform($this->jobStartingConverter())->invoke('async-model', 'go')->asJob()->toString();
+        $stored = $this->platform($this->jobStartingClient())->invoke('async-model', 'go')->asJob()->toString();
 
         // Process two: only the string survived, the job client is built from scratch.
         $handle = JobHandle::fromString($stored);
@@ -59,36 +59,40 @@ final class JobResolutionTest extends TestCase
     {
         $this->expectException(UnexpectedResultTypeException::class);
 
-        $this->platform(new MockResultConverter())->invoke('async-model', 'go')->asJob();
+        $this->platform(new MockModelClient('accepted'))->invoke('async-model', 'go')->asJob();
     }
 
     public function testReachingForThePayloadOfAJobFails()
     {
         $this->expectException(UnexpectedResultTypeException::class);
 
-        $this->platform($this->jobStartingConverter())->invoke('async-model', 'go')->asBinary();
+        $this->platform($this->jobStartingClient())->invoke('async-model', 'go')->asBinary();
     }
 
-    private function platform(ResultConverterInterface $converter): Platform
+    private function platform(ApiClientInterface $client): Platform
     {
         return new Platform([new Provider(
             'jobs',
-            [new MockModelClient('accepted')],
-            [$converter],
+            [$client],
             new MockModelCatalog(['async-model' => ['class' => Model::class, 'capabilities' => [Capability::INPUT_TEXT]]]),
         )]);
     }
 
     /**
-     * Stands in for a bridge converter whose provider answered with a task identifier instead of a
+     * Stands in for a bridge client whose provider answered with a task identifier instead of a
      * payload. Like a bridge, it creates a complete handle, provider name included.
      */
-    private function jobStartingConverter(): ResultConverterInterface
+    private function jobStartingClient(): ApiClientInterface
     {
-        return new class implements ResultConverterInterface {
+        return new class implements ApiClientInterface {
             public function supports(Model $model): bool
             {
                 return true;
+            }
+
+            public function request(Model $model, array|string $payload, array $options = []): RawResultInterface
+            {
+                return new InMemoryRawResult(['task_id' => 'task-1']);
             }
 
             public function convert(RawResultInterface $result, array $options = []): ResultInterface

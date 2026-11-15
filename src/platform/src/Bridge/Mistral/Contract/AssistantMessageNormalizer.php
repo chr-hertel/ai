@@ -24,7 +24,7 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  *
  * The generic contract sends `reasoning_content`, which Mistral rejects with a 422
  * "Extra inputs are not permitted". Its own shape is a content list of `thinking` and `text`
- * chunks - the one {@see \Symfony\AI\Platform\Bridge\Mistral\Llm\ResultConverter} reads back -
+ * chunks - the one {@see \Symfony\AI\Platform\Bridge\Mistral\ChatCompletionsClient} reads back -
  * and the reasoning has to come along: "The model relies on the reasoning trace to maintain
  * coherence across turns."
  *

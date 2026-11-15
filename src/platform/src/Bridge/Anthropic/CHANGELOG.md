@@ -5,6 +5,7 @@ CHANGELOG
 ---
 
  * Add a prompt-caching breakpoint on the previous user message to keep cache hits across agent loop turns
+ * [BC BREAK] Replace the model client and result converter with `MessagesClient`, reaching the API through a `Transport\TransportInterface` (`Transport\HttpTransport`)
 
 0.14
 ----

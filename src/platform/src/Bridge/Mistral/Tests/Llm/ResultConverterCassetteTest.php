@@ -24,11 +24,11 @@ use Symfony\AI\Platform\Test\Replay\HttpCassette;
 use Symfony\AI\Platform\TokenUsage\TokenUsage;
 
 /**
- * Drives the real Mistral bridge pipeline (Contract, ModelClient, Llm\ResultConverter) against
+ * Drives the real Mistral bridge pipeline (Contract, ChatCompletionsClient) against
  * cassettes recorded from api.mistral.ai, proving record/replay exercises bridge internals offline.
  *
  * Assertions on the shape of a provider response belong here rather than in
- * {@see ResultConverterTest}, which keeps the checks that do not depend on a payload.
+ * {@see \Symfony\AI\Platform\Bridge\Mistral\Tests\ChatCompletionsClientTest}, which keeps the checks that do not depend on a payload.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

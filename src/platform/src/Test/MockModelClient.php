@@ -11,10 +11,12 @@
 
 namespace Symfony\AI\Platform\Test;
 
+use Symfony\AI\Platform\ApiClientInterface;
 use Symfony\AI\Platform\Model;
-use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
+use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\TokenUsage\TokenUsageExtractorInterface;
 
 /**
  * Test model client that returns scripted responses and records every call.
@@ -25,7 +27,7 @@ use Symfony\AI\Platform\Result\ResultInterface;
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
-final class MockModelClient implements ModelClientInterface
+final class MockModelClient implements ApiClientInterface
 {
     /**
      * @var list<array{model: Model, payload: array<string|int, mixed>|string, options: array<string, mixed>}>
@@ -64,5 +66,15 @@ final class MockModelClient implements ModelClientInterface
     public function getCalls(): array
     {
         return $this->calls;
+    }
+
+    public function convert(RawResultInterface $raw, array $options = []): ResultInterface
+    {
+        return (new MockResultConverter())->convert($raw, $options);
+    }
+
+    public function getTokenUsageExtractor(): ?TokenUsageExtractorInterface
+    {
+        return null;
     }
 }

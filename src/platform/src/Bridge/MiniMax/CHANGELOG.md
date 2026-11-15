@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * [BC BREAK] Replace the model clients and result converters with `ChatCompletionsClient`, `ImageClient`, `MusicClient`, `SpeechClient` and `VideoClient`
+
 0.14
 ----
 

@@ -12,10 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\Gemini;
 
 use Symfony\AI\Platform\Bridge\Gemini\Contract\GeminiContract;
-use Symfony\AI\Platform\Bridge\Gemini\Embeddings\ModelClient as EmbeddingsModelClient;
-use Symfony\AI\Platform\Bridge\Gemini\Embeddings\ResultConverter as EmbeddingsResultConverter;
-use Symfony\AI\Platform\Bridge\Gemini\Gemini\ModelClient as GeminiModelClient;
-use Symfony\AI\Platform\Bridge\Gemini\Gemini\ResultConverter as GeminiResultConverter;
+use Symfony\AI\Platform\Bridge\Gemini\Transport\HttpTransport;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -45,11 +42,11 @@ final class Factory
         string $baseUrl = 'https://generativelanguage.googleapis.com',
     ): ProviderInterface {
         $httpClient = $httpClient instanceof EventSourceHttpClient ? $httpClient : new EventSourceHttpClient($httpClient);
+        $transport = new HttpTransport($httpClient, $apiKey, $baseUrl);
 
         return new Provider(
             $name,
-            [new EmbeddingsModelClient($httpClient, $apiKey, $baseUrl), new GeminiModelClient($httpClient, $apiKey, $baseUrl)],
-            [new EmbeddingsResultConverter(), new GeminiResultConverter()],
+            [new BatchEmbedContentsClient($transport), new GenerateContentClient($transport)],
             $modelCatalog,
             $contract ?? GeminiContract::create(),
             $eventDispatcher,
