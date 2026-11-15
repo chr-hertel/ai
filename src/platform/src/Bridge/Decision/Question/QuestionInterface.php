@@ -16,10 +16,7 @@ namespace Symfony\AI\Platform\Bridge\Decision\Question;
  *
  * @author Yoan Bernabeu <yoan.bernabeu@gmail.com>
  */
-interface QuestionInterface extends \JsonSerializable
+interface QuestionInterface
 {
-    /**
-     * @return array{type: string, instructions: string|array<mixed>, criteria?: array<mixed>}
-     */
-    public function jsonSerialize(): array;
+    public function getInstructions(): string;
 }

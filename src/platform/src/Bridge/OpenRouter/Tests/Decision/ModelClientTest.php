@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Bridge\OpenRouter\Tests\Decision;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Bridge\Decision\Contract\EvaluationNormalizer;
 use Symfony\AI\Platform\Bridge\Decision\Evaluation;
 use Symfony\AI\Platform\Bridge\Decision\Question\ChoiceQuestion;
 use Symfony\AI\Platform\Bridge\Decision\Question\NoulQuestion;
@@ -19,6 +20,7 @@ use Symfony\AI\Platform\Bridge\Decision\Question\ScoreQuestion;
 use Symfony\AI\Platform\Bridge\Generic\CompletionsModel;
 use Symfony\AI\Platform\Bridge\OpenRouter\Decision\ModelClient;
 use Symfony\AI\Platform\Bridge\OpenRouter\DecisionModel;
+use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -49,11 +51,11 @@ final class ModelClientTest extends TestCase
         });
 
         $client = new ModelClient($httpClient, 'test-key');
-        $client->request(new DecisionModel('typesafe/jev-1.13'), (new Evaluation('My invoice is wrong.', [
+        $client->request(new DecisionModel('typesafe/jev-1.13'), $this->normalize(new Evaluation('My invoice is wrong.', [
             'department' => new ChoiceQuestion('Which team should handle this?', ['billing' => 'Payment issues', 'technical' => null]),
             'frustration' => new ScoreQuestion('How frustrated is the customer?', ['Calm', 'Angry']),
             'is_bug' => new NoulQuestion('Is this a software defect?', 'Broken behavior', 'A question'),
-        ]))->jsonSerialize());
+        ])));
     }
 
     public function testItForwardsTheSupportedOptions()
@@ -101,9 +103,9 @@ final class ModelClientTest extends TestCase
         });
 
         $client = new ModelClient($httpClient, 'test-key');
-        $client->request(new DecisionModel('typesafe/jev-1.13'), (new Evaluation('My invoice is wrong.', [
+        $client->request(new DecisionModel('typesafe/jev-1.13'), $this->normalize(new Evaluation('My invoice is wrong.', [
             'is_bug' => new NoulQuestion('Is this a software defect?'),
-        ]))->jsonSerialize());
+        ])));
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -115,9 +117,9 @@ final class ModelClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The noul question "is_bug" requires both a "true" and a "false" criterion, or none, for OpenRouter decision models.');
 
-        $client->request(new DecisionModel('typesafe/jev-1.13'), (new Evaluation('My invoice is wrong.', [
+        $client->request(new DecisionModel('typesafe/jev-1.13'), $this->normalize(new Evaluation('My invoice is wrong.', [
             'is_bug' => new NoulQuestion('Is this a software defect?', 'Broken behavior'),
-        ]))->jsonSerialize());
+        ])));
     }
 
     public function testItRejectsImages()
@@ -127,9 +129,9 @@ final class ModelClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The decision model "typesafe/jev-1.13" does not support image inputs.');
 
-        $client->request(new DecisionModel('typesafe/jev-1.13'), (new Evaluation('Is this a cat?', [
+        $client->request(new DecisionModel('typesafe/jev-1.13'), $this->normalize(new Evaluation('Is this a cat?', [
             'is_cat' => new NoulQuestion('Does the image show a cat?', 'A cat', 'No cat'),
-        ], [new Image('image data', 'image/png')]))->jsonSerialize());
+        ], [new Image('image data', 'image/png')])));
     }
 
     public function testItRejectsInvalidPayloads()
@@ -137,7 +139,7 @@ final class ModelClientTest extends TestCase
         $client = new ModelClient(new MockHttpClient(), 'test-key');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Decision payload must be an array with a "state" key and a "questions" map.');
+        $this->expectExceptionMessage('The decision model "typesafe/jev-1.13" requires an "Symfony\AI\Platform\Bridge\Decision\Evaluation" input, try running "composer require symfony/ai-decision-platform".');
 
         $client->request(new DecisionModel('typesafe/jev-1.13'), 'invalid string payload');
     }
@@ -147,8 +149,16 @@ final class ModelClientTest extends TestCase
      */
     private function createPayload(): array
     {
-        return (new Evaluation('My invoice is wrong.', [
+        return $this->normalize(new Evaluation('My invoice is wrong.', [
             'is_bug' => new NoulQuestion('Is this a software defect?', 'Broken behavior', 'A question'),
-        ]))->jsonSerialize();
+        ]));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function normalize(Evaluation $evaluation): array
+    {
+        return (new EvaluationNormalizer())->normalize($evaluation, context: [Contract::CONTEXT_MODEL => new DecisionModel('typesafe/jev-1.13')]);
     }
 }

@@ -20,7 +20,7 @@ use Symfony\AI\Platform\Exception\RuntimeException;
 
 /**
  * Builds the {@see Answers} of a decision model from the decoded body of its response,
- * which providers (TypeSafe's Jev, Ollama's decision models) share.
+ * in the format TypeSafe, Ollama, OpenRouter and Gemini share.
  *
  * @author Yoan Bernabeu <yoan.bernabeu@gmail.com>
  */
@@ -78,9 +78,9 @@ final class AnswersConverter
         }
 
         return match ($type) {
-            'noul' => NoulAnswer::fromArray($answer),
-            'choice' => ChoiceAnswer::fromArray($answer),
-            'score' => ScoreAnswer::fromArray($answer),
+            'noul' => new NoulAnswer((float) $answer['noul']),
+            'choice' => new ChoiceAnswer($answer['choice'], array_map(floatval(...), $answer['probabilities']), (float) $answer['confidence']),
+            'score' => new ScoreAnswer((float) $answer['score'], $answer['legend'], array_map(floatval(...), $answer['probabilities']), (float) $answer['confidence']),
             default => throw new RuntimeException(\sprintf('Answer "%s" has an unsupported type "%s".', $id, \is_string($type) ? $type : get_debug_type($type))),
         };
     }

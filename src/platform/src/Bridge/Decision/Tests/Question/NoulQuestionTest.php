@@ -16,37 +16,20 @@ use Symfony\AI\Platform\Bridge\Decision\Question\NoulQuestion;
 
 final class NoulQuestionTest extends TestCase
 {
-    public function testItSerializesWithoutCriteria()
+    public function testItHasNoCriteriaByDefault()
     {
         $question = new NoulQuestion('Does this convey urgency?');
 
-        $this->assertSame(['type' => 'noul', 'instructions' => 'Does this convey urgency?'], $question->jsonSerialize());
+        $this->assertSame('Does this convey urgency?', $question->getInstructions());
+        $this->assertNull($question->getTrue());
+        $this->assertNull($question->getFalse());
     }
 
-    public function testItSerializesWithCriteria()
+    public function testItExposesItsCriteria()
     {
         $question = new NoulQuestion('Does this convey urgency?', 'Explicitly time-sensitive', 'No urgency expressed');
 
-        $this->assertSame([
-            'type' => 'noul',
-            'instructions' => 'Does this convey urgency?',
-            'criteria' => ['true' => 'Explicitly time-sensitive', 'false' => 'No urgency expressed'],
-        ], $question->jsonSerialize());
-    }
-
-    public function testItSerializesWithOnlyOneCriterion()
-    {
-        $question = new NoulQuestion('Does this convey urgency?', false: 'No urgency expressed');
-
-        $this->assertSame(['false' => 'No urgency expressed'], $question->jsonSerialize()['criteria']);
-    }
-
-    public function testItSerializesStructuredInstructions()
-    {
-        $instructions = ['question' => 'Does this convey urgency?', 'examples' => ['ASAP', 'today']];
-
-        $question = new NoulQuestion($instructions);
-
-        $this->assertSame($instructions, $question->jsonSerialize()['instructions']);
+        $this->assertSame('Explicitly time-sensitive', $question->getTrue());
+        $this->assertSame('No urgency expressed', $question->getFalse());
     }
 }

@@ -59,35 +59,11 @@ final class DecisionModelClientTest extends TestCase
         ]);
     }
 
-    public function testItKeepsNumericKeysAsJsonObjects()
-    {
-        $httpClient = new MockHttpClient([function (string $method, string $url, array $options): MockResponse {
-            $this->assertStringContainsString('"questions":{"0":{"type":"choice","instructions":"Which?","criteria":{"0":"First","1":null}}}', $options['body']);
-
-            return new MockResponse();
-        }], 'http://127.0.0.1:11434');
-
-        (new DecisionModelClient($httpClient))->request(new Decision('nimble'), [
-            'state' => 'text',
-            'questions' => [
-                ['type' => 'choice', 'instructions' => 'Which?', 'criteria' => ['First', null]],
-            ],
-        ]);
-    }
-
     public function testItRejectsAPayloadWithoutQuestions()
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Decision payload must be an array with a "state" key and a "questions" map.');
+        $this->expectExceptionMessage('The decision model "nimble" requires an "Symfony\AI\Platform\Bridge\Decision\Evaluation" input, try running "composer require symfony/ai-decision-platform".');
 
         (new DecisionModelClient(new MockHttpClient()))->request(new Decision('nimble'), ['state' => 'text']);
-    }
-
-    public function testItRejectsANonArrayQuestion()
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Question "label" must be an array, "string" given.');
-
-        (new DecisionModelClient(new MockHttpClient()))->request(new Decision('nimble'), ['state' => 'text', 'questions' => ['label' => 'nope']]);
     }
 }

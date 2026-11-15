@@ -3,17 +3,15 @@ Decision Platform
 
 Decision platform bridge for Symfony AI.
 
-It holds what providers of decision models share: the `Evaluation` input, the question and answer
-types, and the `AnswersConverter` turning a response body into answers. It does not talk to any
-provider on its own. Bridges like TypeSafe and Ollama build on it.
-
-`Evaluation` accepts an optional `images` list of platform `Image` objects, shared by
-all questions. Empty lists are omitted from the payload. The provider must support
-image decisions: Ollama supports Clef images, while TypeSafe rejects image inputs.
+It holds the classes that platforms with decision models share: the `Evaluation` input, the
+question and answer types, and the contract normalizer and answers converter of the request format
+that TypeSafe, Ollama and OpenRouter use. Gemini and OpenAI add their own normalizer to their contract.
+It does not talk to any provider on its own.
 
 Decision Documentation
 ----------------------
 
+ * [Decision Models](https://symfony.com/doc/current/ai/components/platform/decision.html)
  * [TypeSafe System One](https://docs.typesafe.ai/concepts/system-one)
  * [TypeSafe Questions](https://docs.typesafe.ai/primitives)
 

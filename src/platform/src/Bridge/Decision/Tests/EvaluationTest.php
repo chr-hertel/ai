@@ -20,20 +20,18 @@ use Symfony\AI\Platform\Message\Content\Image;
 
 final class EvaluationTest extends TestCase
 {
-    public function testItSerializesStateAndQuestions()
+    public function testItExposesStateAndQuestions()
     {
-        $evaluation = new Evaluation('My payouts have been failing for 3 days.', [
+        $questions = [
             'is_urgent' => new NoulQuestion('Does this convey urgency?'),
             'department' => new ChoiceQuestion('Which team should handle this?', ['billing' => 'Payments', 'technical' => null]),
-        ]);
+        ];
 
-        $this->assertSame([
-            'state' => 'My payouts have been failing for 3 days.',
-            'questions' => [
-                'is_urgent' => ['type' => 'noul', 'instructions' => 'Does this convey urgency?'],
-                'department' => ['type' => 'choice', 'instructions' => 'Which team should handle this?', 'criteria' => ['billing' => 'Payments', 'technical' => null]],
-            ],
-        ], $evaluation->jsonSerialize());
+        $evaluation = new Evaluation('My payouts have been failing for 3 days.', $questions);
+
+        $this->assertSame('My payouts have been failing for 3 days.', $evaluation->getState());
+        $this->assertSame($questions, $evaluation->getQuestions());
+        $this->assertSame([], $evaluation->getImages());
     }
 
     public function testItAcceptsStructuredState()
@@ -42,7 +40,7 @@ final class EvaluationTest extends TestCase
 
         $evaluation = new Evaluation($state, ['is_urgent' => new NoulQuestion('Does this convey urgency?')]);
 
-        $this->assertSame($state, $evaluation->jsonSerialize()['state']);
+        $this->assertSame($state, $evaluation->getState());
     }
 
     public function testItThrowsExceptionWithoutQuestions()
@@ -62,21 +60,13 @@ final class EvaluationTest extends TestCase
         new Evaluation('state', ['is_urgent' => 'Does this convey urgency?']);
     }
 
-    public function testItSerializesImagesInOrderAsRawBase64()
+    public function testItKeepsImagesInOrder()
     {
-        $evaluation = new Evaluation('A yearbook page.', ['photo' => new NoulQuestion('Is this a photograph?')], images: [
-            new Image('first image', 'image/png'),
-            new Image('second image', 'image/jpeg'),
-        ]);
+        $images = [new Image('first image', 'image/png'), new Image('second image', 'image/jpeg')];
 
-        $this->assertSame([base64_encode('first image'), base64_encode('second image')], $evaluation->jsonSerialize()['images']);
-    }
+        $evaluation = new Evaluation('A yearbook page.', ['photo' => new NoulQuestion('Is this a photograph?')], $images);
 
-    public function testItOmitsEmptyImages()
-    {
-        $evaluation = new Evaluation('text', ['q' => new NoulQuestion('Relevant?')], images: []);
-
-        $this->assertArrayNotHasKey('images', $evaluation->jsonSerialize());
+        $this->assertSame($images, $evaluation->getImages());
     }
 
     public function testItRejectsImagesThatAreNotImageObjects()

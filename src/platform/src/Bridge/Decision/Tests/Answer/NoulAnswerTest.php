@@ -17,13 +17,6 @@ use Symfony\AI\Platform\Bridge\Decision\Answer\NoulAnswer;
 
 final class NoulAnswerTest extends TestCase
 {
-    public function testItIsCreatedFromArray()
-    {
-        $answer = NoulAnswer::fromArray(['type' => 'noul', 'noul' => 1]);
-
-        $this->assertSame(1.0, $answer->getProbability());
-    }
-
     #[TestWith([0.92, 0.5, true])]
     #[TestWith([0.5, 0.5, true])]
     #[TestWith([0.49, 0.5, false])]

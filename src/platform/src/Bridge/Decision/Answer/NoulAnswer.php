@@ -36,12 +36,4 @@ final class NoulAnswer implements AnswerInterface
     {
         return $this->probability >= $threshold;
     }
-
-    /**
-     * @param array{type: 'noul', noul: int|float} $data
-     */
-    public static function fromArray(array $data): self
-    {
-        return new self((float) $data['noul']);
-    }
 }

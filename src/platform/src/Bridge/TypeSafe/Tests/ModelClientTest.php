@@ -72,36 +72,6 @@ final class ModelClientTest extends TestCase
         ]);
     }
 
-    public function testItKeepsNumericKeysAsJsonObjects()
-    {
-        $httpClient = new MockHttpClient([function (
-            string $method,
-            string $url,
-            array $options,
-        ): MockResponse {
-            $this->assertJsonStringEqualsJsonString(<<<'JSON'
-                {
-                    "model": "jev-latest",
-                    "state": ["first line", "second line"],
-                    "questions": {
-                        "0": {"type": "choice", "instructions": "Which line answers the query?", "criteria": {"0": "The first line", "1": null}}
-                    }
-                }
-                JSON, $options['body']);
-
-            return new MockResponse();
-        }]);
-
-        $client = new ModelClient($httpClient, 'test-key');
-
-        $client->request(new Jev('jev-latest'), [
-            'state' => ['first line', 'second line'],
-            'questions' => [
-                ['type' => 'choice', 'instructions' => 'Which line answers the query?', 'criteria' => ['The first line', null]],
-            ],
-        ]);
-    }
-
     public function testItUsesCustomBaseUrl()
     {
         $httpClient = new MockHttpClient([function (string $method, string $url): MockResponse {
@@ -123,19 +93,9 @@ final class ModelClientTest extends TestCase
         $client = new ModelClient(new MockHttpClient(), 'test-key');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Decision payload must be an array with a "state" key and a "questions" map.');
+        $this->expectExceptionMessage('The decision model "jev-latest" requires an "Symfony\AI\Platform\Bridge\Decision\Evaluation" input.');
 
         $client->request(new Jev('jev-latest'), 'invalid string payload');
-    }
-
-    public function testItThrowsExceptionForMissingStateKey()
-    {
-        $client = new ModelClient(new MockHttpClient(), 'test-key');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Decision payload must be an array with a "state" key and a "questions" map.');
-
-        $client->request(new Jev('jev-latest'), ['questions' => ['is_urgent' => ['type' => 'noul', 'instructions' => 'Urgent?']]]);
     }
 
     public function testItThrowsExceptionForMissingQuestionsKey()
@@ -143,37 +103,8 @@ final class ModelClientTest extends TestCase
         $client = new ModelClient(new MockHttpClient(), 'test-key');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Decision payload must be an array with a "state" key and a "questions" map.');
+        $this->expectExceptionMessage('The decision model "jev-latest" requires an "Symfony\AI\Platform\Bridge\Decision\Evaluation" input.');
 
         $client->request(new Jev('jev-latest'), ['state' => 'state']);
-    }
-
-    public function testItThrowsExceptionForInvalidQuestion()
-    {
-        $client = new ModelClient(new MockHttpClient(), 'test-key');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Question "is_urgent" must be an array, "string" given.');
-
-        $client->request(new Jev('jev-latest'), ['state' => 'state', 'questions' => ['is_urgent' => 'Urgent?']]);
-    }
-
-    public function testItRejectsImagesBeforeSendingARequest()
-    {
-        $httpClient = new MockHttpClient();
-        $client = new ModelClient($httpClient, 'test-key');
-
-        try {
-            $client->request(new Jev('jev-latest'), [
-                'state' => 'A photo',
-                'questions' => ['q' => ['type' => 'noul', 'instructions' => 'Portrait?']],
-                'images' => [base64_encode('image')],
-            ]);
-            $this->fail('TypeSafe must reject image inputs.');
-        } catch (InvalidArgumentException $e) {
-            $this->assertSame('The decision model "jev-latest" does not support image inputs.', $e->getMessage());
-        }
-
-        $this->assertSame(0, $httpClient->getRequestsCount());
     }
 }

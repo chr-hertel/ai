@@ -17,6 +17,8 @@ use Symfony\AI\Platform\Bridge\Decision\Evaluation;
 use Symfony\AI\Platform\Bridge\Decision\Question\ChoiceQuestion;
 use Symfony\AI\Platform\Bridge\Decision\Question\NoulQuestion;
 use Symfony\AI\Platform\Bridge\TypeSafe\Factory;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
+use Symfony\AI\Platform\Message\Content\Image;
 use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
@@ -81,5 +83,21 @@ final class FactoryTest extends TestCase
         $answers = $result->asObject();
         $this->assertInstanceOf(Answers::class, $answers);
         $this->assertFalse($answers->getNoul('is_urgent')->isTrue());
+    }
+
+    public function testItRejectsImagesBeforeSendingARequest()
+    {
+        $httpClient = new MockHttpClient();
+
+        try {
+            Factory::createPlatform('test-key', $httpClient)->invoke('jev-latest', new Evaluation('A photo', [
+                'is_portrait' => new NoulQuestion('Is this a portrait?'),
+            ], [new Image('image', 'image/png')]));
+            $this->fail('TypeSafe must reject image inputs.');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('The decision model "jev-latest" does not support image inputs.', $e->getMessage());
+        }
+
+        $this->assertSame(0, $httpClient->getRequestsCount());
     }
 }

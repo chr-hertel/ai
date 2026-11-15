@@ -16,19 +16,19 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\Content\Image;
 
 /**
- * The input of a decision invocation (e.g. a Jev or Ollama decision model): a state, and the questions to answer about it.
+ * The input of a decision invocation: a state, and the questions to answer about it.
  *
- * A decision model ingests the state once and answers every question against it,
- * which makes batching questions into a single evaluation both faster and cheaper.
+ * A decision model ingests the state once and answers every question against it, with probabilities instead of text.
+ * The contract of each platform turns it into the request of its provider.
  *
  * @author Yoan Bernabeu <yoan.bernabeu@gmail.com>
  */
-final class Evaluation implements \JsonSerializable
+final class Evaluation
 {
     /**
-     * @param string|array<mixed>              $state     The content to evaluate, as plain text or structured data
-     * @param array<string, QuestionInterface> $questions The questions, keyed by the identifier their answer is returned under
-     * @param list<Image>                      $images    Images shared by all questions, in request order
+     * @param string|array<mixed>                 $state     The content to evaluate, as plain text or structured data
+     * @param array<array-key, QuestionInterface> $questions The questions, keyed by the identifier their answer is returned under
+     * @param list<Image>                         $images    Images shared by all questions, in request order
      */
     public function __construct(
         private readonly string|array $state,
@@ -53,22 +53,26 @@ final class Evaluation implements \JsonSerializable
     }
 
     /**
-     * @return array{state: string|array<mixed>, questions: array<string, array<string, mixed>>, images?: list<string>}
+     * @return string|array<mixed>
      */
-    public function jsonSerialize(): array
+    public function getState(): string|array
     {
-        $payload = [
-            'state' => $this->state,
-            'questions' => array_map(
-                static fn (QuestionInterface $question): array => $question->jsonSerialize(),
-                $this->questions,
-            ),
-        ];
+        return $this->state;
+    }
 
-        if ([] !== $this->images) {
-            $payload['images'] = array_map(static fn (Image $image): string => $image->asBase64(), array_values($this->images));
-        }
+    /**
+     * @return array<array-key, QuestionInterface>
+     */
+    public function getQuestions(): array
+    {
+        return $this->questions;
+    }
 
-        return $payload;
+    /**
+     * @return list<Image>
+     */
+    public function getImages(): array
+    {
+        return array_values($this->images);
     }
 }

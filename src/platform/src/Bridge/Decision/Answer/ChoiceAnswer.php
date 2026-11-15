@@ -45,16 +45,4 @@ final class ChoiceAnswer implements AnswerInterface
     {
         return $this->confidence;
     }
-
-    /**
-     * @param array{type: 'choice', choice: string, probabilities: array<array-key, int|float>, confidence: int|float} $data
-     */
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            $data['choice'],
-            array_map(floatval(...), $data['probabilities']),
-            (float) $data['confidence'],
-        );
-    }
 }

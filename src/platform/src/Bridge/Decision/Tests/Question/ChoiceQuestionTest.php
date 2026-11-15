@@ -17,30 +17,19 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 
 final class ChoiceQuestionTest extends TestCase
 {
-    public function testItSerializes()
+    public function testItExposesItsOptions()
     {
-        $question = new ChoiceQuestion('Which team should handle this?', [
-            'billing' => 'Payments, invoicing, refunds',
-            'technical' => 'Bugs, outages, integrations',
-            'other' => null,
-        ]);
+        $question = new ChoiceQuestion('Which team should handle this?', ['billing' => 'Payments', 'technical' => null]);
 
-        $this->assertSame([
-            'type' => 'choice',
-            'instructions' => 'Which team should handle this?',
-            'criteria' => [
-                'billing' => 'Payments, invoicing, refunds',
-                'technical' => 'Bugs, outages, integrations',
-                'other' => null,
-            ],
-        ], $question->jsonSerialize());
+        $this->assertSame('Which team should handle this?', $question->getInstructions());
+        $this->assertSame(['billing' => 'Payments', 'technical' => null], $question->getOptions());
     }
 
-    public function testItThrowsExceptionWithoutOptions()
+    public function testItThrowsExceptionWithLessThanTwoOptions()
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('A choice question requires at least one option.');
+        $this->expectExceptionMessage('A choice question requires at least two options.');
 
-        new ChoiceQuestion('Which team should handle this?', []);
+        new ChoiceQuestion('Which team should handle this?', ['billing' => 'Payments']);
     }
 }

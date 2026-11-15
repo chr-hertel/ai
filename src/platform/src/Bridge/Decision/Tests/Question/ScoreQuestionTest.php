@@ -17,23 +17,13 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 
 final class ScoreQuestionTest extends TestCase
 {
-    public function testItSerializes()
-    {
-        $question = new ScoreQuestion('How frustrated is the customer?', ['Calm', 'Frustrated', 'Very angry']);
-
-        $this->assertSame([
-            'type' => 'score',
-            'instructions' => 'How frustrated is the customer?',
-            'criteria' => ['Calm', 'Frustrated', 'Very angry'],
-        ], $question->jsonSerialize());
-    }
-
-    public function testItSerializesLevelsAsList()
+    public function testItExposesItsLevelsAsList()
     {
         /* @phpstan-ignore argument.type */
-        $question = new ScoreQuestion('How frustrated is the customer?', [3 => 'Calm', 7 => 'Very angry']);
+        $question = new ScoreQuestion('How frustrated is the customer?', [2 => 'Calm', 5 => 'Very angry']);
 
-        $this->assertSame(['Calm', 'Very angry'], $question->jsonSerialize()['criteria']);
+        $this->assertSame('How frustrated is the customer?', $question->getInstructions());
+        $this->assertSame(['Calm', 'Very angry'], $question->getLevels());
     }
 
     public function testItThrowsExceptionWithLessThanTwoLevels()

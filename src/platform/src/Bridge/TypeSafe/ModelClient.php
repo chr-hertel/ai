@@ -11,7 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\TypeSafe;
 
-use Symfony\AI\Platform\Bridge\Decision\RequestBodyBuilder;
+use Symfony\AI\Platform\Bridge\Decision\Evaluation;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Result\RawHttpResult;
@@ -42,9 +43,13 @@ final class ModelClient implements ModelClientInterface
 
     public function request(Model $model, array|string $payload, array $options = []): RawHttpResult
     {
+        if (!\is_array($payload) || !isset($payload['questions'])) {
+            throw new InvalidArgumentException(\sprintf('The decision model "%s" requires an "%s" input.', $model->getName(), Evaluation::class));
+        }
+
         return new RawHttpResult($this->httpClient->request('POST', $this->baseUrl.'/v1/systemone', [
             'auth_bearer' => $this->apiKey,
-            'json' => RequestBodyBuilder::build($model, $payload),
+            'json' => ['model' => $model->getName()] + $payload,
         ]));
     }
 }

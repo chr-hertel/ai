@@ -16,33 +16,6 @@ use Symfony\AI\Platform\Bridge\Decision\Answer\ChoiceAnswer;
 
 final class ChoiceAnswerTest extends TestCase
 {
-    public function testItIsCreatedFromArray()
-    {
-        $answer = ChoiceAnswer::fromArray([
-            'type' => 'choice',
-            'choice' => 'billing',
-            'confidence' => 0.51,
-            'probabilities' => ['sales' => 0.0, 'billing' => 0.68, 'technical' => 0.32],
-        ]);
-
-        $this->assertSame('billing', $answer->getChoice());
-        $this->assertSame(['sales' => 0.0, 'billing' => 0.68, 'technical' => 0.32], $answer->getProbabilities());
-        $this->assertSame(0.51, $answer->getConfidence());
-    }
-
-    public function testItConvertsIntegerNumbersToFloats()
-    {
-        $answer = ChoiceAnswer::fromArray([
-            'type' => 'choice',
-            'choice' => 'billing',
-            'confidence' => 1,
-            'probabilities' => ['billing' => 1, 'sales' => 0],
-        ]);
-
-        $this->assertSame(['billing' => 1.0, 'sales' => 0.0], $answer->getProbabilities());
-        $this->assertSame(1.0, $answer->getConfidence());
-    }
-
     public function testItExposesTheValuesItIsConstructedWith()
     {
         $answer = new ChoiceAnswer('technical', ['billing' => 0.15, 'technical' => 0.85], 0.82);

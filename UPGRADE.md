@@ -371,6 +371,24 @@ MCP Bundle
 Platform
 --------
 
+ * The Decision bridge no longer serializes `Evaluation` and the questions with `jsonSerialize()`, the contract of
+   each platform normalizes them. A custom `Contract` of the TypeSafe, Ollama or OpenRouter platform needs the
+   `EvaluationNormalizer`, and a custom model client receives the normalized payload without `RequestBodyBuilder`:
+
+   ```diff
+   -$contract = Contract::create();
+   +$contract = Contract::create([new \Symfony\AI\Platform\Bridge\Decision\Contract\EvaluationNormalizer()]);
+
+   -'json' => RequestBodyBuilder::build($model, $payload),
+   +'json' => ['model' => $model->getName()] + $payload,
+   ```
+
+ * The `fromArray()` methods of `NoulAnswer`, `ChoiceAnswer` and `ScoreAnswer` have been removed, use their
+   constructors instead.
+
+ * The instructions of `NoulQuestion`, `ChoiceQuestion` and `ScoreQuestion` must be strings, and a `ChoiceQuestion`
+   requires at least two options.
+
  * `MessageBag` is immutable. `add()`, `prepend()` and `removeSystemMessage()` have been removed, use the methods
    returning a copy instead, and `replace()` returns a copy as well:
 

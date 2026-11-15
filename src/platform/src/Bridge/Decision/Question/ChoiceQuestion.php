@@ -21,27 +21,28 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 final class ChoiceQuestion implements QuestionInterface
 {
     /**
-     * @param string|array<mixed>           $instructions What the model should decide
+     * @param string                        $instructions What the model should decide
      * @param array<array-key, string|null> $options      Every option mapped to its description, or to null when the option needs no extra detail
      */
     public function __construct(
-        private readonly string|array $instructions,
+        private readonly string $instructions,
         private readonly array $options,
     ) {
-        if ([] === $options) {
-            throw new InvalidArgumentException('A choice question requires at least one option.');
+        if (\count($options) < 2) {
+            throw new InvalidArgumentException('A choice question requires at least two options.');
         }
     }
 
-    /**
-     * @return array{type: 'choice', instructions: string|array<mixed>, criteria: array<array-key, string|null>}
-     */
-    public function jsonSerialize(): array
+    public function getInstructions(): string
     {
-        return [
-            'type' => 'choice',
-            'instructions' => $this->instructions,
-            'criteria' => $this->options,
-        ];
+        return $this->instructions;
+    }
+
+    /**
+     * @return array<array-key, string|null>
+     */
+    public function getOptions(): array
+    {
+        return $this->options;
     }
 }
