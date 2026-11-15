@@ -22,6 +22,7 @@ use Symfony\AI\Platform\Contract\Normalizer\Message\ToolCallMessageNormalizer;
 use Symfony\AI\Platform\Contract\Normalizer\Message\UserMessageNormalizer;
 use Symfony\AI\Platform\Contract\Normalizer\Result\ToolCallNormalizer;
 use Symfony\AI\Platform\Contract\Normalizer\ToolNormalizer;
+use Symfony\AI\Platform\Decision\Question\QuestionInterface;
 use Symfony\AI\Platform\Tool\Tool;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\Normalizer\JsonSerializableNormalizer;
@@ -84,6 +85,18 @@ class Contract
         return $this->normalizer->normalize($input, context: [
             self::CONTEXT_MODEL => $model,
             self::CONTEXT_OPTIONS => $options,
+        ]);
+    }
+
+    /**
+     * @param array<array-key, QuestionInterface> $questions
+     *
+     * @return array<array-key, mixed>
+     */
+    final public function createQuestionsOption(array $questions, Model $model): array
+    {
+        return $this->normalizer->normalize($questions, context: [
+            self::CONTEXT_MODEL => $model,
         ]);
     }
 

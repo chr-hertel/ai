@@ -57,6 +57,17 @@ final class StringToMessageBagListenerTest extends TestCase
         $this->assertSame($originalInput, $event->getInput());
     }
 
+    public function testDoesNotConvertStringInputOfDecisions()
+    {
+        $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::DECISION]) extends Model {
+        };
+
+        $event = new InvocationEvent($model, 'Hello, world!', ['questions' => []]);
+        (new StringToMessageBagListener())($event);
+
+        $this->assertSame('Hello, world!', $event->getInput());
+    }
+
     public function testDoesNotConvertNonStringInput()
     {
         $model = new class('test-model', [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT]) extends Model {

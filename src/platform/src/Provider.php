@@ -11,10 +11,13 @@
 
 namespace Symfony\AI\Platform;
 
+use Symfony\AI\Platform\Decision\Question\QuestionInterface;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\Event\ResultConvertedEvent;
 use Symfony\AI\Platform\Event\ResultErrorEvent;
 use Symfony\AI\Platform\Event\ResultEvent;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
+use Symfony\AI\Platform\Exception\MissingModelSupportException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
@@ -102,13 +105,20 @@ final class Provider implements ProviderInterface
 
         $model = $invocationEvent->getModel();
         $input = $invocationEvent->getInput();
-        $options = $invocationEvent->getOptions();
+        $options = array_merge($model->getOptions(), $invocationEvent->getOptions());
+
+        if (isset($options['questions'])) {
+            $this->validateQuestions($model, $options['questions']);
+        }
 
         $payload = $this->contract->createRequestPayload($model, $input, $options);
-        $options = array_merge($model->getOptions(), $options);
 
         if (isset($options['tools'])) {
             $options['tools'] = $this->contract->createToolOption($options['tools'], $model);
+        }
+
+        if (isset($options['questions'])) {
+            $options['questions'] = $this->contract->createQuestionsOption($options['questions'], $model);
         }
 
         $result = $this->convertResult($model, $this->doInvoke($model, $payload, $options), $options);
@@ -169,5 +179,22 @@ final class Provider implements ProviderInterface
         }
 
         throw new RuntimeException(\sprintf('No ResultConverter registered for model "%s" (%s) in provider "%s".', $model->getName(), $model::class, $this->name));
+    }
+
+    private function validateQuestions(Model $model, mixed $questions): void
+    {
+        if (!$model->supports(Capability::DECISION)) {
+            throw MissingModelSupportException::forDecision($model);
+        }
+
+        if (!\is_array($questions) || [] === $questions) {
+            throw new InvalidArgumentException('A decision requires at least one question.');
+        }
+
+        foreach ($questions as $id => $question) {
+            if (!$question instanceof QuestionInterface) {
+                throw new InvalidArgumentException(\sprintf('Question "%s" must be an instance of "%s", "%s" given.', $id, QuestionInterface::class, get_debug_type($question)));
+            }
+        }
     }
 }
