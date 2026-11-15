@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * Add decision models through `POST /v1/decisions`, queried with an `Evaluation` of the Decision bridge, with `Decision\DecisionModelCatalog` mapping `gpt-6-luna` to the `Decision` model
+
 0.14
 ----
 

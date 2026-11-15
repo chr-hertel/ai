@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\Gemini\Contract;
 
+use Symfony\AI\Platform\Bridge\Gemini\Decision\EvaluationNormalizer;
 use Symfony\AI\Platform\Contract;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
@@ -26,6 +27,7 @@ final class GeminiContract extends Contract
     {
         return parent::create([
             new AssistantMessageNormalizer(),
+            new EvaluationNormalizer(),
             new MessageBagNormalizer(),
             new ToolNormalizer(),
             new ToolCallMessageNormalizer(),

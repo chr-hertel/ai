@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\OpenAi\Contract;
 
+use Symfony\AI\Platform\Bridge\OpenAi\Decision\EvaluationNormalizer;
 use Symfony\AI\Platform\Bridge\OpenAi\Whisper\AudioNormalizer;
 use Symfony\AI\Platform\Bridge\OpenResponses\Contract\OpenResponsesContract;
 use Symfony\AI\Platform\Contract;
@@ -28,6 +29,7 @@ final class OpenAiContract extends Contract
     {
         return OpenResponsesContract::create([
             new AudioNormalizer(),
+            new EvaluationNormalizer(),
             ...$normalizers,
         ]);
     }

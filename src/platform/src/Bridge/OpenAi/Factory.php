@@ -50,6 +50,7 @@ final class Factory
             $name,
             [
                 new Gpt\ModelClient($httpClient, $apiKey, $region),
+                new Decision\ModelClient($httpClient, $apiKey, $region),
                 new Embeddings\ModelClient($httpClient, $apiKey, $region),
                 new Image\ModelClient($httpClient, $apiKey, $region),
                 new TextToSpeech\ModelClient($httpClient, $apiKey, $region),
@@ -58,6 +59,7 @@ final class Factory
             ],
             [
                 new Gpt\ResultConverter($name),
+                new Decision\ResultConverter(),
                 new Embeddings\ResultConverter(),
                 new Image\ResultConverter(),
                 new TextToSpeech\ResultConverter(),

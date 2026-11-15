@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+1.0
+---
+
+ * Add decision models (`gemini-decision-1`) through `POST /v1beta/decisions`, queried with an `Evaluation` of the Decision bridge
+
 0.15
 ----
 

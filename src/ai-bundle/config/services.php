@@ -56,8 +56,10 @@ use Symfony\AI\Platform\Bridge\MiniMax\ModelCatalog as MiniMaxModelCatalog;
 use Symfony\AI\Platform\Bridge\Mistral\ModelCatalog as MistralModelCatalog;
 use Symfony\AI\Platform\Bridge\Ollama\Contract\OllamaContract;
 use Symfony\AI\Platform\Bridge\OpenAi\Contract\OpenAiContract;
+use Symfony\AI\Platform\Bridge\OpenAi\Decision\DecisionModelCatalog as OpenAiDecisionModelCatalog;
 use Symfony\AI\Platform\Bridge\OpenAi\ModelCatalog as OpenAiModelCatalog;
 use Symfony\AI\Platform\Bridge\OpenResponses\FallbackModelCatalog as OpenResponsesFallbackModelCatalog;
+use Symfony\AI\Platform\Bridge\OpenRouter\Decision\DecisionModelCatalog as OpenRouterDecisionModelCatalog;
 use Symfony\AI\Platform\Bridge\OpenRouter\ModelCatalog as OpenRouterModelCatalog;
 use Symfony\AI\Platform\Bridge\Ovh\ModelCatalog as OvhModelCatalog;
 use Symfony\AI\Platform\Bridge\Perplexity\Contract\PerplexityContract;
@@ -152,8 +154,10 @@ return static function (ContainerConfigurator $container): void {
         ->set('ai.platform.model_catalog.minimax', MiniMaxModelCatalog::class)
         ->set('ai.platform.model_catalog.mistral', MistralModelCatalog::class)
         ->set('ai.platform.model_catalog.openai', OpenAiModelCatalog::class)
+        ->set('ai.platform.model_catalog.openai.decision', OpenAiDecisionModelCatalog::class)
         ->set('ai.platform.model_catalog.openresponses', OpenResponsesFallbackModelCatalog::class)
         ->set('ai.platform.model_catalog.openrouter', OpenRouterModelCatalog::class)
+        ->set('ai.platform.model_catalog.openrouter.decision', OpenRouterDecisionModelCatalog::class)
         ->set('ai.platform.model_catalog.ovh', OvhModelCatalog::class)
         ->set('ai.platform.model_catalog.perplexity', PerplexityModelCatalog::class)
         ->set('ai.platform.model_catalog.scaleway', ScalewayModelCatalog::class)
