@@ -50,6 +50,7 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
             completionTokens: $usage['completion_tokens'] ?? null,
             thinkingTokens: $completionTokensDetails['reasoning_tokens'] ?? null,
             cachedTokens: $promptTokensDetails['cached_tokens'] ?? null,
+            cacheReadTokens: $promptTokensDetails['cached_tokens'] ?? null,
             totalTokens: $usage['total_tokens'] ?? null,
             model: $model,
         );

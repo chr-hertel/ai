@@ -160,6 +160,7 @@ final class TokenUsageExtractorTest extends TestCase
         $this->assertSame(100, $tokenUsage->getPromptTokens());
         $this->assertSame(200, $tokenUsage->getCompletionTokens());
         $this->assertSame(60, $tokenUsage->getCachedTokens());
+        $this->assertSame(60, $tokenUsage->getCacheReadTokens());
         $this->assertSame(50, $tokenUsage->getThinkingTokens());
         $this->assertSame(300, $tokenUsage->getTotalTokens());
     }

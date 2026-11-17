@@ -38,6 +38,7 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
             promptTokens: $payload['prompt_eval_count'],
             completionTokens: $payload['eval_count'],
             cachedTokens: $payload['prompt_eval_cached_count'] ?? null,
+            cacheReadTokens: $payload['prompt_eval_cached_count'] ?? null,
             model: $payload['model'] ?? null,
         );
     }

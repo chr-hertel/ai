@@ -16,6 +16,9 @@ namespace Symfony\AI\Platform\TokenUsage;
  */
 interface TokenUsageInterface
 {
+    /**
+     * All input tokens, including the ones read from or written into the prompt cache.
+     */
     public function getPromptTokens(): ?int;
 
     /**
@@ -30,15 +33,18 @@ interface TokenUsageInterface
 
     public function getToolTokens(): ?int;
 
+    /**
+     * The prompt tokens the provider reports as cached, see the read and creation getters for what is billed how.
+     */
     public function getCachedTokens(): ?int;
 
     /**
-     * Tokens written into the prompt cache on this request (mainly for Anthropic, null when not reported by the model).
+     * The part of the prompt tokens written into the prompt cache on this request.
      */
     public function getCacheCreationTokens(): ?int;
 
     /**
-     * Tokens served from the prompt cache on this request (mainly for Anthropic, null when not reported by the model).
+     * The part of the prompt tokens served from the prompt cache on this request.
      */
     public function getCacheReadTokens(): ?int;
 

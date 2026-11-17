@@ -764,9 +764,13 @@ result metadata, a :class:`Symfony\\AI\\Platform\\TokenUsage\\TokenUsageInterfac
 
     $usage = $result->getMetadata()->get('token_usage');
 
-    $usage->getPromptTokens();
-    $usage->getCompletionTokens();
-    $usage->getModel(); // "gpt-4o-2024-08-06"
+    $usage->getPromptTokens();       // includes the cached tokens
+    $usage->getCacheReadTokens();    // the part of the prompt tokens read from the prompt cache
+    $usage->getCompletionTokens();   // includes the thinking tokens
+    $usage->getThinkingTokens();     // the part of the completion tokens spent on thinking
+    $usage->getModel();              // "gpt-4o-2024-08-06"
+
+Every bridge reports the numbers this way, so you can compare them across providers.
 
 ``getModel()`` reports the model the provider says consumed the tokens, which is what makes a
 usage priceable: it is usually the resolved snapshot rather than the alias that was requested.

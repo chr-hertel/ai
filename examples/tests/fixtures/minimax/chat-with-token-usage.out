@@ -20,17 +20,16 @@ Tina’s siblings are her brother and her sister.
 - The sister’s sisters are Tina – that’s also **one** sister.  
 
 So each of Tina’s siblings has exactly **one sister**. (The answer is 1.)
-+------------ Token Usage +------------+
-| Model                   | MiniMax-M2 |
-| Prompt tokens           | 38         |
-| Completion tokens       | 1813       |
-| Thinking tokens         | n/a        |
-| Tool tokens             | n/a        |
-| Cached tokens           | n/a        |
-| Cache creation tokens   | n/a        |
-| Cache read tokens       | n/a        |
-| Remaining tokens minute | n/a        |
-| Remaining tokens month  | n/a        |
-| Remaining tokens        | n/a        |
-| Total tokens            | 1851       |
-+-------------------------+------------+
++-------------------- Token Usage -------+------------+
+| Model                                  | MiniMax-M2 |
+| Prompt tokens                          | 38         |
+| Cache read tokens (part of prompt)     | n/a        |
+| Cache creation tokens (part of prompt) | n/a        |
+| Completion tokens                      | 1813       |
+| Thinking tokens (part of completion)   | n/a        |
+| Tool tokens                            | n/a        |
+| Remaining tokens minute                | n/a        |
+| Remaining tokens month                 | n/a        |
+| Remaining tokens                       | n/a        |
+| Total tokens                           | 1851       |
++----------------------------------------+------------+

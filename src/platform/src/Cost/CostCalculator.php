@@ -54,7 +54,6 @@ final class CostCalculator
 
         $cacheRead = $usage->getCacheReadTokens() ?? 0;
         $cacheWrite = $usage->getCacheCreationTokens() ?? 0;
-        // prompt tokens include the cached ones for most providers, they are billed at their own price
         $input = max(0, ($usage->getPromptTokens() ?? 0) - $cacheRead - $cacheWrite);
         $output = $usage->getCompletionTokens() ?? 0;
 

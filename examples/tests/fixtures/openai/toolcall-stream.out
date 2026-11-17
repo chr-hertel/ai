@@ -2,19 +2,17 @@ I will call Wikipedia now to retrieve the "History of Ireland" article and then 
 
 Based on the Wikipedia "History of Ireland" article: Irish history spans prehistoric settlement and the rise of Gaelic Celtic culture, transformed by Christianization, Viking and Norman incursions, long periods of English rule with plantations and penal laws, and tragedies like the Great Famine that caused mass death and emigration. In the 20th century Ireland achieved partial independence (1922) and partition, endured the Troubles in Northern Ireland until the 1998 Good Friday Agreement, and the Republic later modernized economically and socially—joining the EU, experiencing the Celtic Tiger boom, a 2008 financial crisis, and subsequent recovery.
 
-+------------------ Token Usage ------------------+
-| Model                   | gpt-5-mini-2025-08-07 |
-| Prompt tokens           | 16643                 |
-| Completion tokens       | 1252                  |
-| Thinking tokens         | 960                   |
-| Tool tokens             | n/a                   |
-| Cached tokens           | n/a                   |
-| Cache creation tokens   | n/a                   |
-| Cache read tokens       | n/a                   |
-| Remaining tokens minute | n/a                   |
-| Remaining tokens month  | n/a                   |
-| Remaining tokens        | n/a                   |
-| Total tokens            | 17895                 |
-+-------------------------+-----------------------+
++------------------------- Token Usage --+-----------------------+
+| Model                                  | gpt-5-mini-2025-08-07 |
+| Prompt tokens                          | 16643                 |
+| Cache read tokens (part of prompt)     | n/a                   |
+| Cache creation tokens (part of prompt) | n/a                   |
+| Completion tokens                      | 1252                  |
+| Thinking tokens (part of completion)   | 960                   |
+| Tool tokens                            | n/a                   |
+| Remaining tokens minute                | n/a                   |
+| Remaining tokens month                 | n/a                   |
+| Remaining tokens                       | n/a                   |
+| Total tokens                           | 17895                 |
++----------------------------------------+-----------------------+
 Aggregated token usage from 2 calls.
-

@@ -35,6 +35,7 @@ final class TokenUsageExtractorTest extends TestCase
                 'promptTokenCount' => 10,
                 'candidatesTokenCount' => 20,
                 'thoughtsTokenCount' => 20,
+                'cachedContentTokenCount' => 4,
                 'totalTokenCount' => 50,
             ],
         ]);
@@ -45,6 +46,8 @@ final class TokenUsageExtractorTest extends TestCase
         $this->assertSame(10, $tokenUsage->getPromptTokens());
         $this->assertSame(40, $tokenUsage->getCompletionTokens());
         $this->assertSame(20, $tokenUsage->getThinkingTokens());
+        $this->assertSame(4, $tokenUsage->getCachedTokens());
+        $this->assertSame(4, $tokenUsage->getCacheReadTokens());
         $this->assertSame(50, $tokenUsage->getTotalTokens());
         $this->assertSame('gemini-2.5-pro', $tokenUsage->getModel());
     }

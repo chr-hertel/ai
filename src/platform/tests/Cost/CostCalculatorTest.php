@@ -22,15 +22,46 @@ final class CostCalculatorTest extends TestCase
     public function testCalculatesInputOutputAndCacheTokens()
     {
         $calculator = new CostCalculator(PriceTable::fromArray([
+            'claude-sonnet-4-5' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+        ]));
+
+        $cost = $calculator->calculate('claude-sonnet-4-5', new TokenUsage(
+            promptTokens: 3_000_000,
+            completionTokens: 100_000,
+            cacheCreationTokens: 1_000_000,
+            cacheReadTokens: 1_000_000,
+        ));
+
+        $this->assertNotNull($cost);
+        // 1M uncached input * 3 + 1M cache write * 3.75 + 1M cache read * 0.3 + 0.1M output * 15
+        $this->assertEqualsWithDelta(8.55, $cost->getAmount(), 0.0001);
+        $this->assertSame('USD', $cost->getCurrency());
+    }
+
+    public function testAnthropicStyleUsageBillsUncachedInputAndCacheReads()
+    {
+        $calculator = new CostCalculator(PriceTable::fromArray([
             'claude-sonnet-4-5' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3],
         ]));
 
-        $cost = $calculator->calculate('claude-sonnet-4-5', new TokenUsage(promptTokens: 2_000_000, completionTokens: 100_000, cacheReadTokens: 1_000_000));
+        // input_tokens: 1M, cache_read_input_tokens: 1M, as the Anthropic bridge reports it
+        $cost = $calculator->calculate('claude-sonnet-4-5', new TokenUsage(promptTokens: 2_000_000, cachedTokens: 1_000_000, cacheReadTokens: 1_000_000));
 
         $this->assertNotNull($cost);
-        // 1M uncached input * 3 + 1M cache read * 0.3 + 0.1M output * 15
-        $this->assertEqualsWithDelta(4.8, $cost->getAmount(), 0.0001);
-        $this->assertSame('USD', $cost->getCurrency());
+        $this->assertEqualsWithDelta(3.3, $cost->getAmount(), 0.0001);
+    }
+
+    public function testOpenAiStyleCachedTokensAreDiscounted()
+    {
+        $calculator = new CostCalculator(PriceTable::fromArray([
+            'gpt-4o' => ['input' => 2.5, 'output' => 10.0, 'cache_read' => 1.25],
+        ]));
+
+        // input_tokens: 2M with input_tokens_details.cached_tokens: 1M, as the OpenAI bridge reports it
+        $cost = $calculator->calculate('gpt-4o', new TokenUsage(promptTokens: 2_000_000, cachedTokens: 1_000_000, cacheReadTokens: 1_000_000));
+
+        $this->assertNotNull($cost);
+        $this->assertEqualsWithDelta(3.75, $cost->getAmount(), 0.0001);
     }
 
     public function testThinkingTokensAreBilledAsPartOfTheCompletion()
@@ -81,6 +112,23 @@ final class CostCalculatorTest extends TestCase
 
         $this->assertNotNull($cost);
         $this->assertEqualsWithDelta(1.0, $cost->getAmount(), 0.0001);
+    }
+
+    public function testAggregationIsPricedPerCall()
+    {
+        $calculator = new CostCalculator(PriceTable::fromArray([
+            'gpt-4o' => ['input' => 2.5, 'output' => 10.0, 'cache_read' => 1.25],
+            'text-embedding-3-small' => ['input' => 0.02, 'output' => 0.0],
+        ]));
+
+        $cost = $calculator->calculate('gpt-4o', new TokenUsageAggregation([
+            new TokenUsage(promptTokens: 2_000_000, completionTokens: 1_000_000, thinkingTokens: 500_000, cacheReadTokens: 1_000_000, model: 'gpt-4o-2024-08-06'),
+            new TokenUsage(promptTokens: 1_000_000, model: 'text-embedding-3-small'),
+        ]));
+
+        $this->assertNotNull($cost);
+        // gpt-4o: 1M uncached * 2.5 + 1M cache read * 1.25 + 1M output * 10, embeddings: 1M * 0.02
+        $this->assertEqualsWithDelta(13.77, $cost->getAmount(), 0.0001);
     }
 
     public function testUnknownModelHasNoCost()

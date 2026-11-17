@@ -60,6 +60,7 @@ final class TokenUsageExtractorTest extends TestCase
         $this->assertSame(100, $tokenUsage->getPromptTokens());
         $this->assertSame(50, $tokenUsage->getCompletionTokens());
         $this->assertSame(80, $tokenUsage->getCachedTokens());
+        $this->assertSame(80, $tokenUsage->getCacheReadTokens());
     }
 
     public function testExtractReturnsNullForStreaming()

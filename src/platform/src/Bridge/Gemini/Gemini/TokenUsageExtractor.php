@@ -56,6 +56,7 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
             thinkingTokens: $thoughtsTokens,
             toolTokens: $usage['toolUsePromptTokenCount'] ?? null,
             cachedTokens: $usage['cachedContentTokenCount'] ?? null,
+            cacheReadTokens: $usage['cachedContentTokenCount'] ?? null,
             totalTokens: $usage['totalTokenCount'] ?? null,
             model: $model,
         );
