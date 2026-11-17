@@ -18,8 +18,14 @@ interface TokenUsageInterface
 {
     public function getPromptTokens(): ?int;
 
+    /**
+     * All generated tokens, including the thinking tokens.
+     */
     public function getCompletionTokens(): ?int;
 
+    /**
+     * The part of the completion tokens the model spent on thinking.
+     */
     public function getThinkingTokens(): ?int;
 
     public function getToolTokens(): ?int;

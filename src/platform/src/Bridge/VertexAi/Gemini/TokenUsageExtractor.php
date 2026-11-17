@@ -48,10 +48,14 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
      */
     public function fromUsageMetadata(array $usage, ?string $model = null): TokenUsage
     {
+        $candidatesTokens = $usage['candidatesTokenCount'] ?? null;
+        $thoughtsTokens = $usage['thoughtsTokenCount'] ?? null;
+
         return new TokenUsage(
             promptTokens: $usage['promptTokenCount'] ?? null,
-            completionTokens: $usage['candidatesTokenCount'] ?? null,
-            thinkingTokens: $usage['thoughtsTokenCount'] ?? null,
+            // Gemini counts thoughts apart from the candidates
+            completionTokens: null === $candidatesTokens && null === $thoughtsTokens ? null : ($candidatesTokens ?? 0) + ($thoughtsTokens ?? 0),
+            thinkingTokens: $thoughtsTokens,
             cachedTokens: $usage['cachedContentTokenCount'] ?? null,
             totalTokens: $usage['totalTokenCount'] ?? null,
             model: $model,

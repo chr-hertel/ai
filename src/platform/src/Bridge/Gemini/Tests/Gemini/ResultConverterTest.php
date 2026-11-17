@@ -750,7 +750,7 @@ final class ResultConverterTest extends TestCase
         $tokenUsages = array_values(array_filter($items, static fn (object $item): bool => $item instanceof TokenUsageInterface));
         $this->assertCount(1, $tokenUsages);
         $this->assertSame(13, $tokenUsages[0]->getPromptTokens());
-        $this->assertSame(40, $tokenUsages[0]->getCompletionTokens());
+        $this->assertSame(360, $tokenUsages[0]->getCompletionTokens());
         $this->assertSame(320, $tokenUsages[0]->getThinkingTokens());
         $this->assertSame(373, $tokenUsages[0]->getTotalTokens());
         $this->assertSame('gemini-3.7-flash', $tokenUsages[0]->getModel());
@@ -769,7 +769,7 @@ final class ResultConverterTest extends TestCase
         $tokenUsage = $result->getMetadata()->get('token_usage');
         $this->assertInstanceOf(TokenUsageInterface::class, $tokenUsage);
         $this->assertSame(13, $tokenUsage->getPromptTokens());
-        $this->assertSame(40, $tokenUsage->getCompletionTokens());
+        $this->assertSame(360, $tokenUsage->getCompletionTokens());
         $this->assertSame(320, $tokenUsage->getThinkingTokens());
         $this->assertSame(373, $tokenUsage->getTotalTokens());
     }

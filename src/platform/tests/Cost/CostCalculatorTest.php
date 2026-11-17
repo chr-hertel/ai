@@ -33,6 +33,16 @@ final class CostCalculatorTest extends TestCase
         $this->assertSame('USD', $cost->getCurrency());
     }
 
+    public function testThinkingTokensAreBilledAsPartOfTheCompletion()
+    {
+        $calculator = new CostCalculator(PriceTable::fromArray(['o3' => ['input' => 2.0, 'output' => 8.0]]));
+
+        $cost = $calculator->calculate('o3', new TokenUsage(promptTokens: 1_000_000, completionTokens: 1_000_000, thinkingTokens: 800_000));
+
+        $this->assertNotNull($cost);
+        $this->assertEqualsWithDelta(10.0, $cost->getAmount(), 0.0001);
+    }
+
     public function testSnapshotOfAConfiguredModelIsPriced()
     {
         $calculator = new CostCalculator(PriceTable::fromArray(['gpt-4o' => ['input' => 2.5, 'output' => 10.0], 'gpt-4o-mini' => ['input' => 0.15, 'output' => 0.6]]));

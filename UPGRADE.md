@@ -433,6 +433,10 @@ Platform
    +$platform->invoke('gpt-5.4', $messages);
    ```
 
+ * `TokenUsageInterface::getCompletionTokens()` includes the thinking tokens for every bridge, with
+   `getThinkingTokens()` being the part of it spent on thinking. The Gemini and Vertex AI bridges reported the
+   thinking tokens on top of the completion tokens and now include them, so drop any sum of both on your side.
+
 Store
 -----
 

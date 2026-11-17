@@ -43,7 +43,7 @@ final class TokenUsageExtractorTest extends TestCase
 
         $this->assertInstanceOf(TokenUsage::class, $tokenUsage);
         $this->assertSame(10, $tokenUsage->getPromptTokens());
-        $this->assertSame(20, $tokenUsage->getCompletionTokens());
+        $this->assertSame(40, $tokenUsage->getCompletionTokens());
         $this->assertSame(20, $tokenUsage->getThinkingTokens());
         $this->assertSame(50, $tokenUsage->getTotalTokens());
         $this->assertSame('gemini-2.5-pro', $tokenUsage->getModel());
