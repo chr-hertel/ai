@@ -32,3 +32,26 @@ services:
         anonymous
         cors_origins http://127.0.0.1:8000 https://127.0.0.1:8000 http://localhost:8000 https://localhost:8000 http://127.0.0.1:9080
 ###< symfony/mercure-bundle ###
+
+  langfuse-web:
+    ports:
+      - "3000:3000"
+
+  phoenix:
+    ports:
+      - "6006:6006"
+
+  jaeger:
+    ports:
+      # 4319, so it doesn't clash with Tempo
+      - "4319:4318"
+      - "16686:16686"
+
+  tempo:
+    ports:
+      - "4318:4318"
+
+  grafana:
+    ports:
+      # 3001, as Langfuse is on 3000
+      - "3001:3000"
