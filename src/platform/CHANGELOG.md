@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * Add `Cost\PriceTable` and `Cost\CostCalculator` to calculate the cost of token usage
  * Add the status code and the request URL, without its query and credentials, to the message of the exceptions `HttpStatusErrorHandlingTrait` throws
  * Throw a `BadRequestException` on HTTP 422 in `HttpStatusErrorHandlingTrait` and read the `detail` of FastAPI error bodies, which Mistral sends for validation errors
  * Add the serving provider to `InvocationEvent` and `ResultEvent`, as `ResultConvertedEvent` and `ResultErrorEvent` already have it, so a listener can attribute these events to the provider serving the call

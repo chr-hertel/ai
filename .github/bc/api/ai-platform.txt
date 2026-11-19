@@ -163,6 +163,26 @@ Symfony\AI\Platform\Contract\Normalizer\ToolNormalizer: class implements Symfony
 Symfony\AI\Platform\Contract\Normalizer\ToolNormalizer::getSupportedTypes(): public function getSupportedTypes(null|string $format): array
 Symfony\AI\Platform\Contract\Normalizer\ToolNormalizer::normalize(): public function normalize(mixed $data, null|string $format = null, array $context = []): array
 Symfony\AI\Platform\Contract\Normalizer\ToolNormalizer::supportsNormalization(): public function supportsNormalization(mixed $data, null|string $format = null, array $context = []): bool
+Symfony\AI\Platform\Cost\Cost: final class implements Stringable
+Symfony\AI\Platform\Cost\Cost::__construct(): public function __construct(float $amount, string $currency = 'USD')
+Symfony\AI\Platform\Cost\Cost::__toString(): public function __toString(): string
+Symfony\AI\Platform\Cost\Cost::add(): public function add(self $other): self
+Symfony\AI\Platform\Cost\Cost::getAmount(): public function getAmount(): float
+Symfony\AI\Platform\Cost\Cost::getCurrency(): public function getCurrency(): string
+Symfony\AI\Platform\Cost\CostCalculator: final class
+Symfony\AI\Platform\Cost\CostCalculator::__construct(): public function __construct(Symfony\AI\Platform\Cost\PriceTable $prices)
+Symfony\AI\Platform\Cost\CostCalculator::calculate(): public function calculate(string $model, Symfony\AI\Platform\TokenUsage\TokenUsageInterface $usage): Symfony\AI\Platform\Cost\Cost|null
+Symfony\AI\Platform\Cost\Price: final class
+Symfony\AI\Platform\Cost\Price::__construct(): public function __construct(float $input, float $output, float|null $cacheRead = null, float|null $cacheWrite = null)
+Symfony\AI\Platform\Cost\Price::getCacheRead(): public function getCacheRead(): float
+Symfony\AI\Platform\Cost\Price::getCacheWrite(): public function getCacheWrite(): float
+Symfony\AI\Platform\Cost\Price::getInput(): public function getInput(): float
+Symfony\AI\Platform\Cost\Price::getOutput(): public function getOutput(): float
+Symfony\AI\Platform\Cost\PriceTable: final class
+Symfony\AI\Platform\Cost\PriceTable::__construct(): public function __construct(array $prices, string $currency = 'USD')
+Symfony\AI\Platform\Cost\PriceTable::fromArray(): public static function fromArray(array $prices, string $currency = 'USD'): self
+Symfony\AI\Platform\Cost\PriceTable::get(): public function get(string $model, string ...$fallbacks): Symfony\AI\Platform\Cost\Price|null
+Symfony\AI\Platform\Cost\PriceTable::getCurrency(): public function getCurrency(): string
 Symfony\AI\Platform\EventListener\StringToMessageBagListener: final class
 Symfony\AI\Platform\EventListener\StringToMessageBagListener::__invoke(): public function __invoke(Symfony\AI\Platform\Event\InvocationEvent $event): void
 Symfony\AI\Platform\EventListener\TemplateRendererListener: final class implements Symfony\Component\EventDispatcher\EventSubscriberInterface

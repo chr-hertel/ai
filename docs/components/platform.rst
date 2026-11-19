@@ -776,22 +776,29 @@ Cohere and the Vertex AI embeddings endpoint, for instance, report none.
 A run that calls more than one model -- an agent embedding a query before answering it, say --
 aggregates its usages into a
 :class:`Symfony\\AI\\Platform\\TokenUsage\\TokenUsageAggregation`. Its ``getModel()`` answers
-only when every usage agrees on a model, so price a mixed run per call instead::
+only when every usage agrees on a model.
 
-    $usage = $result->getMetadata()->get('token_usage');
+To get the cost of a usage, define the prices per one million tokens and use the
+:class:`Symfony\\AI\\Platform\\Cost\\CostCalculator`. It prices an aggregation per call, and it
+bills cache reads and writes at their own price::
 
-    $usages = $usage instanceof TokenUsageAggregation ? $usage->getTokenUsages() : [$usage];
+    use Symfony\AI\Platform\Cost\CostCalculator;
+    use Symfony\AI\Platform\Cost\PriceTable;
 
-    $cost = 0.0;
-    foreach ($usages as $call) {
-        $price = $pricing[$call->getModel()] ?? null;
-        if (null === $price) {
-            continue;
-        }
+    $prices = PriceTable::fromArray([
+        // cache_read and cache_write fall back to the input price
+        'gpt-4o' => ['input' => 2.5, 'output' => 10.0, 'cache_read' => 1.25],
+        'claude-sonnet-4-5' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+    ]);
 
-        $cost += $call->getPromptTokens() / 1_000_000 * $price['input']
-            + $call->getCompletionTokens() / 1_000_000 * $price['output'];
-    }
+    // the model is used when the usage names none, the cost is null if a model has no price
+    $cost = (new CostCalculator($prices))->calculate('gpt-4o', $usage);
+
+    $cost?->getAmount();
+    $cost?->getCurrency(); // "USD"
+
+A dated snapshot like ``gpt-4o-2024-08-06`` or ``claude-sonnet-4-5-20250929`` gets the price of
+``gpt-4o`` or ``claude-sonnet-4-5``, unless the table has its own price for the snapshot.
 
 .. note::
 
