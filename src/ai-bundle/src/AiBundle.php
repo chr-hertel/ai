@@ -15,6 +15,11 @@ use AsyncAws\S3Vectors\S3VectorsClient;
 use Google\Auth\ApplicationDefaultCredentials;
 use Google\Auth\FetchAuthTokenInterface;
 use Mcp\Server\Capability\Attribute\Schema as McpSchema;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\TracerInterface;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
+use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
+use OpenTelemetry\SDK\Trace\TracerProvider;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
@@ -30,6 +35,7 @@ use Symfony\AI\Agent\Bridge\Pogocache\MessageStore as PogocacheMessageStore;
 use Symfony\AI\Agent\Bridge\Redis\MessageStore as RedisMessageStore;
 use Symfony\AI\Agent\Bridge\Session\MessageStore as SessionMessageStore;
 use Symfony\AI\Agent\Bridge\SurrealDb\MessageStore as SurrealDbMessageStore;
+use Symfony\AI\Agent\Event\GuardrailTriggered;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
 use Symfony\AI\Agent\InputProcessorInterface;
 use Symfony\AI\Agent\Memory\MemoryInputProcessor;
@@ -54,10 +60,13 @@ use Symfony\AI\AiBundle\DependencyInjection\DoctrineVectorDistancePass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass;
+use Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
+use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
+use Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver;
 use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
@@ -189,6 +198,15 @@ use Symfony\AI\Store\ManagedStoreInterface;
 use Symfony\AI\Store\Retriever;
 use Symfony\AI\Store\RetrieverInterface;
 use Symfony\AI\Store\StoreInterface;
+use Symfony\AI\Telemetry\Bridge\Jaeger\JaegerBackend;
+use Symfony\AI\Telemetry\Bridge\Langfuse\LangfuseBackend;
+use Symfony\AI\Telemetry\Bridge\Phoenix\PhoenixBackend;
+use Symfony\AI\Telemetry\Bridge\Tempo\TempoBackend;
+use Symfony\AI\Telemetry\EventListener\GuardrailSpanListener;
+use Symfony\AI\Telemetry\Exporter\OtlpBackend;
+use Symfony\AI\Telemetry\Exporter\OtlpTracerProviderFactory;
+use Symfony\AI\Telemetry\Platform\TracingPlatform;
+use Symfony\AI\Telemetry\SemanticConvention\GenAiAttributes;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
@@ -200,6 +218,7 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Translation\TranslatableMessage;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -215,6 +234,7 @@ final class AiBundle extends AbstractBundle
         parent::build($container);
 
         $container->addCompilerPass(new DebugCompilerPass());
+        $container->addCompilerPass(new TracingCompilerPass());
         $container->addCompilerPass(new ProcessorCompilerPass());
         $container->addCompilerPass(new SchemaProviderValidationPass());
         $container->addCompilerPass(new DoctrineVectorDistancePass());
@@ -372,6 +392,10 @@ final class AiBundle extends AbstractBundle
             if (1 === \count($config['retriever']) && isset($retrieverName)) {
                 $builder->setAlias(RetrieverInterface::class, 'ai.retriever.'.$retrieverName);
             }
+        }
+
+        if ($config['tracing']['enabled']) {
+            $this->processTracingConfig($config['tracing'], $builder);
         }
 
         if (ContainerBuilder::willBeAvailable('symfony/ai-agent', Agent::class, ['symfony/ai-bundle'])) {
@@ -1764,7 +1788,8 @@ final class AiBundle extends AbstractBundle
                     null !== $config['speech']['speech_to_text_platform'] ? new Reference($config['speech']['speech_to_text_platform']) : null,
                     null !== $config['speech']['text_to_speech_platform'] ? new Reference($config['speech']['text_to_speech_platform']) : null,
                 ])
-                ->setDecoratedService($agentId, priority: -1024);
+                // Inside the tracing decorator, so speech-to-text and text-to-speech are part of the traced run
+                ->setDecoratedService($agentId, priority: -512);
         }
     }
 
@@ -3086,6 +3111,90 @@ final class AiBundle extends AbstractBundle
         $definition->addTag('ai.indexer', ['name' => $name]);
         $container->setDefinition($serviceId, $definition);
         $container->registerAliasForArgument($serviceId, IndexerInterface::class, (new Target((string) $name))->getParsedName());
+    }
+
+    /**
+     * @param array{tracer_provider: string|null, exporter?: array{otlp?: array{endpoint: string, headers: array<string, string>, protocol: 'http/protobuf'|'http/json'}, langfuse?: array{public_key: string, secret_key: string, host: string}, phoenix?: array{endpoint: string, project: string|null, api_key: string|null}, jaeger?: array{endpoint: string}, tempo?: array{endpoint: string, tenant: string|null}, resource_attributes: array<non-empty-string, bool|int|string>}, capture_content: bool, content_redactor: string|null, capture_user: bool, user_id_resolver: string|null, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
+     */
+    private function processTracingConfig(array $config, ContainerBuilder $container): void
+    {
+        if (!ContainerBuilder::willBeAvailable('symfony/ai-telemetry', TracingPlatform::class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException('Tracing configuration requires "symfony/ai-telemetry" package. Try running "composer require symfony/ai-telemetry".');
+        }
+
+        $tracerProvider = $config['tracer_provider'];
+        if (isset($config['exporter'])) {
+            if (!ContainerBuilder::willBeAvailable('open-telemetry/exporter-otlp', OtlpHttpTransportFactory::class, ['symfony/ai-bundle'])
+                || !ContainerBuilder::willBeAvailable('open-telemetry/sdk', TracerProvider::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Tracing exporter configuration requires "open-telemetry/sdk" and "open-telemetry/exporter-otlp" packages. Try running "composer require open-telemetry/sdk open-telemetry/exporter-otlp".');
+            }
+
+            $container->setDefinition('ai.tracing.backend', $this->createTracingBackend($config['exporter']));
+
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([OtlpTracerProviderFactory::class, 'create'])
+                ->setArguments([new Reference('ai.tracing.backend'), $config['exporter']['resource_attributes']]));
+        } elseif (null === $tracerProvider) {
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([Globals::class, 'tracerProvider']));
+        }
+
+        // flushes SDK tracer providers only, so a custom one is flushed as well and a no-op one is left alone
+        $container->setDefinition('ai.tracing.flush_listener', new Definition(FlushTracesListener::class, [new Reference($tracerProvider)]))
+            ->addTag('kernel.event_listener', ['event' => 'kernel.terminate'])
+            ->addTag('kernel.event_listener', ['event' => 'console.terminate']);
+
+        $container->setDefinition('ai.tracing.tracer', (new Definition(TracerInterface::class))
+            ->setFactory([new Reference($tracerProvider), 'getTracer'])
+            ->setArguments(['symfony/ai', null, GenAiAttributes::SCHEMA_URL]));
+
+        if ($config['capture_user'] && null !== $config['user_id_resolver']) {
+            $container->setAlias('ai.tracing.user_id_resolver', $config['user_id_resolver']);
+        } elseif ($config['capture_user']) {
+            if (!ContainerBuilder::willBeAvailable('symfony/security-core', TokenStorageInterface::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Tracing "capture_user" requires "symfony/security-bundle" package. Try running "composer require symfony/security-bundle".');
+            }
+
+            $container->setDefinition('ai.tracing.user_id_resolver', new Definition(SecurityUserIdResolver::class, [
+                new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ]));
+        }
+
+        if (ContainerBuilder::willBeAvailable('symfony/ai-agent', GuardrailTriggered::class, ['symfony/ai-bundle'])) {
+            $container->setDefinition('ai.tracing.guardrail_listener', new Definition(GuardrailSpanListener::class))
+                ->addTag('kernel.event_listener', ['event' => GuardrailTriggered::class]);
+        }
+
+        $container->setParameter('.ai.tracing.content_redactor', $config['content_redactor']);
+        $container->setParameter('.ai.tracing.capture_content', $config['capture_content']);
+        $container->setParameter('.ai.tracing.capture_user', $config['capture_user']);
+        $container->setParameter('.ai.tracing.instrument', array_keys(array_filter($config['instrument'])));
+    }
+
+    /**
+     * @param array{otlp?: array{endpoint: string, headers: array<string, string>, protocol: 'http/protobuf'|'http/json'}, langfuse?: array{public_key: string, secret_key: string, host: string}, phoenix?: array{endpoint: string, project: string|null, api_key: string|null}, jaeger?: array{endpoint: string}, tempo?: array{endpoint: string, tenant: string|null}} $config
+     */
+    private function createTracingBackend(array $config): Definition
+    {
+        if (isset($config['otlp'])) {
+            return new Definition(OtlpBackend::class, [$config['otlp']['endpoint'], $config['otlp']['headers'], $config['otlp']['protocol']]);
+        }
+
+        [$name, $class, $arguments] = match (true) {
+            isset($config['langfuse']) => ['langfuse', LangfuseBackend::class, [$config['langfuse']['public_key'], $config['langfuse']['secret_key'], $config['langfuse']['host']]],
+            isset($config['phoenix']) => ['phoenix', PhoenixBackend::class, [$config['phoenix']['endpoint'], $config['phoenix']['project'], $config['phoenix']['api_key']]],
+            isset($config['jaeger']) => ['jaeger', JaegerBackend::class, [$config['jaeger']['endpoint']]],
+            isset($config['tempo']) => ['tempo', TempoBackend::class, [$config['tempo']['endpoint'], $config['tempo']['tenant']]],
+            default => throw new InvalidArgumentException('No tracing backend configured.'),
+        };
+
+        if (!ContainerBuilder::willBeAvailable(\sprintf('symfony/ai-%s-telemetry', $name), $class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException(\sprintf('The "%1$s" tracing exporter requires "symfony/ai-%1$s-telemetry" package. Try running "composer require symfony/ai-%1$s-telemetry".', $name));
+        }
+
+        return new Definition($class, $arguments);
     }
 
     /**

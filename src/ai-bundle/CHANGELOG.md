@@ -28,6 +28,8 @@ CHANGELOG
  * [BC BREAK] Remove the `exclude_tool_messages` agent option, tool messages never reach the caller's `MessageBag`
  * Add the `mirror_to` option to the `doctrine` store, mirroring the entity into another store and registering an entity retriever
  * Show the configured platforms, toolboxes, agents, message stores and stores, their service ids and collected calls in the profiler panel
+ * Add `tracing` configuration to trace platforms, agents, toolboxes and retrievers with OpenTelemetry through `symfony/ai-telemetry`, exporting to Langfuse, Arize Phoenix, Jaeger, Grafana Tempo or any OTLP endpoint with the `exporter` option and recording the authenticated user with `capture_user`
+ * Add `content_redactor` and `user_id_resolver` to the `tracing` configuration, record guardrail interventions as span events and flush SDK tracer providers also when configured with `tracer_provider`
 
 0.15
 ----

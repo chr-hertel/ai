@@ -15,6 +15,8 @@ use AsyncAws\BedrockRuntime\BedrockRuntimeClient;
 use AsyncAws\S3Vectors\S3VectorsClient;
 use Codewithkyrian\ChromaDB\Client;
 use MongoDB\Client as MongoDbClient;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\TracerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -33,15 +35,20 @@ use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
 use Symfony\AI\Agent\MultiAgent\Handoff;
 use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
+use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\ChainToolbox;
 use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
+use Symfony\AI\Agent\TraceableAgent;
 use Symfony\AI\AiBundle\AiBundle;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
+use Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
+use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
+use Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
 use Symfony\AI\Platform\Bridge\Bedrock\Factory as BedrockFactory;
 use Symfony\AI\Platform\Bridge\Bedrock\Mantle\Factory as BedrockMantleFactory;
@@ -147,6 +154,14 @@ use Symfony\AI\Store\InMemory\Store as InMemoryStore;
 use Symfony\AI\Store\ManagedStoreInterface;
 use Symfony\AI\Store\RetrieverInterface;
 use Symfony\AI\Store\StoreInterface;
+use Symfony\AI\Telemetry\Agent\TracingAgent;
+use Symfony\AI\Telemetry\Bridge\Jaeger\JaegerBackend;
+use Symfony\AI\Telemetry\Bridge\Langfuse\LangfuseBackend;
+use Symfony\AI\Telemetry\Bridge\Phoenix\PhoenixBackend;
+use Symfony\AI\Telemetry\Bridge\Tempo\TempoBackend;
+use Symfony\AI\Telemetry\Exporter\OtlpBackend;
+use Symfony\AI\Telemetry\Exporter\OtlpTracerProviderFactory;
+use Symfony\AI\Telemetry\SemanticConvention\GenAiAttributes;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\MonotonicClock;
 use Symfony\Component\Config\Definition\ArrayNode;
@@ -157,6 +172,7 @@ use Symfony\Component\Config\Definition\PrototypedArrayNode;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\ChildDefinition;
+use Symfony\Component\DependencyInjection\Compiler\DecoratorServicePass;
 use Symfony\Component\DependencyInjection\Compiler\ResolveChildDefinitionsPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -11082,7 +11098,7 @@ class AiBundleTest extends TestCase
         $this->assertSame('ai.agent.my_agent.speech_configuration', (string) $agentDefinition->getArgument(1));
         $this->assertInstanceOf(Reference::class, $agentDefinition->getArgument(3));
         $this->assertSame('ai.platform.elevenlabs', (string) $agentDefinition->getArgument(3));
-        $this->assertSame(['ai.agent.my_agent', null, -1024], $agentDefinition->getDecoratedService());
+        $this->assertSame(['ai.agent.my_agent', null, -512], $agentDefinition->getDecoratedService());
 
         $speechConfigDefinition = $container->getDefinition('ai.agent.my_agent.speech_configuration');
         $this->assertSame('eleven_multilingual_v2', $speechConfigDefinition->getArgument('$ttsModel'));
@@ -11122,7 +11138,7 @@ class AiBundleTest extends TestCase
         $this->assertInstanceOf(Reference::class, $agentDefinition->getArgument(2));
         $this->assertSame('ai.platform.elevenlabs', (string) $agentDefinition->getArgument(2));
         $this->assertNull($agentDefinition->getArgument(3));
-        $this->assertSame(['ai.agent.my_agent', null, -1024], $agentDefinition->getDecoratedService());
+        $this->assertSame(['ai.agent.my_agent', null, -512], $agentDefinition->getDecoratedService());
 
         $speechConfigDefinition = $container->getDefinition('ai.agent.my_agent.speech_configuration');
         $this->assertNull($speechConfigDefinition->getArgument('$ttsModel'));
@@ -11163,7 +11179,7 @@ class AiBundleTest extends TestCase
         $this->assertNull($speechAgentDefinition->getArgument(2));
         $this->assertInstanceOf(Reference::class, $speechAgentDefinition->getArgument(3));
         $this->assertSame('ai.platform.elevenlabs', (string) $speechAgentDefinition->getArgument(3));
-        $this->assertSame(['ai.agent.my_agent', null, -1024], $speechAgentDefinition->getDecoratedService());
+        $this->assertSame(['ai.agent.my_agent', null, -512], $speechAgentDefinition->getDecoratedService());
 
         $speechConfigDefinition = $container->getDefinition('ai.agent.my_agent.speech_configuration');
         $this->assertSame(SpeechConfiguration::class, $speechConfigDefinition->getClass());
@@ -11205,7 +11221,7 @@ class AiBundleTest extends TestCase
         $this->assertInstanceOf(Reference::class, $speechAgentDefinition->getArgument(2));
         $this->assertSame('ai.platform.elevenlabs', (string) $speechAgentDefinition->getArgument(2));
         $this->assertNull($speechAgentDefinition->getArgument(3));
-        $this->assertSame(['ai.agent.my_agent', null, -1024], $speechAgentDefinition->getDecoratedService());
+        $this->assertSame(['ai.agent.my_agent', null, -512], $speechAgentDefinition->getDecoratedService());
 
         $speechConfigDefinition = $container->getDefinition('ai.agent.my_agent.speech_configuration');
         $this->assertSame(SpeechConfiguration::class, $speechConfigDefinition->getClass());
@@ -11252,7 +11268,7 @@ class AiBundleTest extends TestCase
         $this->assertSame('ai.platform.cartesia', (string) $speechAgentDefinition->getArgument(2));
         $this->assertInstanceOf(Reference::class, $speechAgentDefinition->getArgument(3));
         $this->assertSame('ai.platform.openai', (string) $speechAgentDefinition->getArgument(3));
-        $this->assertSame(['ai.agent.my_agent', null, -1024], $speechAgentDefinition->getDecoratedService());
+        $this->assertSame(['ai.agent.my_agent', null, -512], $speechAgentDefinition->getDecoratedService());
 
         $speechConfigDefinition = $container->getDefinition('ai.agent.my_agent.speech_configuration');
         $this->assertSame(SpeechConfiguration::class, $speechConfigDefinition->getClass());
@@ -11260,6 +11276,284 @@ class AiBundleTest extends TestCase
         $this->assertSame(['voice_id' => 'abc123'], $speechConfigDefinition->getArgument('$ttsOptions'));
         $this->assertSame('whisper', $speechConfigDefinition->getArgument('$sttModel'));
         $this->assertSame(['language' => 'fr'], $speechConfigDefinition->getArgument('$sttOptions'));
+    }
+
+    public function testTracingIsDisabledByDefault()
+    {
+        $container = $this->buildContainer(['ai' => ['platform' => ['openai' => ['api_key' => 'sk-test']]]]);
+        (new TracingCompilerPass())->process($container);
+
+        $this->assertFalse($container->hasDefinition('ai.tracing.tracer'));
+        $this->assertFalse($container->hasParameter('.ai.tracing.instrument'));
+        $this->assertSame([], array_filter(array_keys($container->getDefinitions()), static fn (string $id) => str_ends_with($id, '.tracing')));
+    }
+
+    public function testTracingUsesTheGlobalTracerProviderByDefault()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => true,
+            ],
+        ]);
+
+        $this->assertSame([Globals::class, 'tracerProvider'], $container->getDefinition('ai.tracing.tracer_provider')->getFactory());
+
+        $tracer = $container->getDefinition('ai.tracing.tracer');
+        $this->assertSame(TracerInterface::class, $tracer->getClass());
+        $this->assertEquals([new Reference('ai.tracing.tracer_provider'), 'getTracer'], $tracer->getFactory());
+        $this->assertSame(['symfony/ai', null, GenAiAttributes::SCHEMA_URL], $tracer->getArguments());
+
+        $this->assertFalse($container->getParameter('.ai.tracing.capture_content'));
+        $this->assertSame(['platform', 'agent', 'toolbox', 'retriever'], $container->getParameter('.ai.tracing.instrument'));
+    }
+
+    public function testTracingCanUseACustomTracerProviderAndCaptureContent()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'tracer_provider' => 'app.tracer_provider',
+                    'capture_content' => true,
+                    'instrument' => ['toolbox' => false, 'retriever' => false],
+                ],
+            ],
+        ]);
+
+        $this->assertFalse($container->hasDefinition('ai.tracing.tracer_provider'));
+        $this->assertEquals([new Reference('app.tracer_provider'), 'getTracer'], $container->getDefinition('ai.tracing.tracer')->getFactory());
+        $this->assertTrue($container->getParameter('.ai.tracing.capture_content'));
+        $this->assertSame(['platform', 'agent'], $container->getParameter('.ai.tracing.instrument'));
+    }
+
+    public function testTracingExporterBuildsAnOtlpTracerProvider()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'exporter' => [
+                        'otlp' => [
+                            'endpoint' => 'https://otel.example.com',
+                            'headers' => ['Authorization' => 'Bearer secret'],
+                        ],
+                        'resource_attributes' => ['service.name' => 'shop'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $backend = $container->getDefinition('ai.tracing.backend');
+        $this->assertSame(OtlpBackend::class, $backend->getClass());
+        $this->assertSame(['https://otel.example.com', ['Authorization' => 'Bearer secret'], 'http/protobuf'], $backend->getArguments());
+
+        $tracerProvider = $container->getDefinition('ai.tracing.tracer_provider');
+        $this->assertSame([OtlpTracerProviderFactory::class, 'create'], $tracerProvider->getFactory());
+        $this->assertEquals([new Reference('ai.tracing.backend'), ['service.name' => 'shop']], $tracerProvider->getArguments());
+        $this->assertEquals([new Reference('ai.tracing.tracer_provider'), 'getTracer'], $container->getDefinition('ai.tracing.tracer')->getFactory());
+
+        $listener = $container->getDefinition('ai.tracing.flush_listener');
+        $this->assertSame(FlushTracesListener::class, $listener->getClass());
+        $this->assertEquals([new Reference('ai.tracing.tracer_provider')], $listener->getArguments());
+        $this->assertSame([['event' => 'kernel.terminate'], ['event' => 'console.terminate']], $listener->getTag('kernel.event_listener'));
+    }
+
+    /**
+     * @param array<string, mixed> $exporter
+     * @param list<mixed>          $arguments
+     */
+    #[DataProvider('provideTracingBackends')]
+    public function testTracingExporterUsesTheBridgeOfTheBackend(array $exporter, string $class, array $arguments)
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => ['exporter' => $exporter],
+            ],
+        ]);
+
+        $backend = $container->getDefinition('ai.tracing.backend');
+        $this->assertSame($class, $backend->getClass());
+        $this->assertSame($arguments, $backend->getArguments());
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, class-string, list<mixed>}>
+     */
+    public static function provideTracingBackends(): iterable
+    {
+        yield 'langfuse' => [['langfuse' => ['public_key' => 'pk-lf-1', 'secret_key' => 'sk-lf-1', 'host' => 'http://localhost:3000']], LangfuseBackend::class, ['pk-lf-1', 'sk-lf-1', 'http://localhost:3000']];
+        yield 'langfuse cloud' => [['langfuse' => ['public_key' => 'pk-lf-1', 'secret_key' => 'sk-lf-1']], LangfuseBackend::class, ['pk-lf-1', 'sk-lf-1', 'https://cloud.langfuse.com']];
+        yield 'phoenix' => [['phoenix' => ['project' => 'Shop']], PhoenixBackend::class, ['http://localhost:6006', 'Shop', null]];
+        yield 'jaeger' => [['jaeger' => []], JaegerBackend::class, ['http://localhost:4318']];
+        yield 'tempo' => [['tempo' => ['endpoint' => 'http://tempo:4318', 'tenant' => 'shop']], TempoBackend::class, ['http://tempo:4318', 'shop']];
+    }
+
+    public function testTracingExporterRejectsSeveralBackends()
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Configure exactly one tracing backend of "otlp", "langfuse", "phoenix", "jaeger" or "tempo".');
+
+        $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => ['exporter' => ['jaeger' => [], 'tempo' => []]],
+            ],
+        ]);
+    }
+
+    public function testTracingFlushesAnOwnTracerProvider()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => ['tracer_provider' => 'app.tracer_provider'],
+            ],
+        ]);
+
+        $this->assertTrue($container->hasDefinition('ai.tracing.flush_listener'), 'An SDK tracer provider is flushed, any other one is left alone');
+        $this->assertEquals(new Reference('app.tracer_provider'), $container->getDefinition('ai.tracing.flush_listener')->getArgument(0));
+    }
+
+    public function testTracingWithRedactorAndUserIdResolver()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'tracer_provider' => 'app.tracer_provider',
+                    'content_redactor' => 'app.pii_redactor',
+                    'capture_user' => true,
+                    'user_id_resolver' => 'app.customer_id_resolver',
+                ],
+            ],
+        ]);
+
+        $this->assertSame('app.pii_redactor', $container->getParameter('.ai.tracing.content_redactor'));
+        $this->assertSame('app.customer_id_resolver', (string) $container->getAlias('ai.tracing.user_id_resolver'));
+        $this->assertTrue($container->hasDefinition('ai.tracing.guardrail_listener'));
+    }
+
+    public function testTracingRejectsTracerProviderAndExporterTogether()
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Configure either "tracer_provider" or "exporter" for tracing, not both.');
+
+        $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'tracer_provider' => 'app.tracer_provider',
+                    'exporter' => ['jaeger' => []],
+                ],
+            ],
+        ]);
+    }
+
+    public function testTracingRejectsAUserIdResolverWithoutCapturingTheUser()
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The tracing "user_id_resolver" is only used with "capture_user" enabled.');
+
+        $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => [
+                    'user_id_resolver' => 'app.customer_id_resolver',
+                ],
+            ],
+        ]);
+    }
+
+    public function testTracingDoesNotCaptureTheUserByDefault()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => true,
+            ],
+        ]);
+
+        $this->assertFalse($container->getParameter('.ai.tracing.capture_user'));
+        $this->assertFalse($container->hasDefinition('ai.tracing.user_id_resolver'));
+    }
+
+    public function testTracingCanCaptureTheUser()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'tracing' => ['capture_user' => true],
+            ],
+        ]);
+
+        $this->assertTrue($container->getParameter('.ai.tracing.capture_user'));
+        $resolver = $container->getDefinition('ai.tracing.user_id_resolver');
+        $this->assertSame(SecurityUserIdResolver::class, $resolver->getClass());
+        $this->assertEquals([new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE)], $resolver->getArguments());
+    }
+
+    public function testTracingDecoratorSitsBetweenTheProfilerAndTheSpeechAgent()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => [
+                    'openai' => ['api_key' => 'sk-test'],
+                    'elevenlabs' => ['api_key' => 'test-key'],
+                ],
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4o',
+                        'speech' => [
+                            'text_to_speech_platform' => 'ai.platform.elevenlabs',
+                            'tts_model' => 'eleven_multilingual_v2',
+                        ],
+                    ],
+                ],
+                'tracing' => true,
+            ],
+        ]);
+        (new TracingCompilerPass())->process($container);
+        (new DecoratorServicePass())->process($container);
+
+        $chain = [];
+        $definition = $container->findDefinition('ai.agent.my_agent');
+        while (true) {
+            $chain[] = $definition->getClass();
+            $inner = $definition->getArguments()[0] ?? null;
+            if (!$inner instanceof Reference || !str_ends_with((string) $inner, '.inner')) {
+                break;
+            }
+            $definition = $container->findDefinition((string) $inner);
+        }
+
+        $this->assertSame([TraceableAgent::class, TracingAgent::class, SpeechAgent::class, Agent::class], $chain);
+        $this->assertTrue($container->findDefinition('ai.agent.my_agent')->hasTag('ai.traceable_agent'), 'The profiler still finds its decorator');
+    }
+
+    public function testFaultTolerantToolboxWrapsTheTracingDecorator()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'platform' => ['openai' => ['api_key' => 'sk-test']],
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4o',
+                        'tools' => [['service' => 'clock', 'name' => 'clock', 'description' => 'Current time', 'method' => 'now']],
+                        'fault_tolerant_toolbox' => true,
+                    ],
+                ],
+                'tracing' => true,
+            ],
+        ]);
+        (new TracingCompilerPass())->process($container);
+
+        $this->assertLessThan(
+            $container->getDefinition('ai.toolbox.my_agent.tracing')->getDecoratedService()[2],
+            $container->getDefinition('ai.fault_tolerant_toolbox.my_agent')->getDecoratedService()[2],
+            'The fault tolerant toolbox is applied later, so tool exceptions still reach the tracing decorator',
+        );
     }
 
     /**

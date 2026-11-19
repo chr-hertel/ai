@@ -1589,6 +1589,116 @@ agents, message stores and stores that took part in the request.
     separate web server - Panther, for instance - cannot reach the collector through the container,
     and are not covered by the trait.
 
+.. _ai-bundle-tracing:
+
+Tracing
+-------
+
+With the :doc:`Telemetry component </components/telemetry>` installed, the bundle traces platform calls, agent
+runs, tool calls and retrievals with OpenTelemetry, in every environment:
+
+.. code-block:: terminal
+
+    $ composer require symfony/ai-telemetry
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            # service ID of the tracer provider, the one registered in OpenTelemetry\API\Globals when omitted
+            tracer_provider: 'app.tracer_provider'
+            # record prompts, completions, tool arguments and tool results
+            capture_content: false
+            # service ID of a ContentRedactorInterface masking personal data in the captured content
+            content_redactor: 'app.pii_redactor'
+            # record the identifier of the authenticated Symfony user as "user.id"
+            capture_user: false
+            # service ID of a UserIdResolverInterface recording e.g. a pseudonymous ID instead of the user identifier
+            user_id_resolver: null
+            # disable single kinds of spans, all enabled by default
+            instrument:
+                platform: true
+                agent: true
+                toolbox: true
+                retriever: true
+
+Disabled kinds of spans are not decorated at all, so they cost nothing. Guardrail interventions are recorded as
+span events, and the spans of an OpenTelemetry SDK tracer provider are flushed once the response is sent or the
+command finished.
+
+.. caution::
+
+    With ``capture_content`` enabled, user input and model output are sent to your tracing backend, and with
+    ``capture_user`` the user identifier, often an email address. Only enable them for backends that are allowed to
+    store that data.
+
+Exporting without an OpenTelemetry Setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your application has no OpenTelemetry setup yet, the ``exporter`` option sends the spans to a tracing backend
+instead of a ``tracer_provider``. It requires the OpenTelemetry SDK and exporter, and the bridge of the backend, for
+example the one of `Langfuse`_:
+
+.. code-block:: terminal
+
+    $ composer require open-telemetry/sdk open-telemetry/exporter-otlp symfony/ai-langfuse-telemetry
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            exporter:
+                langfuse:
+                    public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                    secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                    # "https://cloud.langfuse.com" by default, an empty host disables the export
+                    host: '%env(LANGFUSE_HOST)%'
+                # optional OpenTelemetry resource attributes of the spans
+                resource_attributes:
+                    service.name: 'shop'
+
+Configure exactly one backend. The other ones are:
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            exporter:
+                # Arize Phoenix, requires symfony/ai-phoenix-telemetry
+                phoenix:
+                    endpoint: 'http://localhost:6006'
+                    # the "default" project of Phoenix when omitted
+                    project: 'Shop'
+                    api_key: '%env(PHOENIX_API_KEY)%'
+
+                # Jaeger, requires symfony/ai-jaeger-telemetry
+                jaeger:
+                    endpoint: 'http://localhost:4318'
+
+                # Grafana Tempo, requires symfony/ai-tempo-telemetry
+                tempo:
+                    endpoint: 'http://localhost:4318'
+                    # sent as "X-Scope-OrgID" to a multi-tenant Tempo
+                    tenant: 'shop'
+
+                # any other backend ingesting OTLP over HTTP
+                otlp:
+                    # "/v1/traces" is appended, an empty endpoint disables the export
+                    endpoint: 'https://otel.example.com'
+                    headers:
+                        Authorization: 'Bearer %env(OTEL_TOKEN)%'
+                    # "http/protobuf" by default
+                    protocol: 'http/json'
+
+The endpoints shown are the defaults. The spans are sent over HTTP in batches, once the response is sent or the
+command finished. For sampling, other protocols or a tracer provider shared with the rest of your application, set up
+OpenTelemetry yourself and pass its ``tracer_provider`` instead.
+
 Message stores
 --------------
 
@@ -1716,3 +1826,4 @@ When only STT is configured (no TTS), the agent returns the same result type as 
 .. _`Symfony AI Agent`: https://github.com/symfony/ai-agent
 .. _`Symfony AI Platform`: https://github.com/symfony/ai-platform
 .. _`Symfony AI Store`: https://github.com/symfony/ai-store
+.. _`Langfuse`: https://langfuse.com/

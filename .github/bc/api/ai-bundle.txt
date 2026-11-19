@@ -20,6 +20,9 @@ Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass: class implements 
 Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
 Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
 Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
+Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
+Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass::PRIORITY: public const
+Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
 Symfony\AI\AiBundle\Exception\ExceptionInterface: interface extends Throwable
 Symfony\AI\AiBundle\Exception\InvalidArgumentException: class extends InvalidArgumentException implements Symfony\AI\AiBundle\Exception\ExceptionInterface
 Symfony\AI\AiBundle\Exception\RuntimeException: class extends RuntimeException implements Symfony\AI\AiBundle\Exception\ExceptionInterface
@@ -68,3 +71,9 @@ Symfony\AI\AiBundle\Test\AiAssertionsTrait::assertToolCallCount(): public static
 Symfony\AI\AiBundle\Test\AiAssertionsTrait::assertToolCalled(): public static function assertToolCalled(string $tool, string $message = ''): void
 Symfony\AI\AiBundle\Test\AiAssertionsTrait::assertToolRegistered(): public static function assertToolRegistered(string $tool, string $message = ''): void
 Symfony\AI\AiBundle\Test\AiAssertionsTrait::getAiDataCollector(): protected static function getAiDataCollector(): Symfony\AI\AiBundle\Profiler\DataCollector
+Symfony\AI\AiBundle\Tracing\FlushTracesListener: final class
+Symfony\AI\AiBundle\Tracing\FlushTracesListener::__construct(): public function __construct(OpenTelemetry\API\Trace\TracerProviderInterface $tracerProvider)
+Symfony\AI\AiBundle\Tracing\FlushTracesListener::__invoke(): public function __invoke(): void
+Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver: final class implements Symfony\AI\Telemetry\UserIdResolverInterface
+Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver::__construct(): public function __construct(Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface|null $tokenStorage)
+Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver::resolve(): public function resolve(): null|string
