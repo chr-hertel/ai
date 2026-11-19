@@ -401,6 +401,10 @@ deptrac:
       collectors:
         - type: classLike
           value: Symfony\\AI\\Mate\\Bridge\\Symfony\\.*
+    - name: TelemetryComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Telemetry\\(?!Bridge\\).*
   ruleset:
     Fixtures: ~
     AgentComponent:
@@ -674,3 +678,7 @@ deptrac:
       - MateComponent
     MateSymfonyBridge:
       - MateComponent
+    TelemetryComponent:
+      - AgentComponent
+      - PlatformComponent
+      - StoreComponent

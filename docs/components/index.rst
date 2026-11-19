@@ -8,3 +8,4 @@ Components
     mate
     platform
     store
+    telemetry
