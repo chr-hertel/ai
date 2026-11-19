@@ -12,7 +12,10 @@
 namespace Symfony\AI\Agent\Tests\Toolbox;
 
 use PHPUnit\Framework\TestCase;
+use Revolt\EventLoop;
 use Symfony\AI\Agent\Toolbox\SuspendableTrait;
+
+use function Amp\async;
 
 /**
  * @author Denis Zunke <denis.zunke@gmail.com>
@@ -100,5 +103,38 @@ final class SuspendableTraitTest extends TestCase
 
         $this->assertSame(3, $resumeCount);
         $this->assertSame('done', $fiber->getReturn());
+    }
+
+    public function testSuspendYieldsThroughTheEventLoopInsideALoopFiber()
+    {
+        $log = [];
+
+        $tool = new class {
+            use SuspendableTrait;
+
+            /**
+             * @param array<int, string> $log
+             */
+            public function run(array &$log): string
+            {
+                $log[] = 'before_suspend';
+                $this->suspend();
+                $log[] = 'after_suspend';
+
+                return 'done';
+            }
+        };
+
+        // a plain \Fiber::suspend() would leave this fiber without anybody to resume it
+        $result = async(static function () use ($tool, &$log): string {
+            EventLoop::queue(static function () use (&$log): void {
+                $log[] = 'other_callback';
+            });
+
+            return $tool->run($log);
+        })->await();
+
+        $this->assertSame('done', $result);
+        $this->assertSame(['before_suspend', 'other_callback', 'after_suspend'], $log);
     }
 }

@@ -27,6 +27,10 @@ use Symfony\AI\Platform\Result\ToolCall;
  * Results are returned in the same order as the given tool calls, regardless of the order in which
  * the fibers terminate.
  *
+ * Inside a running Revolt event loop (Amp, ReactPHP 3, Symfony Tui, ...), the tool calls run as
+ * concurrent callbacks of that loop instead, so tools awaiting non-blocking I/O are resumed by the
+ * loop and keep making progress while other tools wait.
+ *
  * @author Denis Zunke <denis.zunke@gmail.com>
  */
 final class FiberToolExecutor implements ToolExecutorInterface
@@ -45,6 +49,13 @@ final class FiberToolExecutor implements ToolExecutorInterface
     {
         foreach ($toolCalls as $toolCall) {
             yield new Progress(Progress::STAGE_TOOL_CALL, \sprintf('Executing tool "%s".', $toolCall->getName()), $toolCall);
+        }
+
+        if (EventLoopScheduler::inLoopFiber()) {
+            return array_values(EventLoopScheduler::all(array_map(
+                fn (ToolCall $toolCall): \Closure => fn (): ToolResult => $this->toolbox->execute($toolCall),
+                $toolCalls,
+            )));
         }
 
         $fibers = [];

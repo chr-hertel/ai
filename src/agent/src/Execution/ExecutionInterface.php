@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\BatchItem;
 use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\Stream\Delta\DeltaInterface;
@@ -88,6 +89,25 @@ interface ExecutionInterface extends \IteratorAggregate, ResultInterface
      * Cancels the execution and its active HTTP response.
      */
     public function cancel(?string $reason = null): void;
+
+    /**
+     * Adds user input to the running execution, e.g. a correction typed while the agent is still working.
+     *
+     * The model receives it at the next round boundary: after the tool calls of the current round, or
+     * in an additional round after its answer.
+     *
+     * @return bool false if the execution can't take the input anymore, start a new one with it instead
+     */
+    public function inject(string|UserMessage $message): bool;
+
+    /**
+     * Messages given to {@see self::inject()} that the model didn't receive, because the execution ended first.
+     *
+     * Send them in a new execution.
+     *
+     * @return list<UserMessage>
+     */
+    public function getPendingInjections(): array;
 
     /**
      * Drives the execution to completion and returns the final result.

@@ -16,6 +16,7 @@ use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
+use Symfony\AI\Agent\Execution\PendingInjections;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
@@ -100,7 +101,8 @@ final class Agent implements AgentInterface
     public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
     {
         $cancellation = new Cancellation();
-        $factory = function () use ($input, $options, $cancellation): \Generator {
+        $injections = new PendingInjections();
+        $factory = function () use ($input, $options, $cancellation, $injections): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
                 $input = $this->continueStored($input, $this->messageStore);
@@ -132,7 +134,7 @@ final class Agent implements AgentInterface
                 $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
             }
 
-            foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound) as $update) {
+            foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound, $injections) as $update) {
                 if ($update instanceof ResultUpdate) {
                     $result = $update->getResult();
                     $resultUpdate = $update;
@@ -180,7 +182,7 @@ final class Agent implements AgentInterface
             yield new ResultUpdate($finalResult, $conversation);
         };
 
-        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
+        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation, $injections);
     }
 
     /**

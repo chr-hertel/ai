@@ -70,10 +70,11 @@ final class Runner
     /**
      * @param array<string, mixed>              $options
      * @param (\Closure(MessageBag): void)|null $onToolRound receives the messages after each completed tool round
+     * @param PendingInjections|null            $injections  messages injected while running, handed to the model at the next round boundary
      *
      * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    public function run(string $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null, ?\Closure $onToolRound = null): \Generator
+    public function run(string $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null, ?\Closure $onToolRound = null, ?PendingInjections $injections = null): \Generator
     {
         [$options, $allowedTools] = $this->exposeTools($options);
 
@@ -112,6 +113,15 @@ final class Runner
             }
 
             $toolCallResult = $this->extractToolCallResult($result);
+            if (null === $toolCallResult && false === $injections?->isEmpty()) {
+                // a message arrived while the model answered, it gets another round to take it into account
+                $metadata->merge($result->getMetadata());
+                $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
+                $messages = yield from $this->inject($messages, $injections);
+
+                continue;
+            }
+
             if (null === $toolCallResult || null === $this->toolExecutor) {
                 break;
             }
@@ -137,6 +147,10 @@ final class Runner
                 }
             }
 
+            if (null !== $injections && !$injections->isEmpty()) {
+                $messages = yield from $this->inject($messages, $injections);
+            }
+
             if (null !== $onToolRound) {
                 $onToolRound($messages);
             }
@@ -149,6 +163,11 @@ final class Runner
                 $assistantMessage = null;
 
                 break;
+            }
+
+            // a cancellation requested while the tools ran must not start another model request
+            if ($cancellation?->isRequested()) {
+                return;
             }
         }
 
@@ -169,6 +188,22 @@ final class Runner
         }
 
         yield new ResultUpdate($result, $answer);
+    }
+
+    /**
+     * Appends the messages injected while running to the conversation, reporting each one as progress.
+     *
+     * @return \Generator<int, UpdateInterface, mixed, MessageBag>
+     */
+    private function inject(MessageBag $messages, PendingInjections $injections): \Generator
+    {
+        foreach ($injections->take() as $message) {
+            $messages = $messages->with($message);
+
+            yield new Progress(Progress::STAGE_INJECTION, 'Injected a message.', $message);
+        }
+
+        return $messages;
     }
 
     /**

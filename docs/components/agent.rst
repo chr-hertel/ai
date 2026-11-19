@@ -305,10 +305,37 @@ model-request and tool-call updates::
     }
 
 The stages this package itself reports are available as ``Progress::STAGE_MODEL_REQUEST``, ``Progress::STAGE_DELTA``,
-``Progress::STAGE_TOOL_CALL`` and ``Progress::STAGE_HANDOFF``, so matching on one does not need its raw string.
+``Progress::STAGE_TOOL_CALL``, ``Progress::STAGE_HANDOFF`` and ``Progress::STAGE_INJECTION``, so matching on one does
+not need its raw string.
 
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
+
+Injecting Messages into a Running Execution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Users of a chat or coding agent often type a correction while the agent still works, for example while a slow tool
+runs. Pass that message to ``inject()`` to give it to the running execution::
+
+    $execution = $agent->call($messages, ['stream' => true]);
+
+    // e.g. in the listener of the chat input, while the execution runs
+    $execution->inject('Use the staging database, not production.');
+
+The model gets the message at the next round boundary: after the tool calls of the current round, or in one more
+round after its answer. The message is part of the conversation returned by ``getMessages()``. Iterating the
+execution reports it as a ``Progress`` update of the ``injection`` stage, with the ``UserMessage`` as payload.
+
+``inject()`` returns ``false`` when the execution can't take the message anymore, because it finished or was
+canceled. Start a new execution with the message then. Messages that arrived while the last round ended are
+returned by ``getPendingInjections()``::
+
+    foreach ($execution->getPendingInjections() as $userMessage) {
+        // send it in the next call
+    }
+
+Call ``inject()`` from code that runs while the execution runs, for example a tool, an event listener or another
+fiber of an event loop. See :ref:`agent-event-loop` to run the agent next to your user interface.
 
 Execution Status
 ~~~~~~~~~~~~~~~~
@@ -1103,6 +1130,39 @@ calls are running - they are passed through to whoever consumes the agent's
 :class:`Symfony\\AI\\Agent\\Execution\\Execution` - and returns the list of results, one per tool
 call and in the same order as the given calls.
 
+.. _agent-event-loop:
+
+Running the Agent in an Event Loop
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An interactive application, like a terminal UI or a server that handles several sessions, has to keep reacting
+while the agent waits for the model or a tool. Run the agent in a fiber of the `Revolt`_ event loop for that, for
+example with ``Amp\async()``, and use an HTTP client that suspends instead of blocking::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
+    use Symfony\AI\Platform\Bridge\OpenAi\Factory;
+    use Symfony\Component\HttpClient\AmpHttpClient;
+
+    use function Amp\async;
+
+    $platform = Factory::createPlatform($apiKey, new AmpHttpClient());
+    $agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox, toolExecutor: new FiberToolExecutor($toolbox));
+
+    $future = async(static function () use ($agent, $messages): string {
+        return $agent->call($messages)->asText();
+    });
+
+    // the event loop runs other callbacks meanwhile, e.g. to read the user's input
+    $answer = $future->await();
+
+In a fiber of the event loop, the ``FiberToolExecutor`` runs the tool calls as concurrent callbacks of the loop.
+A tool that awaits I/O through the loop, for example with ``amphp/process`` or ``AmpHttpClient``, lets the other
+tool calls and the rest of the application run. ``SuspendableTrait::suspend()`` gives control back to the loop for
+a moment.
+
+Outside of an event loop, both work with plain fibers, as described below.
+
 .. _agent-fiber-compatible-tools:
 
 Writing Fiber-Compatible Tools
@@ -1601,3 +1661,4 @@ Code Examples
 .. _`Redis example`: https://github.com/symfony/ai/blob/main/examples/agent/message-store-redis.php
 .. _`SurrealDB`: https://surrealdb.com/
 .. _`SurrealDB example`: https://github.com/symfony/ai/blob/main/examples/agent/message-store-surrealdb.php
+.. _`Revolt`: https://revolt.run/

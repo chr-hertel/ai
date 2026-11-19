@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\RawResultInterface;
@@ -82,13 +83,20 @@ final class Execution implements ExecutionInterface
     private readonly AbstractUid&TimeBasedUidInterface $id;
 
     /**
+     * @var list<UserMessage>
+     */
+    private array $pendingInjections = [];
+
+    /**
      * @param \Closure(): \Generator<int, UpdateInterface, mixed, void> $factory
-     * @param bool                                                      $streamed whether the answer is streamed, in which case getContent() yields the deltas
+     * @param bool                                                      $streamed   whether the answer is streamed, in which case getContent() yields the deltas
+     * @param PendingInjections|null                                    $injections receives the messages given to {@see self::inject()}, null if the producer doesn't take any
      */
     public function __construct(
         private readonly \Closure $factory,
         private readonly bool $streamed = false,
         ?Cancellation $cancellation = null,
+        private readonly ?PendingInjections $injections = null,
     ) {
         $this->metadata = new Metadata();
         $this->cancellation = $cancellation ?? new Cancellation();
@@ -202,6 +210,33 @@ final class Execution implements ExecutionInterface
 
         $this->canceled = true;
         $this->cancellation->request($reason);
+    }
+
+    /**
+     * Adds a message to the running execution, e.g. a correction the user typed while the agent is still working.
+     *
+     * The model receives it at the next round boundary: after the tool calls of the current round, or
+     * in an additional round after its answer. It is part of the conversation in {@see self::getMessages()}.
+     *
+     * @return bool false if the execution can't take the message anymore, start a new one with it instead
+     */
+    public function inject(string|UserMessage $message): bool
+    {
+        if (null === $this->injections || $this->canceled || $this->finished || null !== $this->result) {
+            return false;
+        }
+
+        return $this->injections->add($message);
+    }
+
+    /**
+     * Messages given to {@see self::inject()} that the model didn't receive, because the execution ended first.
+     *
+     * @return list<UserMessage>
+     */
+    public function getPendingInjections(): array
+    {
+        return $this->pendingInjections;
     }
 
     /**
@@ -358,6 +393,7 @@ final class Execution implements ExecutionInterface
             }
         } finally {
             $this->finished = true;
+            $this->pendingInjections = $this->injections?->close() ?? [];
 
             if (!$this->canceled && null === $this->result) {
                 $this->error ??= 'The agent execution finished without producing a result.';

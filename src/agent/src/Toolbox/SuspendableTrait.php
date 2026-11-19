@@ -46,12 +46,21 @@ trait SuspendableTrait
     /**
      * Yields execution to allow other concurrently running tools to make progress.
      *
-     * This is a no-op when called outside of a PHP Fiber context.
+     * This is a no-op when called outside of a PHP Fiber context. Inside a running Revolt event loop,
+     * it yields through the loop, since fibers of the loop must only be resumed by the loop.
      */
     protected function suspend(): void
     {
-        if (null !== \Fiber::getCurrent()) {
-            \Fiber::suspend();
+        if (null === \Fiber::getCurrent()) {
+            return;
         }
+
+        if (EventLoopScheduler::inLoopFiber()) {
+            EventLoopScheduler::yield();
+
+            return;
+        }
+
+        \Fiber::suspend();
     }
 }

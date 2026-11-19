@@ -18,6 +18,9 @@ use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
 
+use function Amp\async;
+use function Amp\delay;
+
 /**
  * @author Denis Zunke <denis.zunke@gmail.com>
  */
@@ -227,6 +230,44 @@ final class FiberToolExecutorTest extends TestCase
         $this->expectExceptionMessage('Tool exploded.');
 
         $this->collect($executor->execute([$toolCall]));
+    }
+
+    public function testExecuteInsideEventLoopLetsToolsAwaitTheLoop()
+    {
+        $toolCalls = [new ToolCall('id1', 'slow'), new ToolCall('id2', 'fast')];
+        $finished = [];
+
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('execute')->willReturnCallback(static function (ToolCall $toolCall) use (&$finished): ToolResult {
+            delay('slow' === $toolCall->getName() ? 0.05 : 0.01);
+            $finished[] = $toolCall->getName();
+
+            return new ToolResult($toolCall, $toolCall->getName().' done');
+        });
+
+        $executor = new FiberToolExecutor($toolbox);
+        $start = microtime(true);
+        $results = async(fn (): array => $this->collect($executor->execute($toolCalls)))->await();
+        $elapsed = microtime(true) - $start;
+
+        $this->assertSame(['slow done', 'fast done'], array_map(static fn (ToolResult $result): mixed => $result->getResult(), $results));
+        $this->assertSame(['fast', 'slow'], $finished);
+        // ran concurrently, and the awaited delays were honored instead of being cut short
+        $this->assertGreaterThanOrEqual(0.05, $elapsed);
+        $this->assertLessThan(0.1, $elapsed);
+    }
+
+    public function testExecuteInsideEventLoopPropagatesToolboxExceptions()
+    {
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('execute')->willThrowException(new \RuntimeException('Tool exploded.'));
+
+        $executor = new FiberToolExecutor($toolbox);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Tool exploded.');
+
+        async(fn (): array => $this->collect($executor->execute([new ToolCall('id1', 'broken_tool')])))->await();
     }
 
     /**

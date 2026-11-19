@@ -4,6 +4,9 @@ CHANGELOG
 1.0
 ---
 
+ * Add `ExecutionInterface::inject()` and `ExecutionInterface::getPendingInjections()`, handing messages given while an execution runs to the model at the next round boundary, reported as `Progress::STAGE_INJECTION`
+ * Stop the tool loop when the execution was canceled while its tools ran, before requesting the model again
+ * Run `FiberToolExecutor` tool calls as concurrent callbacks of the Revolt event loop when the agent runs inside one, and let `SuspendableTrait::suspend()` yield through the loop there
  * Add an optional reason to `ExecutionInterface::cancel()` and `Exception\CancellationException` carrying it, thrown by `getResult()` of a canceled execution
  * Add `Toolbox\Exception\ToolErrorException`, whose message is the result that the model gets for the failed tool call
  * Add `Toolbox\Source\SourceCollectionNormalizer`, keeping the sources of an answer when its messages are serialized

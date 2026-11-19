@@ -43,6 +43,12 @@ final class Progress implements UpdateInterface
     public const STAGE_HANDOFF = 'handoff';
 
     /**
+     * A message given to {@see \Symfony\AI\Agent\Execution\ExecutionInterface::inject()} was added to the conversation;
+     * the payload is the {@see \Symfony\AI\Platform\Message\UserMessage}.
+     */
+    public const STAGE_INJECTION = 'injection';
+
+    /**
      * @param non-empty-string $stage   machine-readable stage, one of the STAGE_* constants for a stage this
      *                                  package itself reports, or any other string a decorator or a custom
      *                                  agent chooses for its own
