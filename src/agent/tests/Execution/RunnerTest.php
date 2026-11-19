@@ -981,7 +981,7 @@ final class RunnerTest extends TestCase
         $this->assertCount(1, $metadata->get('sources'));
     }
 
-    public function testItYieldsProgressUpdatesForTheModelRequestAndEachToolCall()
+    public function testItYieldsProgressUpdatesForTheModelRequestEachToolCallAndEachTurn()
     {
         $toolCall = new ToolCall('id1', 'tool1', ['arg1' => 'value1']);
         $toolbox = $this->createMock(ToolboxInterface::class);
@@ -997,7 +997,7 @@ final class RunnerTest extends TestCase
             $updates,
         );
 
-        $this->assertSame(['model_request', 'tool_call', 'model_request', 'result'], $stages);
+        $this->assertSame(['model_request', 'tool_call', 'turn', 'model_request', 'turn', 'result'], $stages);
     }
 
     public function testItYieldsEveryStreamedDeltaAsAProgressUpdate()

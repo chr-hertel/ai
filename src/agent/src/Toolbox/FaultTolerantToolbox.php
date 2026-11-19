@@ -38,13 +38,14 @@ final class FaultTolerantToolbox implements ToolboxInterface
         try {
             return $this->innerToolbox->execute($toolCall);
         } catch (ToolExecutionExceptionInterface $e) {
-            return new ToolResult($toolCall, $e->getToolCallResult());
-        } catch (ToolNotFoundException) {
+            return new ToolResult($toolCall, $e->getToolCallResult(), failure: $e);
+        } catch (ToolNotFoundException $e) {
             $names = array_map(static fn (Tool $metadata) => $metadata->getName(), $this->getTools());
 
             return new ToolResult(
                 $toolCall,
-                \sprintf('Tool "%s" was not found, please use one of these: %s', $toolCall->getName(), implode(', ', $names))
+                \sprintf('Tool "%s" was not found, please use one of these: %s', $toolCall->getName(), implode(', ', $names)),
+                failure: $e,
             );
         }
     }

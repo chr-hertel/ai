@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent;
 
+use Symfony\AI\Agent\Run\RunContext;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Model;
 
@@ -27,6 +28,7 @@ final class Input
         private string|Model $model,
         private MessageBag $messageBag,
         private array $options = [],
+        private RunContext $runContext = new RunContext(),
     ) {
     }
 
@@ -70,5 +72,18 @@ final class Input
     public function setOptions(array $options): void
     {
         $this->options = $options;
+    }
+
+    public function getRunContext(): RunContext
+    {
+        return $this->runContext;
+    }
+
+    /**
+     * Replaces the run context, e.g. to record the prompt version the run uses.
+     */
+    public function setRunContext(RunContext $runContext): void
+    {
+        $this->runContext = $runContext;
     }
 }

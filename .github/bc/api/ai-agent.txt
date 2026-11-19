@@ -19,12 +19,26 @@ Symfony\AI\Agent\Attribute\AsOutputProcessor: final class
 Symfony\AI\Agent\Attribute\AsOutputProcessor::$agent: public readonly null|string
 Symfony\AI\Agent\Attribute\AsOutputProcessor::$priority: public readonly int
 Symfony\AI\Agent\Attribute\AsOutputProcessor::__construct(): public function __construct(null|string $agent = null, int $priority = 0)
+Symfony\AI\Agent\Budget\RunBudget: final class
+Symfony\AI\Agent\Budget\RunBudget::__construct(): public function __construct(int|null $maxTokens = null, float|null $maxCost = null, Symfony\AI\Platform\Cost\CostCalculator|null $costCalculator = null, Symfony\Contracts\EventDispatcher\EventDispatcherInterface|null $eventDispatcher = null, string $message = 'I could not finish this request within the configured budget. Please narrow it down or ask a human for help.')
+Symfony\AI\Agent\Budget\RunBudget::__invoke(): public function __invoke(Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted $event): void
+Symfony\AI\Agent\Budget\RunBudget::getSpent(): public function getSpent(Symfony\AI\Agent\Run\RunContext $runContext): array|null
 Symfony\AI\Agent\Command\DropMessageStoreCommand: final class extends Symfony\Component\Console\Command\Command
 Symfony\AI\Agent\Command\DropMessageStoreCommand::__construct(): public function __construct(Symfony\Contracts\Service\ServiceProviderInterface $stores)
 Symfony\AI\Agent\Command\DropMessageStoreCommand::complete(): public function complete(Symfony\Component\Console\Completion\CompletionInput $input, Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
 Symfony\AI\Agent\Command\SetupMessageStoreCommand: final class extends Symfony\Component\Console\Command\Command
 Symfony\AI\Agent\Command\SetupMessageStoreCommand::__construct(): public function __construct(Symfony\Contracts\Service\ServiceProviderInterface $stores)
 Symfony\AI\Agent\Command\SetupMessageStoreCommand::complete(): public function complete(Symfony\Component\Console\Completion\CompletionInput $input, Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
+Symfony\AI\Agent\Event\GuardrailTriggered: final class
+Symfony\AI\Agent\Event\GuardrailTriggered::ACTION_DENIED: public const
+Symfony\AI\Agent\Event\GuardrailTriggered::ACTION_REDACTED: public const
+Symfony\AI\Agent\Event\GuardrailTriggered::ACTION_STOPPED: public const
+Symfony\AI\Agent\Event\GuardrailTriggered::__construct(): public function __construct(string $guardrail, string $action, null|string $reason = null, Symfony\AI\Agent\Run\RunContext|null $runContext = null, array $details = [])
+Symfony\AI\Agent\Event\GuardrailTriggered::getAction(): public function getAction(): string
+Symfony\AI\Agent\Event\GuardrailTriggered::getDetails(): public function getDetails(): array
+Symfony\AI\Agent\Event\GuardrailTriggered::getGuardrail(): public function getGuardrail(): string
+Symfony\AI\Agent\Event\GuardrailTriggered::getReason(): public function getReason(): null|string
+Symfony\AI\Agent\Event\GuardrailTriggered::getRunContext(): public function getRunContext(): Symfony\AI\Agent\Run\RunContext|null
 Symfony\AI\Agent\Exception\CancellationException: final class extends Symfony\AI\Agent\Exception\RuntimeException
 Symfony\AI\Agent\Exception\CancellationException::__construct(): public function __construct(null|string $reason = null)
 Symfony\AI\Agent\Exception\CancellationException::getReason(): public function getReason(): null|string
@@ -39,7 +53,7 @@ Symfony\AI\Agent\Exception\MaxIterationsExceededException::__construct(): public
 Symfony\AI\Agent\Exception\OutOfBoundsException: class extends OutOfBoundsException implements Symfony\AI\Agent\Exception\ExceptionInterface
 Symfony\AI\Agent\Exception\RuntimeException: class extends RuntimeException implements Symfony\AI\Agent\Exception\ExceptionInterface
 Symfony\AI\Agent\Execution\Execution: final class implements Symfony\AI\Agent\Execution\ExecutionInterface uses Symfony\AI\Platform\Result\TypedResultTrait
-Symfony\AI\Agent\Execution\Execution::__construct(): public function __construct(Closure $factory, bool $streamed = false, Symfony\AI\Agent\Execution\Cancellation|null $cancellation = null)
+Symfony\AI\Agent\Execution\Execution::__construct(): public function __construct(Closure $factory, bool $streamed = false, Symfony\AI\Agent\Execution\Cancellation|null $cancellation = null, (Symfony\Component\Uid\AbstractUid&Symfony\Component\Uid\TimeBasedUidInterface)|null $id = null)
 Symfony\AI\Agent\Execution\Execution::asStream(): public function asStream(): Generator
 Symfony\AI\Agent\Execution\Execution::cancel(): public function cancel(null|string $reason = null): void
 Symfony\AI\Agent\Execution\Execution::getContent(): public function getContent(): iterable|null|object|string
@@ -89,6 +103,14 @@ Symfony\AI\Agent\Execution\ExecutionStatus::Pending: case
 Symfony\AI\Agent\Execution\ExecutionStatus::Running: case
 Symfony\AI\Agent\Execution\ExecutionStatus::WaitingForInput: case
 Symfony\AI\Agent\Execution\ExecutionStatus::isFinished(): public function isFinished(): bool
+Symfony\AI\Agent\Execution\Turn: final class
+Symfony\AI\Agent\Execution\Turn::__construct(): public function __construct(Symfony\AI\Platform\Model|string $model, Symfony\AI\Platform\Result\ResultInterface $result, array $toolResults = [], float|null $duration = null)
+Symfony\AI\Agent\Execution\Turn::getDuration(): public function getDuration(): float|null
+Symfony\AI\Agent\Execution\Turn::getMetadata(): public function getMetadata(): Symfony\AI\Platform\Metadata\Metadata
+Symfony\AI\Agent\Execution\Turn::getModel(): public function getModel(): Symfony\AI\Platform\Model|string
+Symfony\AI\Agent\Execution\Turn::getResult(): public function getResult(): Symfony\AI\Platform\Result\ResultInterface
+Symfony\AI\Agent\Execution\Turn::getToolResults(): public function getToolResults(): array
+Symfony\AI\Agent\Execution\Turn::hasToolResults(): public function hasToolResults(): bool
 Symfony\AI\Agent\Execution\UpdateInterface: interface
 Symfony\AI\Agent\Execution\UpdateInterface::getType(): public function getType(): Symfony\AI\Agent\Execution\UpdateType
 Symfony\AI\Agent\Execution\UpdateType: enum
@@ -99,6 +121,7 @@ Symfony\AI\Agent\Execution\Update\Progress::STAGE_DELTA: public const
 Symfony\AI\Agent\Execution\Update\Progress::STAGE_HANDOFF: public const
 Symfony\AI\Agent\Execution\Update\Progress::STAGE_MODEL_REQUEST: public const
 Symfony\AI\Agent\Execution\Update\Progress::STAGE_TOOL_CALL: public const
+Symfony\AI\Agent\Execution\Update\Progress::STAGE_TURN: public const
 Symfony\AI\Agent\Execution\Update\Progress::__construct(): public function __construct(string $stage, string $message = '', mixed $payload = null)
 Symfony\AI\Agent\Execution\Update\Progress::getMessage(): public function getMessage(): string
 Symfony\AI\Agent\Execution\Update\Progress::getPayload(): public function getPayload(): mixed
@@ -110,13 +133,15 @@ Symfony\AI\Agent\Execution\Update\Result::getMessages(): public function getMess
 Symfony\AI\Agent\Execution\Update\Result::getResult(): public function getResult(): Symfony\AI\Platform\Result\ResultInterface
 Symfony\AI\Agent\Execution\Update\Result::getType(): public function getType(): Symfony\AI\Agent\Execution\UpdateType
 Symfony\AI\Agent\Input: final class
-Symfony\AI\Agent\Input::__construct(): public function __construct(Symfony\AI\Platform\Model|string $model, Symfony\AI\Platform\Message\MessageBag $messageBag, array $options = [])
+Symfony\AI\Agent\Input::__construct(): public function __construct(Symfony\AI\Platform\Model|string $model, Symfony\AI\Platform\Message\MessageBag $messageBag, array $options = [], Symfony\AI\Agent\Run\RunContext $runContext = new \Symfony\AI\Agent\Run\RunContext())
 Symfony\AI\Agent\Input::getMessageBag(): public function getMessageBag(): Symfony\AI\Platform\Message\MessageBag
 Symfony\AI\Agent\Input::getModel(): public function getModel(): Symfony\AI\Platform\Model|string
 Symfony\AI\Agent\Input::getOptions(): public function getOptions(): array
+Symfony\AI\Agent\Input::getRunContext(): public function getRunContext(): Symfony\AI\Agent\Run\RunContext
 Symfony\AI\Agent\Input::setMessageBag(): public function setMessageBag(Symfony\AI\Platform\Message\MessageBag $messageBag): void
 Symfony\AI\Agent\Input::setModel(): public function setModel(Symfony\AI\Platform\Model|string $model): void
 Symfony\AI\Agent\Input::setOptions(): public function setOptions(array $options): void
+Symfony\AI\Agent\Input::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Agent\InputProcessorInterface: interface
 Symfony\AI\Agent\InputProcessorInterface::processInput(): public function processInput(Symfony\AI\Agent\Input $input): void
 Symfony\AI\Agent\InputProcessor\ModelOverrideInputProcessor: final class implements Symfony\AI\Agent\InputProcessorInterface
@@ -198,14 +223,62 @@ Symfony\AI\Agent\MultiAgent\MultiAgent::__construct(): public function __constru
 Symfony\AI\Agent\MultiAgent\MultiAgent::call(): public function call(Symfony\AI\Platform\Message\MessageBag|Symfony\AI\Platform\Message\UserMessage|string $input, array $options = []): Symfony\AI\Agent\Execution\ExecutionInterface
 Symfony\AI\Agent\MultiAgent\MultiAgent::getName(): public function getName(): string
 Symfony\AI\Agent\Output: final class
-Symfony\AI\Agent\Output::__construct(): public function __construct(Symfony\AI\Platform\Model|string $model, Symfony\AI\Platform\Result\ResultInterface $result, Symfony\AI\Platform\Message\MessageBag $messageBag, array $options = [])
+Symfony\AI\Agent\Output::__construct(): public function __construct(Symfony\AI\Platform\Model|string $model, Symfony\AI\Platform\Result\ResultInterface $result, Symfony\AI\Platform\Message\MessageBag $messageBag, array $options = [], Symfony\AI\Agent\Run\RunContext $runContext = new \Symfony\AI\Agent\Run\RunContext(), array $turns = [])
 Symfony\AI\Agent\Output::getMessageBag(): public function getMessageBag(): Symfony\AI\Platform\Message\MessageBag
 Symfony\AI\Agent\Output::getModel(): public function getModel(): Symfony\AI\Platform\Model|string
 Symfony\AI\Agent\Output::getOptions(): public function getOptions(): array
 Symfony\AI\Agent\Output::getResult(): public function getResult(): Symfony\AI\Platform\Result\ResultInterface
+Symfony\AI\Agent\Output::getRunContext(): public function getRunContext(): Symfony\AI\Agent\Run\RunContext
+Symfony\AI\Agent\Output::getTurns(): public function getTurns(): array
 Symfony\AI\Agent\Output::setResult(): public function setResult(Symfony\AI\Platform\Result\ResultInterface $result): void
 Symfony\AI\Agent\OutputProcessorInterface: interface
 Symfony\AI\Agent\OutputProcessorInterface::processOutput(): public function processOutput(Symfony\AI\Agent\Output $output): void
+Symfony\AI\Agent\Prompt\InMemoryPromptRegistry: final class implements Symfony\AI\Agent\Prompt\PromptRegistryInterface
+Symfony\AI\Agent\Prompt\InMemoryPromptRegistry::__construct(): public function __construct(array $prompts = [])
+Symfony\AI\Agent\Prompt\InMemoryPromptRegistry::get(): public function get(string $name, null|string $version = null): Symfony\AI\Agent\Prompt\Prompt
+Symfony\AI\Agent\Prompt\InMemoryPromptRegistry::versions(): public function versions(string $name): array
+Symfony\AI\Agent\Prompt\PercentageRolloutSelector: final class implements Symfony\AI\Agent\Prompt\PromptVariantSelectorInterface
+Symfony\AI\Agent\Prompt\PercentageRolloutSelector::__construct(): public function __construct(string $promptName, string $candidate, string $baseline, int $percentage)
+Symfony\AI\Agent\Prompt\PercentageRolloutSelector::select(): public function select(string $promptName, Symfony\AI\Agent\Run\RunContext $context): null|string
+Symfony\AI\Agent\Prompt\Prompt: final class
+Symfony\AI\Agent\Prompt\Prompt::__construct(): public function __construct(string $name, string $version, string $template)
+Symfony\AI\Agent\Prompt\Prompt::getReference(): public function getReference(): Symfony\AI\Agent\Prompt\PromptReference
+Symfony\AI\Agent\Prompt\Prompt::getTemplate(): public function getTemplate(): string
+Symfony\AI\Agent\Prompt\Prompt::render(): public function render(array $variables = []): string
+Symfony\AI\Agent\Prompt\PromptInputProcessor: final class implements Symfony\AI\Agent\InputProcessorInterface
+Symfony\AI\Agent\Prompt\PromptInputProcessor::__construct(): public function __construct(Symfony\AI\Agent\Prompt\PromptRegistryInterface $registry, string $promptName, null|string $version = null, array $variables = [], Symfony\AI\Agent\Prompt\PromptVariantSelectorInterface|null $selector = null)
+Symfony\AI\Agent\Prompt\PromptInputProcessor::processInput(): public function processInput(Symfony\AI\Agent\Input $input): void
+Symfony\AI\Agent\Prompt\PromptReference: final class implements Stringable
+Symfony\AI\Agent\Prompt\PromptReference::__construct(): public function __construct(string $name, string $version, null|string $hash = null)
+Symfony\AI\Agent\Prompt\PromptReference::__toString(): public function __toString(): string
+Symfony\AI\Agent\Prompt\PromptReference::getHash(): public function getHash(): null|string
+Symfony\AI\Agent\Prompt\PromptReference::getName(): public function getName(): string
+Symfony\AI\Agent\Prompt\PromptReference::getVersion(): public function getVersion(): string
+Symfony\AI\Agent\Prompt\PromptRegistryInterface: interface
+Symfony\AI\Agent\Prompt\PromptRegistryInterface::get(): public function get(string $name, null|string $version = null): Symfony\AI\Agent\Prompt\Prompt
+Symfony\AI\Agent\Prompt\PromptRegistryInterface::versions(): public function versions(string $name): array
+Symfony\AI\Agent\Prompt\PromptVariantSelectorInterface: interface
+Symfony\AI\Agent\Prompt\PromptVariantSelectorInterface::select(): public function select(string $promptName, Symfony\AI\Agent\Run\RunContext $context): null|string
+Symfony\AI\Agent\Prompt\YamlPromptRegistry: final class implements Symfony\AI\Agent\Prompt\PromptRegistryInterface
+Symfony\AI\Agent\Prompt\YamlPromptRegistry::__construct(): public function __construct(array $paths)
+Symfony\AI\Agent\Prompt\YamlPromptRegistry::get(): public function get(string $name, null|string $version = null): Symfony\AI\Agent\Prompt\Prompt
+Symfony\AI\Agent\Prompt\YamlPromptRegistry::versions(): public function versions(string $name): array
+Symfony\AI\Agent\Run\RunContext: final class
+Symfony\AI\Agent\Run\RunContext::__construct(): public function __construct(string $runId = '', null|string $userId = null, null|string $release = null, Symfony\AI\Agent\Prompt\PromptReference|null $prompt = null, array $attributes = [], null|string $traceId = null)
+Symfony\AI\Agent\Run\RunContext::getAttributes(): public function getAttributes(): array
+Symfony\AI\Agent\Run\RunContext::getPrompt(): public function getPrompt(): Symfony\AI\Agent\Prompt\PromptReference|null
+Symfony\AI\Agent\Run\RunContext::getRelease(): public function getRelease(): null|string
+Symfony\AI\Agent\Run\RunContext::getRunId(): public function getRunId(): string
+Symfony\AI\Agent\Run\RunContext::getTraceId(): public function getTraceId(): null|string
+Symfony\AI\Agent\Run\RunContext::getUserId(): public function getUserId(): null|string
+Symfony\AI\Agent\Run\RunContext::withAttribute(): public function withAttribute(string $key, string $value): self
+Symfony\AI\Agent\Run\RunContext::withPrompt(): public function withPrompt(Symfony\AI\Agent\Prompt\PromptReference|null $prompt): self
+Symfony\AI\Agent\Run\RunContext::withRelease(): public function withRelease(null|string $release): self
+Symfony\AI\Agent\Run\RunContext::withRunId(): public function withRunId(string $runId): self
+Symfony\AI\Agent\Run\RunContext::withTraceId(): public function withTraceId(null|string $traceId): self
+Symfony\AI\Agent\Run\RunScope: final class
+Symfony\AI\Agent\Run\RunScope::current(): public static function current(): Symfony\AI\Agent\Run\RunContext|null
+Symfony\AI\Agent\Run\RunScope::run(): public static function run(Symfony\AI\Agent\Run\RunContext|null $runContext, Closure $callback): mixed
 Symfony\AI\Agent\SpeechAgent: final class implements Symfony\AI\Agent\AgentInterface
 Symfony\AI\Agent\SpeechAgent::__construct(): public function __construct(Symfony\AI\Agent\AgentInterface $agent, Symfony\AI\Agent\Speech\SpeechConfiguration $configuration, Symfony\AI\Platform\PlatformInterface|null $speechToTextPlatform = null, Symfony\AI\Platform\PlatformInterface|null $textToSpeechPlatform = null)
 Symfony\AI\Agent\SpeechAgent::call(): public function call(Symfony\AI\Platform\Message\MessageBag|Symfony\AI\Platform\Message\UserMessage|string $input, array $options = []): Symfony\AI\Agent\Execution\ExecutionInterface
@@ -272,9 +345,10 @@ Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getDefinition(): public functi
 Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getResult(): public function getResult(): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getTool(): public function getTool(): object
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted: final class
-Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::__construct(): public function __construct(array $toolResults)
+Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::__construct(): public function __construct(array $toolResults, Symfony\AI\Agent\Execution\Turn|null $turn = null)
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getResult(): public function getResult(): Symfony\AI\Platform\Result\ResultInterface
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getToolResults(): public function getToolResults(): array
+Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getTurn(): public function getTurn(): Symfony\AI\Agent\Execution\Turn|null
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::hasResult(): public function hasResult(): bool
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::setResult(): public function setResult(Symfony\AI\Platform\Result\ResultInterface $result): void
 Symfony\AI\Agent\Toolbox\Exception\ExceptionInterface: interface extends Symfony\AI\Agent\Exception\ExceptionInterface
@@ -359,10 +433,12 @@ Symfony\AI\Agent\Toolbox\ToolFactory\ReflectionToolFactory: final class implemen
 Symfony\AI\Agent\Toolbox\ToolFactory\ReflectionToolFactory::__construct(): public function __construct(Symfony\AI\Platform\Contract\JsonSchema\Factory $factory = new \Symfony\AI\Platform\Contract\JsonSchema\Factory(new \Symfony\AI\Agent\Toolbox\MapToolArgumentsDescriber()))
 Symfony\AI\Agent\Toolbox\ToolFactory\ReflectionToolFactory::getTool(): public function getTool(object|string $reference): iterable
 Symfony\AI\Agent\Toolbox\ToolResult: final class
-Symfony\AI\Agent\Toolbox\ToolResult::__construct(): public function __construct(Symfony\AI\Platform\Result\ToolCall $toolCall, mixed $result, Symfony\AI\Agent\Toolbox\Source\SourceCollection|null $sources = null)
+Symfony\AI\Agent\Toolbox\ToolResult::__construct(): public function __construct(Symfony\AI\Platform\Result\ToolCall $toolCall, mixed $result, Symfony\AI\Agent\Toolbox\Source\SourceCollection|null $sources = null, Throwable|null $failure = null)
+Symfony\AI\Agent\Toolbox\ToolResult::getFailure(): public function getFailure(): Throwable|null
 Symfony\AI\Agent\Toolbox\ToolResult::getResult(): public function getResult(): mixed
 Symfony\AI\Agent\Toolbox\ToolResult::getSources(): public function getSources(): Symfony\AI\Agent\Toolbox\Source\SourceCollection|null
 Symfony\AI\Agent\Toolbox\ToolResult::getToolCall(): public function getToolCall(): Symfony\AI\Platform\Result\ToolCall
+Symfony\AI\Agent\Toolbox\ToolResult::isFailure(): public function isFailure(): bool
 Symfony\AI\Agent\Toolbox\ToolResultConverter: final class
 Symfony\AI\Agent\Toolbox\ToolResultConverter::__construct(): public function __construct(Symfony\Component\Serializer\SerializerInterface $serializer = new \Symfony\Component\Serializer\Serializer([new \Symfony\Component\Serializer\Normalizer\JsonSerializableNormalizer(), new \Symfony\Component\Serializer\Normalizer\DateTimeNormalizer(), new \Symfony\Component\Serializer\Normalizer\ObjectNormalizer()], [new \Symfony\Component\Serializer\Encoder\JsonEncoder()]))
 Symfony\AI\Agent\Toolbox\ToolResultConverter::convert(): public function convert(Symfony\AI\Agent\Toolbox\ToolResult $toolResult): null|string

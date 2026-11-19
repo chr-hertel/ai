@@ -84,6 +84,7 @@ final class Runner
         $iterations = 0;
 
         while (true) {
+            $startedAt = hrtime(true);
             $deferredResult = $this->platform->invoke($model, $messages, $options);
             $cancellation?->activate($deferredResult->getRawResult());
 
@@ -113,8 +114,12 @@ final class Runner
                 return;
             }
 
+            $duration = (hrtime(true) - $startedAt) / 1e9;
+
             $toolCallResult = $this->extractToolCallResult($result);
             if (null === $toolCallResult || null === $this->toolExecutor) {
+                yield new Progress(Progress::STAGE_TURN, 'Completed a turn.', new Turn($model, $result, [], $duration));
+
                 break;
             }
 
@@ -143,7 +148,10 @@ final class Runner
                 $onToolRound($messages);
             }
 
-            $event = new ToolCallsExecuted($toolResults);
+            $turn = new Turn($model, $result, array_values($toolResults), $duration);
+            yield new Progress(Progress::STAGE_TURN, 'Completed a turn.', $turn);
+
+            $event = new ToolCallsExecuted($toolResults, $turn);
             $this->eventDispatcher?->dispatch($event);
 
             if ($event->hasResult()) {

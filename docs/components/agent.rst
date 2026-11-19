@@ -315,7 +315,8 @@ model-request and tool-call updates::
     }
 
 The stages this package itself reports are available as ``Progress::STAGE_MODEL_REQUEST``, ``Progress::STAGE_DELTA``,
-``Progress::STAGE_TOOL_CALL`` and ``Progress::STAGE_HANDOFF``, so matching on one does not need its raw string.
+``Progress::STAGE_TOOL_CALL``, ``Progress::STAGE_TURN`` and ``Progress::STAGE_HANDOFF``, so matching on one does not
+need its raw string.
 
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
@@ -339,6 +340,146 @@ failed execution::
     }
 
 ``getId()`` returns a UUID that identifies this run. The conversation is identified by the id of its ``MessageBag``.
+
+Turns
+~~~~~
+
+A turn is one model request of a run, together with the tool calls it asked for. After every turn, the execution
+reports a :class:`Symfony\\AI\\Agent\\Execution\\Turn` as payload of a ``Progress`` update of the ``turn`` stage::
+
+    use Symfony\AI\Agent\Execution\Turn;
+
+    foreach ($agent->call('Where is my order SO-10023?') as $update) {
+        if ($update instanceof Progress && $update->getPayload() instanceof Turn) {
+            $turn = $update->getPayload();
+
+            $turn->getMetadata()->get('token_usage'); // the usage of this model request
+            $turn->getToolResults();                  // the results of the tool calls, empty for the final answer
+            $turn->getDuration();                     // seconds the model took to answer, without the tool calls
+        }
+    }
+
+Output processors get all turns of the run with ``Output::getTurns()``. The
+:class:`Symfony\\AI\\Agent\\Toolbox\\Event\\ToolCallsExecuted` event gets the turn of its tool calls with
+``getTurn()``.
+
+Run Context
+-----------
+
+Tracing, feedback, evaluation and cost reporting need to know which run they talk about. A
+:class:`Symfony\\AI\\Agent\\Run\\RunContext` identifies a run and describes it: its run ID, the user, the release
+of your application, the prompt version and your own attributes. Pass one with the ``run_context`` option::
+
+    use Symfony\AI\Agent\Run\RunContext;
+
+    $execution = $agent->call($messages, [
+        'run_context' => new RunContext(userId: $user->getUserIdentifier(), release: 'v1.4.0', attributes: ['channel' => 'web']),
+    ]);
+
+    $runId = $execution->getMetadata()->get('run_id');
+
+Without a run ID, the agent uses the ID of the execution. Without a run context, the agent creates one. The final
+result has the run ID as ``run_id`` and the run context as ``run_context`` metadata. Return the run ID to your
+frontend, so feedback on the answer can refer to the run.
+
+Input processors read and change the run context with ``Input::getRunContext()`` and ``setRunContext()``, output
+processors read it with ``Output::getRunContext()``. Toolboxes and event listeners get the run context of the running
+agent from :class:`Symfony\\AI\\Agent\\Run\\RunScope`::
+
+    use Symfony\AI\Agent\Run\RunScope;
+
+    $runContext = RunScope::current(); // null outside of an agent run
+
+Versioned Prompts
+-----------------
+
+To know which prompt produced an answer, keep your system prompts in versioned YAML files:
+
+.. code-block:: yaml
+
+    # prompts/support.yaml
+    name: support/system
+    versions:
+        '2026-08-v2':
+            template: |
+                You are the support assistant of {shop_name}.
+        '2026-09-v3':
+            template: |
+                You are the support assistant of {shop_name}.
+                Never promise a refund before open_refund returned a ticket id.
+
+The :class:`Symfony\\AI\\Agent\\Prompt\\YamlPromptRegistry` loads the files of the given directories. The
+:class:`Symfony\\AI\\Agent\\Prompt\\PromptInputProcessor` uses a version of a prompt as system prompt and records
+its name and version in the run context::
+
+    use Symfony\AI\Agent\Prompt\PromptInputProcessor;
+    use Symfony\AI\Agent\Prompt\YamlPromptRegistry;
+
+    $prompts = new YamlPromptRegistry([__DIR__.'/prompts']);
+
+    // without a version, the last version of the file is used
+    $agent = new Agent($platform, $model, [
+        new PromptInputProcessor($prompts, 'support/system', '2026-08-v2', ['shop_name' => 'ACME']),
+    ]);
+
+To roll out a new version to a share of the traffic, pass a
+:class:`Symfony\\AI\\Agent\\Prompt\\PercentageRolloutSelector`. It keeps a conversation on one version when the
+run context has a ``conversation`` attribute, and a user when it has a user ID::
+
+    use Symfony\AI\Agent\Prompt\PercentageRolloutSelector;
+
+    // 10 % of the conversations get the version 2026-09-v3
+    new PromptInputProcessor($prompts, 'support/system', '2026-08-v2', ['shop_name' => 'ACME'],
+        new PercentageRolloutSelector('support/system', '2026-09-v3', '2026-08-v2', 10),
+    );
+
+Run Budgets
+-----------
+
+A runaway tool calling loop can spend a lot of tokens before it ends. A
+:class:`Symfony\\AI\\Agent\\Budget\\RunBudget` stops a run once it spent more tokens or money than allowed. The run
+then ends with a configurable answer instead of another model request. Register it as listener of the
+``ToolCallsExecuted`` event, and give it the :class:`Symfony\\AI\\Platform\\Cost\\CostCalculator` of the Platform
+component for a cost budget::
+
+    use Symfony\AI\Agent\Budget\RunBudget;
+    use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
+    use Symfony\AI\Platform\Cost\CostCalculator;
+    use Symfony\AI\Platform\Cost\PriceTable;
+
+    $prices = PriceTable::fromArray(['gpt-4o' => ['input' => 2.5, 'output' => 10.0]]);
+    $budget = new RunBudget(maxTokens: 20_000, maxCost: 0.25, costCalculator: new CostCalculator($prices), eventDispatcher: $dispatcher);
+
+    $dispatcher->addListener(ToolCallsExecuted::class, $budget);
+
+Every run has its own budget. A stopped run dispatches a ``GuardrailTriggered`` event.
+
+Guardrails
+----------
+
+A guardrail denies a tool call in a ``ToolCallRequested`` listener, or replaces the answer in an output processor.
+To make its interventions visible, dispatch a :class:`Symfony\\AI\\Agent\\Event\\GuardrailTriggered`. The
+:doc:`Telemetry component </components/telemetry>` records it as a span event, and the
+:doc:`Feedback component </components/feedback>` as a signal on the run::
+
+    use Symfony\AI\Agent\Event\GuardrailTriggered;
+    use Symfony\AI\Agent\Run\RunScope;
+    use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
+
+    $dispatcher->addListener(ToolCallRequested::class, function (ToolCallRequested $event) use ($dispatcher, $policy) {
+        $order = $event->getToolCall()->getArguments()['orderNumber'] ?? '';
+
+        if ('open_refund' === $event->getDefinition()->getName() && !$policy->isRefundable($order)) {
+            $event->deny('This order is outside the refund window.');
+
+            $dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, runContext: RunScope::current()));
+        }
+    });
+
+.. note::
+
+    Output processors run after the model answered. In a streamed execution, the deltas have already reached the
+    caller at that point, so a guardrail on the answer can only replace the final result.
 
 Tools
 -----
@@ -945,6 +1086,10 @@ For another result, like an array with an error code, throw an exception that im
 :class:`Symfony\\AI\\Agent\\Toolbox\\Exception\\ToolExecutionExceptionInterface`. Its
 ``getToolCallResult()`` method returns the result of the tool call. Any other exception gives the LLM a
 generic error message, which doesn't expose the details of the error.
+
+The ``FaultTolerantToolbox`` keeps the exception of a failed tool call on its
+:class:`Symfony\\AI\\Agent\\Toolbox\\ToolResult`: ``isFailure()`` tells whether the call failed and ``getFailure()``
+returns the exception.
 
 .. _agent-tool-sources:
 

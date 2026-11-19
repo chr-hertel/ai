@@ -43,6 +43,11 @@ final class Progress implements UpdateInterface
     public const STAGE_HANDOFF = 'handoff';
 
     /**
+     * A model round completed; the payload is the {@see \Symfony\AI\Agent\Execution\Turn}.
+     */
+    public const STAGE_TURN = 'turn';
+
+    /**
      * @param non-empty-string $stage   machine-readable stage, one of the STAGE_* constants for a stage this
      *                                  package itself reports, or any other string a decorator or a custom
      *                                  agent chooses for its own

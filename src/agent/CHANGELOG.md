@@ -4,6 +4,14 @@ CHANGELOG
 1.0
 ---
 
+ * Add `Run\RunContext`, passed as `run_context` option or created for every call with the execution ID as run ID, available to the processors through `Input::getRunContext()` and `Output::getRunContext()` and echoed as `run_id` and `run_context` result metadata
+ * Add `Run\RunScope`, the run context of the running agent for toolboxes and event listeners
+ * Add an optional `$id` argument to `Execution\Execution`
+ * Add `Prompt\PromptRegistryInterface` with `InMemoryPromptRegistry` and `YamlPromptRegistry`, plus `PromptInputProcessor` and `PercentageRolloutSelector` to roll out prompt versions
+ * Add `Budget\RunBudget` to stop a run gracefully once it spent a token or cost budget
+ * Add `Event\GuardrailTriggered` for guardrails to report their interventions
+ * Add `Execution\Turn`, reported as `Progress` update of the new `turn` stage and passed to `Output::getTurns()` and `Toolbox\Event\ToolCallsExecuted::getTurn()`
+ * Add `Toolbox\ToolResult::isFailure()` and `getFailure()`, set by the `FaultTolerantToolbox`
  * Allow the `#[AsTool]` attribute on public methods, making the tool call the method it is placed on
  * [BC BREAK] Accept a `Symfony\AI\Platform\Model` instance as model of `Agent`, `Input`, `Output` and as `model` option of `ModelOverrideInputProcessor`, widening the return type of their `getModel()` methods to `string|Model`
  * Add an optional reason to `ExecutionInterface::cancel()` and `Exception\CancellationException` carrying it, thrown by `getResult()` of a canceled execution
