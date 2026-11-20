@@ -82,6 +82,7 @@ final class Dataset implements \IteratorAggregate, \Countable
                 $case['fixtures'] ?? [],
                 $case['expect'] ?? [],
                 $case['source_run'] ?? null,
+                $case['metadata'] ?? [],
             );
         }
 
@@ -99,6 +100,7 @@ final class Dataset implements \IteratorAggregate, \Countable
                 'id' => $case->getId(),
                 'source_run' => $case->getSourceRun(),
                 'labels' => $case->getLabels(),
+                'metadata' => $case->getMetadata(),
                 'input' => $case->getInput(),
                 'fixtures' => $case->getFixtures(),
                 'expect' => $case->getExpectations(),

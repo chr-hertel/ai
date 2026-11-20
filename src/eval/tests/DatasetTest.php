@@ -29,6 +29,7 @@ final class DatasetTest extends TestCase
         $this->assertSame('refund-without-ticket-001', $case->getId());
         $this->assertSame('4bf92f3577b34da6a3ce929d0e0e4736', $case->getSourceRun());
         $this->assertTrue($case->hasLabel('refund'));
+        $this->assertSame(['ticket' => 'SUP-311'], $case->getMetadata());
         $this->assertSame('strict', $case->expectation('tool_order'));
         $this->assertSame('SO-10023', $case->expectation('tool_arguments.open_refund.orderNumber'));
         $this->assertNull($case->expectation('judge.criteria'));

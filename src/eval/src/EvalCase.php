@@ -29,6 +29,7 @@ final class EvalCase
      * @param array<string, mixed>                                  $fixtures     tool results keyed by tool name, see FixtureToolbox
      * @param array<string, mixed>                                  $expectations checked by the evaluators, e.g. "tools_called" or "judge.criteria"
      * @param string|null                                           $sourceRun    the run (trace) ID the case was taken from
+     * @param array<string, mixed>                                  $metadata     e.g. the ID of the case in the backend it was pulled from
      */
     public function __construct(
         private readonly string $id,
@@ -37,6 +38,7 @@ final class EvalCase
         private readonly array $fixtures = [],
         private readonly array $expectations = [],
         private readonly ?string $sourceRun = null,
+        private readonly array $metadata = [],
     ) {
     }
 
@@ -127,5 +129,13 @@ final class EvalCase
     public function getSourceRun(): ?string
     {
         return $this->sourceRun;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getMetadata(): array
+    {
+        return $this->metadata;
     }
 }

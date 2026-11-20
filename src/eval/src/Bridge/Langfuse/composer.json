@@ -28,7 +28,13 @@
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
-        "phpunit/phpunit": "^11.5.53"
+        "phpunit/phpunit": "^11.5.53",
+        "symfony/console": "^7.4|^8.0",
+        "symfony/yaml": "^7.4|^8.0"
+    },
+    "suggest": {
+        "symfony/console": "To manage Langfuse datasets with the ai:eval:dataset:pull and ai:eval:dataset:add commands",
+        "symfony/yaml": "To write Langfuse datasets to dataset files"
     },
     "minimum-stability": "dev",
     "autoload": {

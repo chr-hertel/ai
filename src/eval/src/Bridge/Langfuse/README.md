@@ -1,12 +1,14 @@
 Langfuse Dataset Source
 =======================
 
-Turns [Langfuse](https://langfuse.com/) traces with a given score, e.g. a thumbs down, into evaluation cases for Symfony AI Eval.
+Turns [Langfuse](https://langfuse.com/) datasets and traces with a given score, e.g. a thumbs down, into evaluation cases for Symfony AI Eval,
+and adds items to Langfuse datasets.
 
 Langfuse Documentation
 ----------------------
 
  * [Scores](https://langfuse.com/docs/evaluation/evaluation-methods/custom-scores)
+ * [Datasets](https://langfuse.com/docs/evaluation/experiments/datasets)
  * [Public API](https://api.reference.langfuse.com/)
 
 Resources

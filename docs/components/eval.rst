@@ -42,21 +42,7 @@ fixtures that keep the evaluation hermetic, and the expectations the evaluators 
 The :class:`Symfony\\AI\\Eval\\Toolbox\\FixtureToolbox` exposes the real tool definitions to the model, but answers
 tool calls with the fixtures of the case.
 
-To start a dataset from production, pull the traces with a given score from Langfuse. Install the Langfuse dataset
-source first:
-
-.. code-block:: terminal
-
-    $ composer require --dev symfony/ai-langfuse-dataset-source
-
-Each trace becomes a case with the trace input and the trace ID as ``source_run``. You add the expectations::
-
-    use Symfony\AI\Eval\Bridge\Langfuse\LangfuseDatasetSource;
-
-    $source = new LangfuseDatasetSource($httpClient, 'https://cloud.langfuse.com', $publicKey, $secretKey);
-
-    // traces rated with a thumbs down in the last 7 days, at most 50 by default
-    $dataset = $source->pull('support-regressions', 'thumbs', false, new \DateTimeImmutable('-7 days'), labels: ['triage']);
+To start a dataset from production or to keep it in Langfuse, see `Langfuse Datasets`_.
 
 Suites, Variants and Gates
 --------------------------
@@ -154,6 +140,72 @@ at least ``0.8``::
 
 The threshold depends on the embeddings model, so check the scores of a few good and bad answers before you choose
 it.
+
+Langfuse Datasets
+-----------------
+
+`Langfuse`_ stores the traces of your agent in production and can keep datasets for you. The Langfuse dataset source
+turns both into eval cases. Install it first:
+
+.. code-block:: terminal
+
+    $ composer require --dev symfony/ai-langfuse-dataset-source
+
+To review the failures of the last days, pull the traces with a given score. Each trace becomes a case with the trace
+input and the trace ID as ``source_run``. You add the expectations::
+
+    use Symfony\AI\Eval\Bridge\Langfuse\LangfuseDatasetSource;
+
+    $source = new LangfuseDatasetSource($httpClient, 'https://cloud.langfuse.com', $publicKey, $secretKey);
+
+    // traces rated with a thumbs down in the last 7 days, at most 50 by default
+    $dataset = $source->pull('support-regressions', 'thumbs', false, new \DateTimeImmutable('-7 days'), labels: ['triage']);
+
+A `Langfuse dataset`_ keeps the reviewed cases in Langfuse, so your team can curate them in the Langfuse UI. The
+``fetch()`` method reads its active items::
+
+    $dataset = $source->fetch('support-regressions');
+
+Each item becomes a case with the item ID as case ID:
+
+* The item input becomes the case input. A user message or a list of ``role`` and ``content`` messages is read as
+  conversation, other input is passed to the agent as JSON;
+* An expected output object becomes the expectations of the case, any other expected output is stored as the
+  ``expected_output`` expectation;
+* The ``labels`` and ``fixtures`` keys of the item metadata become the labels and fixtures of the case. The other
+  keys are stored in the ``metadata`` of the case, together with the ``langfuse_item_id`` and ``langfuse_dataset_id``.
+
+The ``ai:eval:dataset:pull`` command writes a Langfuse dataset to a dataset file, which you can load with
+``Dataset::fromFile()``:
+
+.. code-block:: terminal
+
+    # writes evals/datasets/support-regressions.yaml, use --force to overwrite an existing file
+    $ php bin/console ai:eval:dataset:pull support-regressions
+
+    $ php bin/console ai:eval:dataset:pull support-regressions tests/evals/support.yaml
+
+The ``ai:eval:dataset:add`` command adds an item to a Langfuse dataset. With ``--source-trace-id``, a trace from
+production becomes a test case. If you don't pass an ``--input``, the item takes the input of the trace:
+
+.. code-block:: terminal
+
+    $ php bin/console ai:eval:dataset:add support-regressions \
+        --source-trace-id=4bf92f3577b34da6a3ce929d0e0e4736 \
+        --expect='{"tools_called": ["order_lookup", "open_refund"]}' \
+        --label=refund
+
+    # a user message with a reference answer, an item with the same --id is updated
+    $ php bin/console ai:eval:dataset:add support-faq --input="Do you ship to Norway?" \
+        --expect="Yes, within 5 days." --id=shipping-norway
+
+The ``--input`` option takes a user message or a conversation as JSON list, e.g.
+``[{"user": "Where is SO-10023?"}, {"assistant": "It was delivered."}, {"user": "It was not."}]``. The ``--metadata``
+option takes a JSON object.
+
+The :class:`Symfony\\AI\\Eval\\Bridge\\Langfuse\\Command\\DatasetPullCommand` and
+:class:`Symfony\\AI\\Eval\\Bridge\\Langfuse\\Command\\DatasetAddCommand` need the ``symfony/console`` package, and
+the pull command needs ``symfony/yaml``.
 
 Testing Agent Behavior
 ----------------------
@@ -321,3 +373,5 @@ For garak, use the REST generator with a generator options file and run ``garak 
 
 .. _`promptfoo`: https://www.promptfoo.dev/docs/providers/http/
 .. _`garak`: https://reference.garak.ai/en/latest/garak.generators.rest.html
+.. _`Langfuse`: https://langfuse.com/
+.. _`Langfuse dataset`: https://langfuse.com/docs/evaluation/experiments/datasets

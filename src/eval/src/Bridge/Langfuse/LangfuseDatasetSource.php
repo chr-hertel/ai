@@ -13,19 +13,21 @@ namespace Symfony\AI\Eval\Bridge\Langfuse;
 
 use Symfony\AI\Eval\Dataset;
 use Symfony\AI\Eval\EvalCase;
+use Symfony\AI\Eval\Exception\InvalidArgumentException;
 use Symfony\AI\Eval\Exception\RuntimeException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Turns production traces with a given score, e.g. a thumbs down, into eval cases to review and label.
- *
- * The case input is taken from the input of the trace's root observation, the case keeps the trace ID as source run,
- * and the expectations are left to the reviewer.
+ * Reads and writes Langfuse datasets, and turns production traces with a given score, e.g. a thumbs down, into eval
+ * cases to review and label.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class LangfuseDatasetSource
 {
+    public const METADATA_ITEM_ID = 'langfuse_item_id';
+    public const METADATA_DATASET_ID = 'langfuse_dataset_id';
+
     private const PAGE_SIZE = 100;
 
     public function __construct(
@@ -34,6 +36,83 @@ final class LangfuseDatasetSource
         #[\SensitiveParameter] private readonly string $publicKey,
         #[\SensitiveParameter] private readonly string $secretKey,
     ) {
+    }
+
+    /**
+     * Fetches the active items of a Langfuse dataset as eval cases.
+     *
+     * An expected output object becomes the expectations of the case, any other expected output is kept as the
+     * "expected_output" expectation. The "labels" and "fixtures" of the item metadata become those of the case.
+     */
+    public function fetch(string $datasetName): Dataset
+    {
+        $dataset = $this->get('/api/public/v2/datasets/'.rawurlencode($datasetName));
+        $datasetId = $dataset['id'] ?? null;
+        $description = $dataset['description'] ?? null;
+
+        $cases = [];
+        $query = ['datasetName' => $datasetName, 'page' => 1, 'limit' => self::PAGE_SIZE];
+        do {
+            $response = $this->get('/api/public/dataset-items', $query);
+            $items = $response['data'] ?? [];
+
+            foreach (\is_array($items) ? $items : [] as $item) {
+                $itemId = \is_array($item) ? ($item['id'] ?? null) : null;
+                if (!\is_array($item) || !\is_string($itemId) || 'ACTIVE' !== ($item['status'] ?? 'ACTIVE')) {
+                    continue;
+                }
+
+                if (null !== $case = $this->case($itemId, $item, \is_string($datasetId) ? $datasetId : null)) {
+                    $cases[] = $case;
+                }
+            }
+
+            $meta = $response['meta'] ?? null;
+            $totalPages = \is_array($meta) && \is_int($meta['totalPages'] ?? null) ? $meta['totalPages'] : 0;
+        } while ($query['page']++ < $totalPages);
+
+        return new Dataset($datasetName, $cases, \is_string($description) && '' !== $description ? $description : null);
+    }
+
+    /**
+     * Adds an item to a Langfuse dataset, with the input of the source trace's root observation if no input is given.
+     *
+     * @param list<array<string, mixed>>|string|null $input    a user message, or a conversation of {user: ...} or {role, content} messages
+     * @param array<string, mixed>                   $metadata
+     *
+     * @return string the ID of the item
+     */
+    public function addItem(string $datasetName, array|string|null $input = null, mixed $expectedOutput = null, array $metadata = [], ?string $sourceTraceId = null, ?string $id = null): string
+    {
+        $input = $this->input(null === $input && null !== $sourceTraceId ? $this->rootInput($sourceTraceId) : $input);
+        if (null === $input || '' === $input) {
+            throw new InvalidArgumentException(null === $sourceTraceId ? 'A dataset item requires a user message or a conversation as input.' : \sprintf('The trace "%s" has no input to take for the dataset item.', $sourceTraceId));
+        }
+
+        $payload = array_filter([
+            'datasetName' => $datasetName,
+            'id' => $id,
+            'input' => \is_string($input) ? $input : $this->messages($input),
+            'expectedOutput' => $expectedOutput,
+            'metadata' => [] === $metadata ? null : $metadata,
+            'sourceTraceId' => $sourceTraceId,
+        ], static fn (mixed $value): bool => null !== $value);
+
+        $response = $this->httpClient->request('POST', rtrim($this->host, '/').'/api/public/dataset-items', [
+            'auth_basic' => [$this->publicKey, $this->secretKey],
+            'json' => $payload,
+        ]);
+
+        if (200 !== $response->getStatusCode()) {
+            throw new RuntimeException(\sprintf('Langfuse rejected the item of dataset "%s" with status %d: "%s"', $datasetName, $response->getStatusCode(), $response->getContent(false)));
+        }
+
+        $itemId = $response->toArray()['id'] ?? null;
+        if (!\is_string($itemId)) {
+            throw new RuntimeException(\sprintf('Langfuse answered without the ID of the item of dataset "%s".', $datasetName));
+        }
+
+        return $itemId;
     }
 
     /**
@@ -90,6 +169,61 @@ final class LangfuseDatasetSource
         return new Dataset($datasetName, $cases, \sprintf('Traces scored %s = %s, pulled from Langfuse.', $scoreName, $queryValue));
     }
 
+    /**
+     * @param array<mixed> $item
+     */
+    private function case(string $id, array $item, ?string $datasetId): ?EvalCase
+    {
+        $rawInput = $item['input'] ?? null;
+        if (null === $rawInput) {
+            return null;
+        }
+
+        // structured input the agent cannot take as messages is given to it as JSON
+        $input = $this->input($rawInput) ?? (\is_string($rawInput) ? $rawInput : json_encode($rawInput, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR));
+
+        $expectedOutput = $item['expectedOutput'] ?? null;
+        $expectations = match (true) {
+            null === $expectedOutput => [],
+            \is_array($expectedOutput) && !array_is_list($expectedOutput) => $expectedOutput,
+            default => ['expected_output' => $expectedOutput],
+        };
+
+        $metadata = \is_array($item['metadata'] ?? null) ? $item['metadata'] : [];
+        $labels = \is_array($metadata['labels'] ?? null) ? array_values(array_map(strval(...), $metadata['labels'])) : [];
+        $fixtures = \is_array($metadata['fixtures'] ?? null) ? $metadata['fixtures'] : [];
+        unset($metadata['labels'], $metadata['fixtures']);
+
+        $sourceTraceId = $item['sourceTraceId'] ?? null;
+
+        return new EvalCase(
+            $id,
+            $input,
+            $labels,
+            $fixtures,
+            $expectations,
+            \is_string($sourceTraceId) ? $sourceTraceId : null,
+            array_filter([...$metadata, self::METADATA_ITEM_ID => $id, self::METADATA_DATASET_ID => $datasetId], static fn (mixed $value): bool => null !== $value),
+        );
+    }
+
+    /**
+     * @param list<array{user?: string, assistant?: string}> $input
+     *
+     * @return list<array{role: string, content: string}>
+     */
+    private function messages(array $input): array
+    {
+        $messages = [];
+        foreach ($input as $message) {
+            foreach ($message as $role => $content) {
+                $messages[] = ['role' => $role, 'content' => $content];
+            }
+        }
+
+        return $messages;
+    }
+
     private function traceId(mixed $score): ?string
     {
         $subject = \is_array($score) ? ($score['subject'] ?? null) : null;
@@ -129,9 +263,14 @@ final class LangfuseDatasetSource
             return null;
         }
 
-        // GenAI semantic convention messages: [{role, parts: [{type: text, content}]}], or plain {role, content}
+        // GenAI semantic convention messages: [{role, parts: [{type: text, content}]}], plain {role, content}, or the dataset format
         $messages = [];
         foreach ($input as $message) {
+            if (\is_array($message) && !isset($message['role']) && 1 === \count($message) && \is_string($message['user'] ?? $message['assistant'] ?? null)) {
+                $messages[] = $message;
+                continue;
+            }
+
             if (!\is_array($message) || !\in_array($message['role'] ?? null, ['user', 'assistant'], true)) {
                 continue;
             }
