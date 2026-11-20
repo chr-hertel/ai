@@ -60,6 +60,7 @@ use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
 use Symfony\AI\Agent\Toolbox\Tool\Subagent;
 use Symfony\AI\Agent\Toolbox\ToolFactory\ChainFactory;
 use Symfony\AI\Agent\Toolbox\ToolFactory\MemoryToolFactory;
+use Symfony\AI\AiBundle\Command\SetupFeedbackCommand;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\DoctrineVectorDistancePass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
@@ -72,6 +73,15 @@ use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
 use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
 use Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver;
+use Symfony\AI\Feedback\Bridge\Doctrine\DoctrineRecorder;
+use Symfony\AI\Feedback\Bridge\Langfuse\LangfuseRecorder;
+use Symfony\AI\Feedback\Bridge\Phoenix\PhoenixRecorder;
+use Symfony\AI\Feedback\ChainRecorder;
+use Symfony\AI\Feedback\EventListener\GuardrailSignalListener;
+use Symfony\AI\Feedback\EventListener\ToolErrorSignalListener;
+use Symfony\AI\Feedback\FeedbackRecorderInterface;
+use Symfony\AI\Feedback\Messenger\MessengerRecorder;
+use Symfony\AI\Feedback\Messenger\RecordFeedbackHandler;
 use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
@@ -225,6 +235,7 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Translation\TranslatableMessage;
@@ -408,6 +419,10 @@ final class AiBundle extends AbstractBundle
             if (1 === \count($config['retriever']) && isset($retrieverName)) {
                 $builder->setAlias(RetrieverInterface::class, 'ai.retriever.'.$retrieverName);
             }
+        }
+
+        if ($config['feedback']['enabled']) {
+            $this->processFeedbackConfig($config['feedback'], $builder);
         }
 
         if ($config['tracing']['enabled']) {
@@ -3162,6 +3177,93 @@ final class AiBundle extends AbstractBundle
         $definition->addTag('ai.indexer', ['name' => $name]);
         $container->setDefinition($serviceId, $definition);
         $container->registerAliasForArgument($serviceId, IndexerInterface::class, (new Target((string) $name))->getParsedName());
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function processFeedbackConfig(array $config, ContainerBuilder $container): void
+    {
+        if (!ContainerBuilder::willBeAvailable('symfony/ai-feedback', FeedbackRecorderInterface::class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException('Feedback configuration requires "symfony/ai-feedback" package. Try running "composer require symfony/ai-feedback".');
+        }
+
+        $recorders = array_map(static fn (string $id): Reference => new Reference($id), $config['recorders']['services']);
+
+        if (isset($config['recorders']['langfuse'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-langfuse-feedback-recorder', LangfuseRecorder::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('The Langfuse feedback recorder requires "symfony/ai-langfuse-feedback-recorder" package. Try running "composer require symfony/ai-langfuse-feedback-recorder".');
+            }
+
+            $langfuse = $config['recorders']['langfuse'];
+            $container->setDefinition('ai.feedback.recorder.langfuse', new Definition(LangfuseRecorder::class, [
+                new Reference('http_client'),
+                $langfuse['host'],
+                $langfuse['public_key'],
+                $langfuse['secret_key'],
+            ]));
+            $recorders[] = new Reference('ai.feedback.recorder.langfuse');
+        }
+
+        if (isset($config['recorders']['phoenix'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-phoenix-feedback-recorder', PhoenixRecorder::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('The Phoenix feedback recorder requires "symfony/ai-phoenix-feedback-recorder" package. Try running "composer require symfony/ai-phoenix-feedback-recorder".');
+            }
+
+            $container->setDefinition('ai.feedback.recorder.phoenix', new Definition(PhoenixRecorder::class, [
+                new Reference('http_client'),
+                $config['recorders']['phoenix']['endpoint'],
+                $config['recorders']['phoenix']['api_key'],
+            ]));
+            $recorders[] = new Reference('ai.feedback.recorder.phoenix');
+        }
+
+        if (isset($config['recorders']['doctrine'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-doctrine-feedback-recorder', DoctrineRecorder::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('The Doctrine feedback recorder requires "symfony/ai-doctrine-feedback-recorder" package. Try running "composer require symfony/ai-doctrine-feedback-recorder".');
+            }
+
+            $container->setDefinition('ai.feedback.recorder.doctrine', new Definition(DoctrineRecorder::class, [
+                new Reference(\sprintf('doctrine.dbal.%s_connection', $config['recorders']['doctrine']['connection'])),
+                $config['recorders']['doctrine']['table'],
+            ]));
+            $container->setDefinition('ai.command.setup_feedback', new Definition(SetupFeedbackCommand::class, [new Reference('ai.feedback.recorder.doctrine')]))
+                ->addTag('console.command');
+            $recorders[] = new Reference('ai.feedback.recorder.doctrine');
+        }
+
+        $container->setDefinition('ai.feedback.recorder.chain', new Definition(ChainRecorder::class, [
+            $recorders,
+            new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
+        ]));
+
+        if ($config['async']) {
+            if (!interface_exists(MessageBusInterface::class)) {
+                throw new RuntimeException('Recording feedback asynchronously requires "symfony/messenger" package. Try running "composer require symfony/messenger".');
+            }
+
+            $container->setDefinition('ai.feedback.recorder', new Definition(MessengerRecorder::class, [new Reference('messenger.default_bus')]));
+            $container->setDefinition('ai.feedback.record_handler', new Definition(RecordFeedbackHandler::class, [new Reference('ai.feedback.recorder.chain')]))
+                ->addTag('messenger.message_handler');
+        } else {
+            $container->setAlias('ai.feedback.recorder', 'ai.feedback.recorder.chain');
+        }
+
+        $container->setAlias(FeedbackRecorderInterface::class, 'ai.feedback.recorder');
+
+        if ($config['signals']['tool_errors']) {
+            $container->setDefinition('ai.feedback.listener.tool_errors', new Definition(ToolErrorSignalListener::class, [
+                new Reference('ai.feedback.recorder'),
+                new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
+            ]))->addTag('kernel.event_listener', ['event' => ToolCallsExecuted::class]);
+        }
+
+        if ($config['signals']['guardrails']) {
+            $container->setDefinition('ai.feedback.listener.guardrails', new Definition(GuardrailSignalListener::class, [
+                new Reference('ai.feedback.recorder'),
+                new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
+            ]))->addTag('kernel.event_listener', ['event' => GuardrailTriggered::class]);
+        }
     }
 
     /**

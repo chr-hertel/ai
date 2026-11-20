@@ -1753,6 +1753,44 @@ The endpoints shown are the defaults. The spans are sent over HTTP in batches, o
 command finished. For sampling, other protocols or a tracer provider shared with the rest of your application, set up
 OpenTelemetry yourself and pass its ``tracer_provider`` instead.
 
+.. _ai-bundle-feedback:
+
+Feedback
+--------
+
+To learn which answers fail, record the feedback of your users and implicit signals on the runs of your agents with
+the :doc:`Feedback component </components/feedback>`. Configure where the feedback goes:
+
+.. code-block:: yaml
+
+    ai:
+        feedback:
+            recorders:
+                langfuse:
+                    public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                    secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                    host: '%env(LANGFUSE_HOST)%'
+                # phoenix: { endpoint: 'http://localhost:6006', api_key: '%env(PHOENIX_API_KEY)%' }
+                # doctrine: { connection: 'default', table: 'ai_feedback' }
+                # services: ['app.feedback_recorder']
+            # records the feedback in a Messenger handler instead of during the request
+            async: true
+            signals:
+                tool_errors: true
+                guardrails: true
+
+Every configured recorder gets each feedback. Inject
+:class:`Symfony\\AI\\Feedback\\FeedbackRecorderInterface` to record the feedback of a user, keyed by the
+``run_id`` of the result. A failed tool call and a guardrail intervention are recorded as negative signals unless you
+disable them under ``signals``.
+
+With ``async: true``, route ``Symfony\AI\Feedback\Messenger\RecordFeedback`` to an async transport. The
+``doctrine`` recorder writes into a table of the DBAL connection. Create the table with:
+
+.. code-block:: terminal
+
+    $ php bin/console ai:feedback:setup
+
 Message stores
 --------------
 

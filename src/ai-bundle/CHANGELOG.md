@@ -32,6 +32,7 @@ CHANGELOG
  * Add `content_redactor` and `user_id_resolver` to the `tracing` configuration, record guardrail interventions as span events and flush SDK tracer providers also when configured with `tracer_provider`
  * Add the `prompt_registry` option and the `registry`, `version` and `variables` options of the agent `prompt` to use versioned prompts
  * Add the `budget` agent option to stop a run once it spent `max_tokens_per_run` or `max_cost_per_run`, and the `price` of the `models` of a `model_catalog`
+ * Add the `feedback` configuration recording feedback and implicit signals with the Langfuse, Arize Phoenix and Doctrine recorders or your own, optionally through Messenger, and the `ai:feedback:setup` command
 
 0.15
 ----
