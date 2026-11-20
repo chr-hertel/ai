@@ -481,6 +481,12 @@ component for a cost budget::
 
 Every run has its own budget. A stopped run dispatches a ``GuardrailTriggered`` event.
 
+The listener limits the runs of all agents using the event dispatcher. To limit the runs of one agent only, pass
+``onlyProcessedRuns: true`` and add the budget as the last input processor of that agent::
+
+    $budget = new RunBudget(maxTokens: 20_000, eventDispatcher: $dispatcher, onlyProcessedRuns: true);
+    $agent = new Agent($platform, 'gpt-4o', [...$inputProcessors, $budget], eventDispatcher: $dispatcher);
+
 Guardrails
 ----------
 

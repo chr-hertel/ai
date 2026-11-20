@@ -22,6 +22,7 @@ use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Platform\Cost\CostCalculator;
 use Symfony\AI\Platform\Cost\PriceTable;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\AI\Platform\Test\MockPlatformFactory;
@@ -82,10 +83,32 @@ final class RunBudgetTest extends TestCase
         $this->assertSame(300, $budget->getSpent($runContext)['tokens'] ?? null);
     }
 
+    public function testBudgetAsInputProcessorOnlyLimitsTheRunsOfItsAgent()
+    {
+        $guardrails = [];
+        $invocations = 0;
+        $dispatcher = new EventDispatcher();
+        $budget = new RunBudget(maxTokens: 250, eventDispatcher: $dispatcher, onlyProcessedRuns: true);
+        $limited = $this->createLoopingAgent($budget, $dispatcher, $guardrails, $invocations, [$budget]);
+        $unlimited = new Agent(MockPlatformFactory::createPlatform(static function () use (&$invocations): ResultInterface {
+            $result = 0 === $invocations++ ? new ToolCallResult([new ToolCall('call-other', 'tool_no_params')]) : new TextResult('Done.');
+            $result->getMetadata()->add('token_usage', new TokenUsage(totalTokens: 1000));
+
+            return $result;
+        }), 'gpt-4o', toolbox: new Toolbox([new ToolNoParams()]), eventDispatcher: $dispatcher);
+
+        $this->assertSame('Done.', $unlimited->call('Hi')->getContent());
+        $this->assertCount(0, $guardrails);
+
+        $limited->call('Loop forever')->getContent();
+        $this->assertCount(1, $guardrails);
+    }
+
     /**
      * @param list<GuardrailTriggered> $guardrails
+     * @param list<RunBudget>          $inputProcessors
      */
-    private function createLoopingAgent(RunBudget $budget, EventDispatcher $dispatcher, array &$guardrails, int &$invocations): Agent
+    private function createLoopingAgent(RunBudget $budget, EventDispatcher $dispatcher, array &$guardrails, int &$invocations, array $inputProcessors = []): Agent
     {
         $dispatcher->addListener(ToolCallsExecuted::class, $budget);
         $dispatcher->addListener(GuardrailTriggered::class, static function (GuardrailTriggered $event) use (&$guardrails): void {
@@ -100,6 +123,6 @@ final class RunBudgetTest extends TestCase
             return $result;
         });
 
-        return new Agent($platform, 'gpt-4o', toolbox: new Toolbox([new ToolNoParams()]), eventDispatcher: $dispatcher);
+        return new Agent($platform, 'gpt-4o', $inputProcessors, toolbox: new Toolbox([new ToolNoParams()]), eventDispatcher: $dispatcher);
     }
 }
