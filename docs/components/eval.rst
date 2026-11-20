@@ -291,6 +291,15 @@ kappa is below the given value, so you can check the judge in CI:
 Run the calibration when you change the judge, its criteria or its model, not on every run of a suite. The result
 does not depend on the agent under test, and every calibration pays for a judge call per labeled run.
 
+To block a release on a judge that drifted from your labels, add the
+:class:`Symfony\\AI\\Eval\\Gate\\MinKappaGate` to a suite. It calibrates the judge each time the suite runs, so
+put it in a suite you run when the judge changes::
+
+    use Symfony\AI\Eval\Gate\MinKappaGate;
+
+    // fails if Cohen's kappa of the judge is below 0.6
+    $gate = new MinKappaGate($judge, $labeledRuns, 0.6);
+
 Online Evaluation
 -----------------
 

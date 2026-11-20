@@ -1824,6 +1824,8 @@ release. Configure a suite per agent:
                         label_pass_rate: { refund: 0.95 }
                         regression: { baseline: 'baseline', max_drop: 0.02 }
                         max_cost_per_case: 0.05
+                        # calibrates the judge with the labeled runs of the "app.labeled_runs" service
+                        min_kappa: { judge: 'support_judge', runs: 'app.labeled_runs', min: 0.6 }
 
 A variant runs the agent with its platform, model or ``prompt_version`` of a registry prompt, and the processors of
 the configured agent. Without variants, the suite runs the agent as configured. Run a suite with:

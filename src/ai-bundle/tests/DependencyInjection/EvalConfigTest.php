@@ -26,6 +26,7 @@ use Symfony\AI\Eval\Evaluator\LlmJudge;
 use Symfony\AI\Eval\Evaluator\Similarity;
 use Symfony\AI\Eval\Evaluator\ToolsCalled;
 use Symfony\AI\Eval\Gate\CostPerCaseGate;
+use Symfony\AI\Eval\Gate\MinKappaGate;
 use Symfony\AI\Eval\Gate\PassRateGate;
 use Symfony\AI\Eval\Gate\RegressionGate;
 use Symfony\AI\Eval\Online\EvaluateRunHandler;
@@ -88,6 +89,7 @@ final class EvalConfigTest extends TestCase
                     'label_pass_rate' => ['refund' => 0.95],
                     'regression' => ['baseline' => 'baseline'],
                     'max_cost_per_case' => 0.05,
+                    'min_kappa' => ['judge' => 'tools_called', 'runs' => 'app.labeled_runs', 'min' => 0.6],
                 ],
             ]]],
         ]);
@@ -104,8 +106,8 @@ final class EvalConfigTest extends TestCase
         $this->assertSame(['cheap', ['platform' => 'ai.platform.openai', 'model' => 'gpt-4o-mini']], $variants[1]->getArguments());
 
         $this->assertEquals([new Reference('ai.eval.evaluator.tools_called'), new Reference('app.evaluator')], $suite->getArgument(4));
-        $this->assertSame(
-            [[PassRateGate::class, [0.9]], [PassRateGate::class, [0.95, 'refund']], [RegressionGate::class, ['baseline', 0.02]], [CostPerCaseGate::class, [0.05]]],
+        $this->assertEquals(
+            [[PassRateGate::class, [0.9]], [PassRateGate::class, [0.95, 'refund']], [RegressionGate::class, ['baseline', 0.02]], [CostPerCaseGate::class, [0.05]], [MinKappaGate::class, [new Reference('ai.eval.evaluator.tools_called'), new Reference('app.labeled_runs'), 0.6]]],
             array_map(static fn (Definition $gate): array => [$gate->getClass(), $gate->getArguments()], $suite->getArgument(5)),
         );
         $this->assertSame(2, $suite->getArgument(6));

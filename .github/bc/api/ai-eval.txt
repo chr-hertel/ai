@@ -94,6 +94,9 @@ Symfony\AI\Eval\Gate\CostPerCaseGate::__construct(): public function __construct
 Symfony\AI\Eval\Gate\CostPerCaseGate::check(): public function check(Symfony\AI\Eval\Report\Report $report): array
 Symfony\AI\Eval\Gate\GateInterface: interface
 Symfony\AI\Eval\Gate\GateInterface::check(): public function check(Symfony\AI\Eval\Report\Report $report): array
+Symfony\AI\Eval\Gate\MinKappaGate: final class implements Symfony\AI\Eval\Gate\GateInterface
+Symfony\AI\Eval\Gate\MinKappaGate::__construct(): public function __construct(Symfony\AI\Eval\EvaluatorInterface $judge, iterable $labeledRuns, float $min, Symfony\AI\Eval\Calibration\JudgeCalibrator $calibrator = new \Symfony\AI\Eval\Calibration\JudgeCalibrator())
+Symfony\AI\Eval\Gate\MinKappaGate::check(): public function check(Symfony\AI\Eval\Report\Report $report): array
 Symfony\AI\Eval\Gate\PassRateGate: final class implements Symfony\AI\Eval\Gate\GateInterface
 Symfony\AI\Eval\Gate\PassRateGate::__construct(): public function __construct(float $min, null|string $label = null, array|null $variants = null)
 Symfony\AI\Eval\Gate\PassRateGate::check(): public function check(Symfony\AI\Eval\Report\Report $report): array

@@ -92,6 +92,7 @@ use Symfony\AI\Eval\Evaluator\ToolArguments;
 use Symfony\AI\Eval\Evaluator\ToolsCalled;
 use Symfony\AI\Eval\EvaluatorInterface;
 use Symfony\AI\Eval\Gate\CostPerCaseGate;
+use Symfony\AI\Eval\Gate\MinKappaGate;
 use Symfony\AI\Eval\Gate\PassRateGate;
 use Symfony\AI\Eval\Gate\RegressionGate;
 use Symfony\AI\Eval\Online\EvaluateRunHandler;
@@ -3367,6 +3368,10 @@ final class AiBundle extends AbstractBundle
             }
             if (null !== $suite['gates']['max_cost_per_case']) {
                 $gates[] = new Definition(CostPerCaseGate::class, [$suite['gates']['max_cost_per_case']]);
+            }
+            if (isset($suite['gates']['min_kappa'])) {
+                $minKappa = $suite['gates']['min_kappa'];
+                $gates[] = new Definition(MinKappaGate::class, [$this->evaluatorReference($minKappa['judge'], $container), new Reference($minKappa['runs']), $minKappa['min']]);
             }
 
             $container->setDefinition('ai.eval.suite.'.$name, new Definition(Suite::class, [
