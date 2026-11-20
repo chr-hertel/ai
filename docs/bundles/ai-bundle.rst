@@ -611,6 +611,32 @@ Then configure the prompt with translation enabled:
 The system prompt text will be automatically translated using the configured translator service.
 If no translation domain is specified, the default domain will be used.
 
+Versioned Prompts
+~~~~~~~~~~~~~~~~~
+
+To know which prompt version produced an answer, keep the system prompts in versioned YAML files, see
+:doc:`the Agent documentation </components/agent>` for the file format. Configure the directories of the files and
+use a prompt of the registry for an agent:
+
+.. code-block:: yaml
+
+    ai:
+        prompt_registry:
+            paths: ['%kernel.project_dir%/prompts']
+        agent:
+            support:
+                model: 'gpt-4o-mini'
+                prompt:
+                    registry: 'support/system'
+                    # the latest version when omitted
+                    version: '2026-08-v2'
+                    variables:
+                        shop_name: 'Acme'
+
+The agent resolves the prompt for every call and records its name and version in the run context. The registry is
+available as ``Symfony\AI\Agent\Prompt\PromptRegistryInterface`` service. A registry prompt can't include the tools
+or be translated.
+
 Message Template Support
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

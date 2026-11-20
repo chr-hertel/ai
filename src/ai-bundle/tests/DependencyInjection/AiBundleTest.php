@@ -6914,7 +6914,7 @@ class AiBundleTest extends TestCase
     public function testSystemPromptArrayWithoutTextKeyThrowsException()
     {
         $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('Either "text" or "file" must be configured for prompt.');
+        $this->expectExceptionMessage('Either "text", "file" or "registry" must be configured for prompt.');
 
         $this->buildContainer([
             'ai' => [
@@ -6932,7 +6932,7 @@ class AiBundleTest extends TestCase
     public function testSystemPromptWithOnlyIncludeToolsThrowsException()
     {
         $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('Either "text" or "file" must be configured for prompt.');
+        $this->expectExceptionMessage('Either "text", "file" or "registry" must be configured for prompt.');
 
         $this->buildContainer([
             'ai' => [

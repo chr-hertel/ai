@@ -46,6 +46,9 @@ use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
 use Symfony\AI\Agent\MultiAgent\Handoff;
 use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\OutputProcessorInterface;
+use Symfony\AI\Agent\Prompt\PromptInputProcessor;
+use Symfony\AI\Agent\Prompt\PromptRegistryInterface;
+use Symfony\AI\Agent\Prompt\YamlPromptRegistry;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
@@ -286,6 +289,15 @@ final class AiBundle extends AbstractBundle
         }
         if (1 === \count($taggedPlatforms)) {
             $builder->setAlias(PlatformInterface::class, array_key_first($taggedPlatforms));
+        }
+
+        if (isset($config['prompt_registry'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-agent', Agent::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Prompt registry configuration requires "symfony/ai-agent" package. Try running "composer require symfony/ai-agent".');
+            }
+
+            $builder->setDefinition('ai.prompt_registry', new Definition(YamlPromptRegistry::class, [$config['prompt_registry']['paths']]));
+            $builder->setAlias(PromptRegistryInterface::class, 'ai.prompt_registry');
         }
 
         if ([] !== ($config['agent'] ?? [])) {
@@ -1683,7 +1695,18 @@ final class AiBundle extends AbstractBundle
         }
 
         // SYSTEM PROMPT
-        if (isset($config['prompt'])) {
+        if (isset($config['prompt']['registry'])) {
+            if (!$container->hasDefinition('ai.prompt_registry')) {
+                throw new InvalidArgumentException(\sprintf('Agent "%s" uses the prompt "%s" of the registry, but no "prompt_registry" is configured.', $name, $config['prompt']['registry']));
+            }
+
+            $container->setDefinition('ai.agent.'.$name.'.prompt_processor', new Definition(PromptInputProcessor::class, [
+                new Reference('ai.prompt_registry'),
+                $config['prompt']['registry'],
+                $config['prompt']['version'] ?? null,
+                $config['prompt']['variables'],
+            ]))->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -30]);
+        } elseif (isset($config['prompt'])) {
             $includeTools = isset($config['prompt']['include_tools']) && $config['prompt']['include_tools'];
 
             if ($includeTools && !$config['tools']['enabled']) {

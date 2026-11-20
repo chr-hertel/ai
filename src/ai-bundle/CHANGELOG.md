@@ -30,6 +30,7 @@ CHANGELOG
  * Show the configured platforms, toolboxes, agents, message stores and stores, their service ids and collected calls in the profiler panel
  * Add `tracing` configuration to trace platforms, agents, toolboxes and retrievers with OpenTelemetry through `symfony/ai-telemetry`, exporting to Langfuse, Arize Phoenix, Jaeger, Grafana Tempo or any OTLP endpoint with the `exporter` option and recording the authenticated user with `capture_user`
  * Add `content_redactor` and `user_id_resolver` to the `tracing` configuration, record guardrail interventions as span events and flush SDK tracer providers also when configured with `tracer_provider`
+ * Add the `prompt_registry` option and the `registry`, `version` and `variables` options of the agent `prompt` to use versioned prompts
 
 0.15
 ----

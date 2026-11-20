@@ -290,17 +290,29 @@ return static function (DefinitionConfigurator $configurator): void {
                                     if (!\is_array($v)) {
                                         return false;
                                     }
-                                    $hasTextOrFile = isset($v['text']) || isset($v['file']);
+                                    $hasTextOrFile = isset($v['text']) || isset($v['file']) || isset($v['registry']);
 
                                     return !$hasTextOrFile;
                                 })
-                                ->thenInvalid('Either "text" or "file" must be configured for prompt.')
+                                ->thenInvalid('Either "text", "file" or "registry" must be configured for prompt.')
                             ->end()
                             ->validate()
                                 ->ifTrue(static function ($v) {
-                                    return \is_array($v) && isset($v['text']) && isset($v['file']);
+                                    return \is_array($v) && \count(array_filter([$v['text'] ?? null, $v['file'] ?? null, $v['registry'] ?? null], static fn ($value): bool => null !== $value)) > 1;
                                 })
-                                ->thenInvalid('Cannot use both "text" and "file" for prompt. Choose one.')
+                                ->thenInvalid('Cannot combine "text", "file" and "registry" for prompt. Choose one.')
+                            ->end()
+                            ->validate()
+                                ->ifTrue(static function ($v) {
+                                    return \is_array($v) && !isset($v['registry']) && (isset($v['version']) || [] !== ($v['variables'] ?? []));
+                                })
+                                ->thenInvalid('The prompt "version" and "variables" are only used with "registry".')
+                            ->end()
+                            ->validate()
+                                ->ifTrue(static function ($v) {
+                                    return \is_array($v) && isset($v['registry']) && (($v['include_tools'] ?? false) || ($v['enable_translation'] ?? false));
+                                })
+                                ->thenInvalid('A prompt of the "registry" supports neither "include_tools" nor "enable_translation".')
                             ->end()
                             ->validate()
                                 ->ifTrue(static function ($v) {
@@ -326,6 +338,18 @@ return static function (DefinitionConfigurator $configurator): void {
                                 ->end()
                                 ->stringNode('file')
                                     ->info('Path to file containing the system prompt')
+                                ->end()
+                                ->stringNode('registry')
+                                    ->info('Name of a versioned prompt of the "prompt_registry", resolved for every call')
+                                ->end()
+                                ->stringNode('version')
+                                    ->info('Version of the registry prompt, the latest version when omitted')
+                                ->end()
+                                ->arrayNode('variables')
+                                    ->info('Values of the placeholders of the registry prompt, e.g. "shop_name" for "{shop_name}"')
+                                    ->useAttributeAsKey('name')
+                                    ->normalizeKeys(false)
+                                    ->scalarPrototype()->end()
                                 ->end()
                                 ->booleanNode('include_tools')
                                     ->info('Include tool definitions at the end of the system prompt')
@@ -403,6 +427,17 @@ return static function (DefinitionConfigurator $configurator): void {
                                 ->thenInvalid('At least one of "tts_model" or "stt_model" must be configured when speech is enabled.')
                             ->end()
                         ->end()
+                    ->end()
+                ->end()
+            ->end()
+            ->arrayNode('prompt_registry')
+                ->info('Versioned prompts loaded from YAML files, requires "symfony/yaml"')
+                ->children()
+                    ->arrayNode('paths')
+                        ->info('Directories containing one *.yaml file per prompt')
+                        ->isRequired()
+                        ->requiresAtLeastOneElement()
+                        ->stringPrototype()->end()
                     ->end()
                 ->end()
             ->end()
