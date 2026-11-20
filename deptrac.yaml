@@ -433,6 +433,10 @@ deptrac:
       collectors:
         - type: classLike
           value: Symfony\\AI\\Feedback\\Bridge\\Langfuse\\.*
+    - name: FeedbackPhoenixBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Feedback\\Bridge\\Phoenix\\.*
     - name: EvalComponent
       collectors:
         - type: classLike
@@ -731,6 +735,8 @@ deptrac:
     FeedbackDoctrineBridge:
       - FeedbackComponent
     FeedbackLangfuseBridge:
+      - FeedbackComponent
+    FeedbackPhoenixBridge:
       - FeedbackComponent
     EvalComponent:
       - AgentComponent

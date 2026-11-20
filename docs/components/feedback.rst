@@ -5,7 +5,7 @@ The Feedback component records how well agent runs went: explicit feedback of us
 implicit signals like failed tool calls or guardrail interventions, and scores of automated evaluators. Every piece of
 feedback refers to a run by the run ID of the agent's :class:`Symfony\\AI\\Agent\\Run\\RunContext`. When the
 agent is traced with the :doc:`Telemetry component </components/telemetry>`, the feedback also carries the trace
-ID, so tracing backends like Langfuse can show it on the trace.
+ID, so tracing backends like Langfuse or Arize Phoenix can show it on the trace.
 
 Installation
 ------------
@@ -39,6 +39,9 @@ Recorders implement :class:`Symfony\\AI\\Feedback\\FeedbackRecorderInterface`:
 * :class:`Symfony\\AI\\Feedback\\Bridge\\Langfuse\\LangfuseRecorder` sends feedback as scores on the Langfuse trace,
   it throws an exception for feedback without a trace ID. Install it with
   ``composer require symfony/ai-langfuse-feedback-recorder``;
+* :class:`Symfony\\AI\\Feedback\\Bridge\\Phoenix\\PhoenixRecorder` sends feedback as annotations on the Arize Phoenix
+  trace, it throws an exception for feedback without a trace ID. Install it with
+  ``composer require symfony/ai-phoenix-feedback-recorder``;
 * :class:`Symfony\\AI\\Feedback\\Bridge\\Doctrine\\DoctrineRecorder` stores feedback as rows of a database table, see
   `Storing Feedback in a Database`_. Install it with ``composer require symfony/ai-doctrine-feedback-recorder``;
 * :class:`Symfony\\AI\\Feedback\\ChainRecorder` records with several recorders, a failing one does not stop the others;
@@ -60,6 +63,20 @@ table::
 The table has a row per feedback with the run ID, trace ID, message ID, name, signal, value, source, comment,
 metadata and creation time. The value and the metadata are stored as JSON, so a value keeps its type. When the same
 feedback is recorded again, the recorder updates its row instead of adding a second one.
+
+Annotating Traces in Arize Phoenix
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``PhoenixRecorder`` sends feedback to the trace annotations endpoint of the Phoenix REST API. Pass the API key
+when authentication is enabled in Phoenix::
+
+    use Symfony\AI\Feedback\Bridge\Phoenix\PhoenixRecorder;
+
+    $recorder = new PhoenixRecorder($httpClient, 'http://localhost:6006', $apiKey);
+
+Phoenix shows the feedback on the trace of the run, with the feedback name as annotation name. A boolean or numeric
+value becomes the score, a string becomes the label and the comment becomes the explanation. Feedback of users and
+annotators is marked as human feedback, all other feedback as feedback of code.
 
 Implicit Signals
 ----------------

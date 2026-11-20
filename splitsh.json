@@ -44,6 +44,7 @@
         "ai-feedback": "src/feedback",
         "ai-doctrine-feedback-recorder": "src/feedback/src/Bridge/Doctrine",
         "ai-langfuse-feedback-recorder": "src/feedback/src/Bridge/Langfuse",
+        "ai-phoenix-feedback-recorder": "src/feedback/src/Bridge/Phoenix",
         "ai-langfuse-dataset-source": "src/eval/src/Bridge/Langfuse",
         "ai-platform": {
             "prefixes": [{ "from": "src/platform", "to": "", "excludes": ["src/Bridge"] }]
