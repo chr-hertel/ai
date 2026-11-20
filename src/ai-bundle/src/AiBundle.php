@@ -35,6 +35,7 @@ use Symfony\AI\Agent\Bridge\Pogocache\MessageStore as PogocacheMessageStore;
 use Symfony\AI\Agent\Bridge\Redis\MessageStore as RedisMessageStore;
 use Symfony\AI\Agent\Bridge\Session\MessageStore as SessionMessageStore;
 use Symfony\AI\Agent\Bridge\SurrealDb\MessageStore as SurrealDbMessageStore;
+use Symfony\AI\Agent\Budget\RunBudget;
 use Symfony\AI\Agent\Event\GuardrailTriggered;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
 use Symfony\AI\Agent\InputProcessorInterface;
@@ -53,6 +54,7 @@ use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\ChainToolbox;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\FaultTolerantToolbox;
 use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
 use Symfony\AI\Agent\Toolbox\Tool\Subagent;
@@ -118,6 +120,8 @@ use Symfony\AI\Platform\Bridge\VertexAi\Factory as VertexAiFactory;
 use Symfony\AI\Platform\Bridge\Voyage\Factory as VoyageFactory;
 use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Contract\JsonSchema\Provider\SchemaProviderInterface;
+use Symfony\AI\Platform\Cost\CostCalculator;
+use Symfony\AI\Platform\Cost\PriceTable;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Job\JobClientInterface;
 use Symfony\AI\Platform\Message\Content\File;
@@ -1755,6 +1759,30 @@ final class AiBundle extends AbstractBundle
                 ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -30]);
 
             $container->setDefinition('ai.agent.'.$name.'.system_prompt_processor', $systemPromptInputProcessorDefinition);
+        }
+
+        // RUN BUDGET
+        if (isset($config['budget'])) {
+            $budgetDefinition = (new Definition(RunBudget::class))
+                ->setArgument('$maxTokens', $config['budget']['max_tokens_per_run'])
+                ->setArgument('$maxCost', $config['budget']['max_cost_per_run'])
+                ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+                ->setArgument('$onlyProcessedRuns', true)
+                // last, since the processors before it may replace the run context
+                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -1024])
+                ->addTag('kernel.event_listener', ['event' => ToolCallsExecuted::class]);
+
+            if (null !== $config['budget']['max_cost_per_run']) {
+                $modelCatalog = (new Definition(ModelCatalogInterface::class))->setFactory([new Reference($config['platform']), 'getModelCatalog']);
+                $prices = (new Definition(PriceTable::class))->setFactory([PriceTable::class, 'fromModelCatalog'])->setArguments([$modelCatalog]);
+                $budgetDefinition->setArgument('$costCalculator', new Definition(CostCalculator::class, [$prices]));
+            }
+
+            if (null !== $config['budget']['message']) {
+                $budgetDefinition->setArgument('$message', $config['budget']['message']);
+            }
+
+            $container->setDefinition('ai.agent.'.$name.'.budget', $budgetDefinition);
         }
 
         // MEMORY PROVIDER

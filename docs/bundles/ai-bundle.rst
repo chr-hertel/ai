@@ -393,6 +393,9 @@ so you can also use this option to change the capabilities of an existing model.
   :class:`Symfony\\AI\\Platform\\Bridge\\Generic\\EmbeddingsModel` for embedding models.
 * ``capabilities`` (list): The :class:`Symfony\\AI\\Platform\\Capability` cases the model supports.
   At least one capability must be specified for each model.
+* ``price`` (map, optional): The price per 1M tokens with the keys ``input``, ``output``, ``cache_read`` and
+  ``cache_write``, used by the ``max_cost_per_run`` of a :ref:`run budget <ai-bundle-run-budget>`. The cache prices
+  are the input price when omitted.
 
 The ``models`` option works with every platform and catalog: the bundled list, a custom
 ``service`` and a catalog that fetches its models from the provider API. The ``generic``,
@@ -636,6 +639,31 @@ use a prompt of the registry for an agent:
 The agent resolves the prompt for every call and records its name and version in the run context. The registry is
 available as ``Symfony\AI\Agent\Prompt\PromptRegistryInterface`` service. A registry prompt can't include the tools
 or be translated.
+
+.. _ai-bundle-run-budget:
+
+Run Budgets
+~~~~~~~~~~~
+
+A run budget stops a runaway tool calling loop gracefully. The run ends with an apology instead of asking the model
+again:
+
+.. code-block:: yaml
+
+    ai:
+        agent:
+            support:
+                model: 'gpt-4o-mini'
+                budget:
+                    max_tokens_per_run: 20000
+                    # in USD for the prices of the bridges
+                    max_cost_per_run: 0.25
+                    # the answer of a stopped run, a generic apology when omitted
+                    message: 'I could not finish this request, a colleague will get back to you.'
+
+The cost uses the prices of the platform's model catalog. A model without a price has no cost, so only its tokens
+count. Add the price of your own models with the ``price`` option of the catalog ``models``. A stopped run dispatches
+a ``GuardrailTriggered`` event.
 
 Message Template Support
 ~~~~~~~~~~~~~~~~~~~~~~~~
