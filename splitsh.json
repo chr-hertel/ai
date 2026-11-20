@@ -36,6 +36,10 @@
         "ai-symfony-mate-extension": "src/mate/src/Bridge/Symfony",
         "mcp-bundle": "src/mcp-bundle",
         "ai-telemetry": "src/telemetry",
+        "ai-jaeger-telemetry": "src/telemetry/src/Bridge/Jaeger",
+        "ai-langfuse-telemetry": "src/telemetry/src/Bridge/Langfuse",
+        "ai-phoenix-telemetry": "src/telemetry/src/Bridge/Phoenix",
+        "ai-tempo-telemetry": "src/telemetry/src/Bridge/Tempo",
         "ai-platform": {
             "prefixes": [{ "from": "src/platform", "to": "", "excludes": ["src/Bridge"] }]
         },

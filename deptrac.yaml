@@ -405,6 +405,22 @@ deptrac:
       collectors:
         - type: classLike
           value: ^Symfony\\AI\\Telemetry\\(?!Bridge\\).*
+    - name: TelemetryJaegerBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Jaeger\\.*
+    - name: TelemetryLangfuseBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Langfuse\\.*
+    - name: TelemetryPhoenixBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Phoenix\\.*
+    - name: TelemetryTempoBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Tempo\\.*
   ruleset:
     Fixtures: ~
     AgentComponent:
@@ -682,3 +698,11 @@ deptrac:
       - AgentComponent
       - PlatformComponent
       - StoreComponent
+    TelemetryJaegerBridge:
+      - TelemetryComponent
+    TelemetryLangfuseBridge:
+      - TelemetryComponent
+    TelemetryPhoenixBridge:
+      - TelemetryComponent
+    TelemetryTempoBridge:
+      - TelemetryComponent

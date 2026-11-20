@@ -173,7 +173,7 @@ decorated:
             tracer_provider: 'app.tracer_provider'
 
 With ``capture_user: true``, the bundle records the identifier of the authenticated Symfony user. Without an
-OpenTelemetry setup of your own, the bundle can also export to a :ref:`tracing backend <telemetry-exporting>`
+OpenTelemetry setup of your own, the bundle can also export to one of the :ref:`tracing backends <telemetry-exporting>`
 directly. See :ref:`the AI Bundle documentation <ai-bundle-tracing>` for all options.
 
 .. _telemetry-exporting:
@@ -183,22 +183,47 @@ Exporting the Spans
 
 Without an OpenTelemetry setup of your own, the
 :class:`Symfony\\AI\\Telemetry\\Exporter\\OtlpTracerProviderFactory` creates a tracer provider that sends the
-spans to a tracing backend with OTLP over HTTP::
+spans to a tracing backend with OTLP over HTTP. Each backend has its own bridge::
 
-    use Symfony\AI\Telemetry\Exporter\OtlpBackend;
+    use Symfony\AI\Telemetry\Bridge\Langfuse\LangfuseBackend;
     use Symfony\AI\Telemetry\Exporter\OtlpTracerProviderFactory;
     use Symfony\AI\Telemetry\SemanticConvention\GenAiAttributes;
 
     $tracerProvider = OtlpTracerProviderFactory::create(
-        // "/v1/traces" is appended to the endpoint, the protocol is "http/protobuf" by default
-        new OtlpBackend('https://otel.example.com', ['Authorization' => 'Bearer '.$token], 'http/json'),
+        new LangfuseBackend($publicKey, $secretKey),
         // resource attributes of the spans
         ['service.name' => 'shop'],
     );
     $tracer = $tracerProvider->getTracer('symfony/ai', schemaUrl: GenAiAttributes::SCHEMA_URL);
 
 The spans are sent in batches. Call ``$tracerProvider->forceFlush()`` once the response is sent, for example on the
-``kernel.terminate`` event. With an empty endpoint, the factory returns a no-op tracer provider.
+``kernel.terminate`` event. With an empty endpoint or host, the factory returns a no-op tracer provider.
+
+The following backends have a bridge:
+
+``LangfuseBackend($publicKey, $secretKey, $host)``
+    Sends the spans to `Langfuse`_, ``https://cloud.langfuse.com`` by default. Install
+    ``symfony/ai-langfuse-telemetry``.
+
+``PhoenixBackend($endpoint, $project, $apiKey)``
+    Sends the spans to `Arize Phoenix`_, ``http://localhost:6006`` by default, and files them under the given
+    project. Phoenix shows the input and output of a run in its session view, so the bridge adds ``input.value`` and
+    ``output.value`` to the agent spans. Install ``symfony/ai-phoenix-telemetry``.
+
+``JaegerBackend($endpoint)``
+    Sends the spans to `Jaeger`_, ``http://localhost:4318`` by default. Install ``symfony/ai-jaeger-telemetry``.
+
+``TempoBackend($endpoint, $tenant)``
+    Sends the spans to `Grafana Tempo`_, ``http://localhost:4318`` by default. The tenant is sent as
+    ``X-Scope-OrgID`` to a multi-tenant Tempo. Install ``symfony/ai-tempo-telemetry``.
+
+For any other backend, pass its endpoint, headers and protocol to an
+:class:`Symfony\\AI\\Telemetry\\Exporter\\OtlpBackend`::
+
+    use Symfony\AI\Telemetry\Exporter\OtlpBackend;
+
+    // "/v1/traces" is appended to the endpoint, the protocol is "http/protobuf" by default
+    $backend = new OtlpBackend('https://otel.example.com', ['Authorization' => 'Bearer '.$token], 'http/json');
 
 To support another backend, implement :class:`Symfony\\AI\\Telemetry\\Exporter\\BackendInterface`. Its
 ``decorate()`` method can adapt the spans to the backend before they are sent.
@@ -207,3 +232,5 @@ To support another backend, implement :class:`Symfony\\AI\\Telemetry\\Exporter\\
 .. _`GenAI semantic conventions`: https://github.com/open-telemetry/semantic-conventions-genai
 .. _`Langfuse`: https://langfuse.com/
 .. _`Arize Phoenix`: https://phoenix.arize.com/
+.. _`Jaeger`: https://www.jaegertracing.io/
+.. _`Grafana Tempo`: https://grafana.com/oss/tempo/

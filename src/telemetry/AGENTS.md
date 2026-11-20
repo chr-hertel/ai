@@ -20,6 +20,8 @@ Decorators that turn Symfony AI calls into OpenTelemetry spans following the Gen
 - **Exporter** (`src/Exporter/`): `BackendInterface` (endpoint, headers, protocol, resource attributes, exporter
   decorator), the generic `OtlpBackend` and `OtlpTracerProviderFactory`, which needs `open-telemetry/sdk` and
   `open-telemetry/exporter-otlp`
+- **Bridges** (`src/Bridge/`): one `BackendInterface` per tracing backend, `Langfuse`, `Phoenix`, `Jaeger` and `Tempo`.
+  Backend quirks live there, never in the decorators
 
 ## Essential Commands
 
@@ -34,4 +36,4 @@ vendor/bin/phpstan analyse
 - Token usage belongs on inference spans only, never on `invoke_agent`
 - Content (prompts, completions, tool arguments and results) is only captured with `$captureContent`
 - `user.id` is only recorded with a `UserIdResolverInterface`, on inference and agent spans
-- The decorators emit the GenAI semantic conventions only, backend quirks belong into the `decorate()` method of a `BackendInterface`
+- The decorators emit the GenAI semantic conventions only. `Bridge\Phoenix\OpenInferenceSpanExporter` derives `input.value`/`output.value` of agent spans at export time for the session view of Arize Phoenix; remove it once Phoenix derives them from `gen_ai.*.messages`

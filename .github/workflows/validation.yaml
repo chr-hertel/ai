@@ -146,6 +146,31 @@ jobs:
             - name: Validate Mate bridges are covered in deptrac.yaml
               run: .github/scripts/validate-bridge-deptrac.sh mate-extension mate
 
+    validate_telemetry_backends:
+        name: Telemetry Bridges
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Fetch base branch for LICENSE validation
+              run: git fetch origin ${{ github.base_ref || 'main' }} --depth=1
+
+            - name: Validate telemetry bridge naming conventions
+              run: .github/scripts/validate-bridge-naming.sh telemetry telemetry
+
+            - name: Validate telemetry bridges are in splitsh.json
+              run: .github/scripts/validate-bridge-splitsh.sh telemetry telemetry
+
+            - name: Validate telemetry bridges have required files
+              run: .github/scripts/validate-bridge-files.sh telemetry telemetry
+
+            - name: Validate telemetry bridges have correct type
+              run: .github/scripts/validate-bridge-type.sh telemetry telemetry
+
+            - name: Validate telemetry bridges are covered in deptrac.yaml
+              run: .github/scripts/validate-bridge-deptrac.sh telemetry telemetry
+
     validate_dependency_versions:
         name: "Validate ${{ matrix.package }} requires version ${{ matrix.version }}"
         runs-on: ubuntu-latest
