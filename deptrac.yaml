@@ -425,6 +425,10 @@ deptrac:
       collectors:
         - type: classLike
           value: ^Symfony\\AI\\Feedback\\(?!Bridge\\).*
+    - name: FeedbackDoctrineBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Feedback\\Bridge\\Doctrine\\.*
     - name: FeedbackLangfuseBridge
       collectors:
         - type: classLike
@@ -724,6 +728,8 @@ deptrac:
       - TelemetryComponent
     FeedbackComponent:
       - AgentComponent
+    FeedbackDoctrineBridge:
+      - FeedbackComponent
     FeedbackLangfuseBridge:
       - FeedbackComponent
     EvalComponent:

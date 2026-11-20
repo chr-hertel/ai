@@ -39,9 +39,27 @@ Recorders implement :class:`Symfony\\AI\\Feedback\\FeedbackRecorderInterface`:
 * :class:`Symfony\\AI\\Feedback\\Bridge\\Langfuse\\LangfuseRecorder` sends feedback as scores on the Langfuse trace,
   it throws an exception for feedback without a trace ID. Install it with
   ``composer require symfony/ai-langfuse-feedback-recorder``;
+* :class:`Symfony\\AI\\Feedback\\Bridge\\Doctrine\\DoctrineRecorder` stores feedback as rows of a database table, see
+  `Storing Feedback in a Database`_. Install it with ``composer require symfony/ai-doctrine-feedback-recorder``;
 * :class:`Symfony\\AI\\Feedback\\ChainRecorder` records with several recorders, a failing one does not stop the others;
 * :class:`Symfony\\AI\\Feedback\\Messenger\\MessengerRecorder` dispatches feedback to a message bus, so recording never
   blocks a request; :class:`Symfony\\AI\\Feedback\\Messenger\\RecordFeedbackHandler` records it on the worker.
+
+Storing Feedback in a Database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``DoctrineRecorder`` writes each feedback into a table with a Doctrine DBAL connection. The table is called
+``ai_feedback`` unless you pass another name. Call ``setup()`` once, e.g. in a deployment step, to create the
+table::
+
+    use Symfony\AI\Feedback\Bridge\Doctrine\DoctrineRecorder;
+
+    $recorder = new DoctrineRecorder($connection, 'ai_feedback');
+    $recorder->setup();
+
+The table has a row per feedback with the run ID, trace ID, message ID, name, signal, value, source, comment,
+metadata and creation time. The value and the metadata are stored as JSON, so a value keeps its type. When the same
+feedback is recorded again, the recorder updates its row instead of adding a second one.
 
 Implicit Signals
 ----------------
