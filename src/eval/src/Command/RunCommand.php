@@ -20,6 +20,7 @@ use Symfony\AI\Eval\Report\Formatter\JsonFormatter;
 use Symfony\AI\Eval\Report\Formatter\JunitFormatter;
 use Symfony\AI\Eval\Report\Formatter\MarkdownFormatter;
 use Symfony\AI\Eval\Report\Formatter\TextFormatter;
+use Symfony\AI\Eval\Report\ReportPublisherInterface;
 use Symfony\AI\Eval\Suite;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -35,11 +36,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class RunCommand extends Command
 {
     /**
-     * @param iterable<Suite> $suites
+     * @param iterable<Suite>                            $suites
+     * @param iterable<string, ReportPublisherInterface> $publishers keyed by the name given to --push, e.g. "langfuse"
      */
     public function __construct(
         private readonly iterable $suites,
         private readonly EvalRunner $runner = new EvalRunner(),
+        private readonly iterable $publishers = [],
     ) {
         parent::__construct();
     }
@@ -50,10 +53,15 @@ final class RunCommand extends Command
             ->addArgument('suite', InputArgument::REQUIRED, 'Name of the suite')
             ->addOption('variant', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Only run these variants')
             ->addOption('report', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Write a report as format:path, formats are json, junit, markdown and text')
+            ->addOption('push', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Push the results to a backend, e.g. langfuse')
             ->setHelp(<<<'HELP'
                 The <info>%command.name%</info> command runs every case of a suite for every variant and exits with 1 if a gate fails:
 
                   <info>php %command.full_name% support --variant=baseline --variant=candidate --report=junit:var/eval/junit.xml</info>
+
+                The <info>--push</info> option pushes the results to a backend, e.g. as experiment to Langfuse:
+
+                  <info>php %command.full_name% support --push=langfuse</info>
                 HELP);
     }
 
@@ -61,6 +69,7 @@ final class RunCommand extends Command
     {
         $suite = $this->suite((string) $input->getArgument('suite'));
         $reports = $this->reports($input->getOption('report'));
+        $publishers = $this->publishers($input->getOption('push'));
 
         $report = $this->runner->run($suite, $input->getOption('variant'), static function (CaseResult $result) use ($output): void {
             $output->write($result->isPassed() ? '.' : 'F');
@@ -75,6 +84,12 @@ final class RunCommand extends Command
             }
 
             $output->writeln(\sprintf(' Wrote the %s report to %s', $format, $path));
+        }
+
+        foreach ($publishers as $name => $publisher) {
+            $publisher->publish($report);
+
+            $output->writeln(\sprintf(' Pushed the results to %s', $name));
         }
 
         return $report->isPassed() ? Command::SUCCESS : Command::FAILURE;
@@ -111,6 +126,34 @@ final class RunCommand extends Command
         }
 
         return $reports;
+    }
+
+    /**
+     * @param list<string> $names
+     *
+     * @return array<string, ReportPublisherInterface>
+     */
+    private function publishers(array $names): array
+    {
+        if ([] === $names) {
+            return [];
+        }
+
+        $available = [];
+        foreach ($this->publishers as $name => $publisher) {
+            $available[$name] = $publisher;
+        }
+
+        $publishers = [];
+        foreach ($names as $name) {
+            if (!isset($available[$name])) {
+                throw new InvalidArgumentException(\sprintf('The results cannot be pushed to "%s", available backends: "%s".', $name, implode('", "', array_keys($available))));
+            }
+
+            $publishers[$name] = $available[$name];
+        }
+
+        return $publishers;
     }
 
     private function suite(string $name): Suite

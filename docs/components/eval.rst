@@ -207,6 +207,34 @@ The :class:`Symfony\\AI\\Eval\\Bridge\\Langfuse\\Command\\DatasetPullCommand` an
 :class:`Symfony\\AI\\Eval\\Bridge\\Langfuse\\Command\\DatasetAddCommand` need the ``symfony/console`` package, and
 the pull command needs ``symfony/yaml``.
 
+Pushing Runs to Langfuse
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+To compare runs in the Langfuse UI, push the results of ``ai:eval:run`` as `Langfuse experiments`_:
+
+.. code-block:: terminal
+
+    $ php bin/console ai:eval:run support --push=langfuse
+
+The ``--push`` option takes the name of a :class:`Symfony\\AI\\Eval\\Report\\ReportPublisherInterface` that you pass
+to the :class:`Symfony\\AI\\Eval\\Command\\RunCommand`. The
+:class:`Symfony\\AI\\Eval\\Bridge\\Langfuse\\LangfuseReportPublisher` creates one experiment per variant, and one per
+repetition if the suite repeats its cases::
+
+    use Symfony\AI\Eval\Bridge\Langfuse\LangfuseReportPublisher;
+    use Symfony\AI\Eval\Command\RunCommand;
+
+    $publisher = new LangfuseReportPublisher($httpClient, 'https://cloud.langfuse.com', $publicKey, $secretKey);
+    $command = new RunCommand($suites, publishers: ['langfuse' => $publisher]);
+
+Each case result becomes an experiment item with the case input, the answer and the expectations. The scores of the
+evaluators and a ``passed`` score are attached to the item. If your agent is traced, the ``trace_id`` metadata of the
+item points to the trace of the agent.
+
+A case fetched with ``fetch()`` or ``ai:eval:dataset:pull`` is linked to its Langfuse dataset item. The experiment
+belongs to the dataset if all its cases come from the same Langfuse dataset. Other cases are pushed as local items
+with the case ID.
+
 Testing Agent Behavior
 ----------------------
 
@@ -375,3 +403,4 @@ For garak, use the REST generator with a generator options file and run ``garak 
 .. _`garak`: https://reference.garak.ai/en/latest/garak.generators.rest.html
 .. _`Langfuse`: https://langfuse.com/
 .. _`Langfuse dataset`: https://langfuse.com/docs/evaluation/experiments/datasets
+.. _`Langfuse experiments`: https://langfuse.com/docs/evaluation/experiments/data-model

@@ -44,7 +44,7 @@
         "opis/json-schema": "To validate answers against a JSON schema with the JsonSchema evaluator",
         "phpunit/phpunit": "To assert agent behavior in tests with the AgentAssertionsTrait",
         "symfony/ai-feedback": "To record online evaluation scores as feedback",
-        "symfony/ai-langfuse-dataset-source": "To pull datasets from Langfuse",
+        "symfony/ai-langfuse-dataset-source": "To pull datasets from Langfuse and push eval runs to it",
         "symfony/console": "To run suites and calibrate judges with the ai:eval:run and ai:eval:calibrate commands",
         "symfony/http-foundation": "To expose an agent to external eval tools with the TargetController",
         "symfony/messenger": "To evaluate a sample of production runs asynchronously",

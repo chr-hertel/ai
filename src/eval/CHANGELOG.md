@@ -9,3 +9,4 @@ CHANGELOG
  * Add `TargetController` to expose an agent over HTTP to external eval tools like promptfoo and garak
  * Add the `JsonSchema`, `Faithfulness` and `Similarity` evaluators
  * Add metadata to `EvalCase`, read from and written to the `metadata` of a dataset case
+ * Add `ReportPublisherInterface` and the `--push` option of the `ai:eval:run` command
