@@ -93,6 +93,24 @@ final class OnlineEvaluationTest extends TestCase
         $this->assertFalse($feedback[0]->getMetadata()['passed']);
     }
 
+    public function testHandlerOfAnAgentOnlyScoresTheRunsOfThatAgent()
+    {
+        $recorder = new InMemoryRecorder();
+        $bus = new MessageBus([new HandleMessageMiddleware(new HandlersLocator([
+            EvaluateRun::class => [
+                new EvaluateRunHandler([new TextAssertions()], $recorder, 'support'),
+                new EvaluateRunHandler([new Limits()], $recorder, 'sales'),
+            ],
+        ]))]);
+
+        $agent = new Agent(MockPlatformFactory::createPlatform('Hello'), 'gpt-4o', outputProcessors: [new SamplingProcessor($bus, 1.0, ['contains' => ['Hello']], static fn (): float => 0.0, 'support')]);
+        $agent->call('Hi', ['run_context' => new RunContext('run-1')])->getContent();
+
+        $feedback = $recorder->all('run-1', Signal::EvaluatorScore);
+        $this->assertCount(1, $feedback);
+        $this->assertSame('text', $feedback[0]->getName());
+    }
+
     #[TestWith([-0.1])]
     #[TestWith([1.1])]
     public function testSampleRateMustBeAShare(float $sampleRate)

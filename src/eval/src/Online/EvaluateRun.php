@@ -27,7 +27,16 @@ final class EvaluateRun
         private readonly string $runId,
         private readonly RecordedRun $run,
         private readonly array $expectations = [],
+        private readonly ?string $agent = null,
     ) {
+    }
+
+    /**
+     * The name of the agent that produced the run, so a handler can pick the evaluators of that agent.
+     */
+    public function getAgent(): ?string
+    {
+        return $this->agent;
     }
 
     public function getRunId(): string

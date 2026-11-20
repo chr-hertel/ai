@@ -27,15 +27,21 @@ final class EvaluateRunHandler
 {
     /**
      * @param iterable<EvaluatorInterface> $evaluators
+     * @param string|null                  $agent      only scores the runs of this agent, all runs if null
      */
     public function __construct(
         private readonly iterable $evaluators,
         private readonly FeedbackRecorderInterface $recorder,
+        private readonly ?string $agent = null,
     ) {
     }
 
     public function __invoke(EvaluateRun $message): void
     {
+        if (null !== $this->agent && $message->getAgent() !== $this->agent) {
+            return;
+        }
+
         $case = new EvalCase('online-'.$message->getRunId(), '', expectations: $message->getExpectations(), sourceRun: $message->getRunId());
 
         foreach ($this->evaluators as $evaluator) {
