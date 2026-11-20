@@ -33,6 +33,7 @@ CHANGELOG
  * Add the `prompt_registry` option and the `registry`, `version` and `variables` options of the agent `prompt` to use versioned prompts
  * Add the `budget` agent option to stop a run once it spent `max_tokens_per_run` or `max_cost_per_run`, and the `price` of the `models` of a `model_catalog`
  * Add the `feedback` configuration recording feedback and implicit signals with the Langfuse, Arize Phoenix and Doctrine recorders or your own, optionally through Messenger, and the `ai:feedback:setup` command
+ * Add the `eval` configuration with model evaluators, suites run by `ai:eval:run`, the `ai:eval:calibrate` command and Langfuse datasets, and the `online_evaluation` agent option
 
 0.15
 ----

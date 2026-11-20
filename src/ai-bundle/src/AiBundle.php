@@ -67,12 +67,37 @@ use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass;
 use Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass;
+use Symfony\AI\AiBundle\Eval\SuiteAgentFactory;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
 use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
 use Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver;
+use Symfony\AI\Eval\Bridge\Langfuse\Command\DatasetAddCommand;
+use Symfony\AI\Eval\Bridge\Langfuse\Command\DatasetPullCommand;
+use Symfony\AI\Eval\Bridge\Langfuse\LangfuseDatasetSource;
+use Symfony\AI\Eval\Bridge\Langfuse\LangfuseReportPublisher;
+use Symfony\AI\Eval\Command\CalibrateCommand;
+use Symfony\AI\Eval\Command\RunCommand;
+use Symfony\AI\Eval\Dataset;
+use Symfony\AI\Eval\EvalRunner;
+use Symfony\AI\Eval\Evaluator\Faithfulness;
+use Symfony\AI\Eval\Evaluator\JsonSchema;
+use Symfony\AI\Eval\Evaluator\Limits;
+use Symfony\AI\Eval\Evaluator\LlmJudge;
+use Symfony\AI\Eval\Evaluator\Similarity;
+use Symfony\AI\Eval\Evaluator\TextAssertions;
+use Symfony\AI\Eval\Evaluator\ToolArguments;
+use Symfony\AI\Eval\Evaluator\ToolsCalled;
+use Symfony\AI\Eval\EvaluatorInterface;
+use Symfony\AI\Eval\Gate\CostPerCaseGate;
+use Symfony\AI\Eval\Gate\PassRateGate;
+use Symfony\AI\Eval\Gate\RegressionGate;
+use Symfony\AI\Eval\Online\EvaluateRunHandler;
+use Symfony\AI\Eval\Online\SamplingProcessor;
+use Symfony\AI\Eval\Suite;
+use Symfony\AI\Eval\Variant;
 use Symfony\AI\Feedback\Bridge\Doctrine\DoctrineRecorder;
 use Symfony\AI\Feedback\Bridge\Langfuse\LangfuseRecorder;
 use Symfony\AI\Feedback\Bridge\Phoenix\PhoenixRecorder;
@@ -227,6 +252,8 @@ use Symfony\AI\Telemetry\SemanticConvention\GenAiAttributes;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
+use Symfony\Component\DependencyInjection\Argument\ServiceLocatorArgument;
+use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -313,6 +340,19 @@ final class AiBundle extends AbstractBundle
 
             $builder->setDefinition('ai.prompt_registry', new Definition(YamlPromptRegistry::class, [$config['prompt_registry']['paths']]));
             $builder->setAlias(PromptRegistryInterface::class, 'ai.prompt_registry');
+        }
+
+        $usesOnlineEvaluation = [] !== array_filter($config['agent'] ?? [], static fn (array $agent): bool => isset($agent['online_evaluation']));
+        if ([] !== $config['eval']['evaluators'] || [] !== $config['eval']['suites'] || $usesOnlineEvaluation) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-eval', EvaluatorInterface::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Eval configuration requires "symfony/ai-eval" package. Try running "composer require symfony/ai-eval".');
+            }
+
+            if ($usesOnlineEvaluation && !$config['feedback']['enabled']) {
+                throw new InvalidArgumentException('Online evaluation records its scores as feedback, configure "feedback" too.');
+            }
+
+            $this->processEvaluatorConfig($config['eval']['evaluators'], $builder);
         }
 
         if ([] !== ($config['agent'] ?? [])) {
@@ -423,6 +463,25 @@ final class AiBundle extends AbstractBundle
 
         if ($config['feedback']['enabled']) {
             $this->processFeedbackConfig($config['feedback'], $builder);
+        }
+
+        if ([] !== $config['eval']['suites']) {
+            $this->processEvalSuitesConfig($config['eval']['suites'], $config['agent'] ?? [], $builder);
+        }
+
+        if (isset($config['eval']['langfuse'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-langfuse-dataset-source', LangfuseDatasetSource::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Langfuse datasets require "symfony/ai-langfuse-dataset-source" package. Try running "composer require symfony/ai-langfuse-dataset-source".');
+            }
+
+            $langfuse = [new Reference('http_client'), $config['eval']['langfuse']['host'], $config['eval']['langfuse']['public_key'], $config['eval']['langfuse']['secret_key']];
+            $builder->setDefinition('ai.eval.langfuse.dataset_source', new Definition(LangfuseDatasetSource::class, $langfuse));
+            $builder->setDefinition('ai.eval.langfuse.report_publisher', new Definition(LangfuseReportPublisher::class, $langfuse))
+                ->addTag('ai.eval.report_publisher', ['name' => 'langfuse']);
+            $builder->setDefinition('ai.eval.command.dataset_pull', new Definition(DatasetPullCommand::class, [new Reference('ai.eval.langfuse.dataset_source')]))
+                ->addTag('console.command');
+            $builder->setDefinition('ai.eval.command.dataset_add', new Definition(DatasetAddCommand::class, [new Reference('ai.eval.langfuse.dataset_source')]))
+                ->addTag('console.command');
         }
 
         if ($config['tracing']['enabled']) {
@@ -1798,6 +1857,24 @@ final class AiBundle extends AbstractBundle
             }
 
             $container->setDefinition('ai.agent.'.$name.'.budget', $budgetDefinition);
+        }
+
+        // ONLINE EVALUATION
+        if (isset($config['online_evaluation'])) {
+            $online = $config['online_evaluation'];
+            $container->setDefinition('ai.agent.'.$name.'.online_evaluation', new Definition(SamplingProcessor::class, [
+                new Reference($online['bus']),
+                $online['sample_rate'],
+                $online['expectations'],
+                null,
+                $name,
+            ]))->addTag('ai.agent.output_processor', ['agent' => $agentId]);
+
+            $container->setDefinition('ai.agent.'.$name.'.online_evaluation_handler', new Definition(EvaluateRunHandler::class, [
+                array_map(fn (string $evaluator): Reference => $this->evaluatorReference($evaluator, $container), $online['evaluators']),
+                new Reference('ai.feedback.recorder'),
+                $name,
+            ]))->addTag('messenger.message_handler');
         }
 
         // MEMORY PROVIDER
@@ -3177,6 +3254,143 @@ final class AiBundle extends AbstractBundle
         $definition->addTag('ai.indexer', ['name' => $name]);
         $container->setDefinition($serviceId, $definition);
         $container->registerAliasForArgument($serviceId, IndexerInterface::class, (new Target((string) $name))->getParsedName());
+    }
+
+    /**
+     * @param array<string, array{type: string, platform: string, model: string, threshold: float|null, prompt: string|null}> $evaluators
+     */
+    private function processEvaluatorConfig(array $evaluators, ContainerBuilder $container): void
+    {
+        $builtIn = [
+            'tools_called' => ToolsCalled::class,
+            'tool_arguments' => ToolArguments::class,
+            'text' => TextAssertions::class,
+            'limits' => Limits::class,
+            'json_schema' => JsonSchema::class,
+        ];
+        foreach ($builtIn as $name => $class) {
+            $container->setDefinition('ai.eval.evaluator.'.$name, new Definition($class));
+        }
+
+        $classes = ['llm_judge' => LlmJudge::class, 'faithfulness' => Faithfulness::class, 'similarity' => Similarity::class];
+        foreach ($evaluators as $name => $evaluator) {
+            if (isset($builtIn[$name])) {
+                throw new InvalidArgumentException(\sprintf('The evaluator "%s" has the name of a built-in evaluator.', $name));
+            }
+
+            $definition = (new Definition($classes[$evaluator['type']]))
+                ->setArgument('$platform', new Reference($evaluator['platform']))
+                ->setArgument('$model', $evaluator['model'])
+                ->setArgument('$name', $name)
+                ->addTag('ai.eval.judge');
+
+            if (null !== $evaluator['threshold']) {
+                $definition->setArgument('$threshold', $evaluator['threshold']);
+            }
+
+            if (null !== $evaluator['prompt']) {
+                $definition->setArgument('$prompt', $evaluator['prompt']);
+            }
+
+            if ('similarity' === $evaluator['type']) {
+                $definition->clearTag('ai.eval.judge');
+            }
+
+            $container->setDefinition('ai.eval.evaluator.'.$name, $definition);
+        }
+
+        $container->setDefinition('ai.eval.command.calibrate', new Definition(CalibrateCommand::class, [
+            new TaggedIteratorArgument('ai.eval.judge'),
+            new TaggedIteratorArgument('ai.eval.labeled_runs', 'name'),
+        ]))->addTag('console.command');
+    }
+
+    private function evaluatorReference(string $evaluator, ContainerBuilder $container): Reference
+    {
+        return new Reference($container->hasDefinition('ai.eval.evaluator.'.$evaluator) ? 'ai.eval.evaluator.'.$evaluator : $evaluator);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $suites
+     * @param array<string, array<string, mixed>> $agents
+     */
+    private function processEvalSuitesConfig(array $suites, array $agents, ContainerBuilder $container): void
+    {
+        $platforms = [];
+        foreach ($suites as $name => $suite) {
+            if (!isset($agents[$suite['agent']])) {
+                throw new InvalidArgumentException(\sprintf('The eval suite "%s" tests the agent "%s", which is not configured.', $name, $suite['agent']));
+            }
+
+            $agent = $agents[$suite['agent']];
+            $toolbox = $container->hasDefinition('ai.toolbox.'.$suite['agent']) ? new Reference('ai.toolbox.'.$suite['agent']) : null;
+
+            $variants = [];
+            $suitePlatforms = [$agent['platform'] => new Reference($agent['platform'])];
+            foreach ([] === $suite['variants'] ? ['default' => []] : $suite['variants'] as $variantName => $variant) {
+                $parameters = array_filter($variant, static fn (mixed $value): bool => null !== $value);
+                $parameters['model'] ??= $agent['model'];
+                if (isset($parameters['platform'])) {
+                    $suitePlatforms[$parameters['platform']] = new Reference($parameters['platform']);
+                }
+
+                $variants[] = new Definition(Variant::class, [$variantName, $parameters]);
+            }
+            $platforms += $suitePlatforms;
+
+            $usesRegistry = isset($agent['prompt']['registry']);
+            $factoryId = 'ai.eval.suite.'.$name.'.agent_factory';
+            $container->setDefinition($factoryId, new Definition(SuiteAgentFactory::class, [
+                '$platforms' => new ServiceLocatorArgument($suitePlatforms),
+                '$platform' => $agent['platform'],
+                '$model' => $agent['model'],
+                '$name' => $suite['agent'],
+                '$inputProcessors' => [], // placeholder until ProcessorCompilerPass process.
+                '$outputProcessors' => [],
+                '$toolbox' => $toolbox,
+                '$maxToolCalls' => $agent['max_tool_calls'],
+                '$eventDispatcher' => new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                '$promptRegistry' => $usesRegistry ? new Reference('ai.prompt_registry') : null,
+                '$promptName' => $usesRegistry ? $agent['prompt']['registry'] : null,
+                '$promptVariables' => $usesRegistry ? $agent['prompt']['variables'] : [],
+            ]))->addTag('ai.eval.agent_factory', ['agent' => 'ai.agent.'.$suite['agent']]);
+
+            $gates = [];
+            if (null !== $suite['gates']['pass_rate']) {
+                $gates[] = new Definition(PassRateGate::class, [$suite['gates']['pass_rate']]);
+            }
+            foreach ($suite['gates']['label_pass_rate'] as $label => $min) {
+                $gates[] = new Definition(PassRateGate::class, [$min, (string) $label]);
+            }
+            if (isset($suite['gates']['regression'])) {
+                $gates[] = new Definition(RegressionGate::class, [$suite['gates']['regression']['baseline'], $suite['gates']['regression']['max_drop']]);
+            }
+            if (null !== $suite['gates']['max_cost_per_case']) {
+                $gates[] = new Definition(CostPerCaseGate::class, [$suite['gates']['max_cost_per_case']]);
+            }
+
+            $container->setDefinition('ai.eval.suite.'.$name, new Definition(Suite::class, [
+                $name,
+                array_map(static fn (string $path): Definition => (new Definition(Dataset::class))->setFactory([Dataset::class, 'fromFile'])->setArguments([$path]), $suite['datasets']),
+                $variants,
+                (new Definition(\Closure::class))->setFactory([\Closure::class, 'fromCallable'])->setArguments([new Reference($factoryId)]),
+                array_map(fn (string $evaluator): Reference => $this->evaluatorReference($evaluator, $container), $suite['evaluators']),
+                $gates,
+                $suite['repetitions'],
+                $suite['fixtures'] ? $toolbox : null,
+            ]))->addTag('ai.eval.suite');
+        }
+
+        $catalogs = array_map(static fn (Reference $platform): Definition => (new Definition(ModelCatalogInterface::class))->setFactory([$platform, 'getModelCatalog']), array_values($platforms));
+        $prices = (new Definition(PriceTable::class))
+            ->setFactory([PriceTable::class, 'fromModelCatalog'])
+            ->setArguments([new Definition(CompositeModelCatalog::class, [$catalogs])]);
+
+        $container->setDefinition('ai.eval.command.run', (new Definition(RunCommand::class))
+            ->setArgument('$suites', new TaggedIteratorArgument('ai.eval.suite'))
+            ->setArgument('$runner', new Definition(EvalRunner::class, [new Definition(CostCalculator::class, [$prices])]))
+            ->setArgument('$publishers', new TaggedIteratorArgument('ai.eval.report_publisher', 'name')))
+            ->addTag('console.command');
     }
 
     /**

@@ -1791,6 +1791,90 @@ With ``async: true``, route ``Symfony\AI\Feedback\Messenger\RecordFeedback`` to 
 
     $ php bin/console ai:feedback:setup
 
+.. _ai-bundle-eval:
+
+Evaluation
+----------
+
+The :doc:`Eval component </components/eval>` runs your agents against datasets and checks the results before a
+release. Configure a suite per agent:
+
+.. code-block:: yaml
+
+    ai:
+        eval:
+            evaluators:
+                # usable by name next to "tools_called", "tool_arguments", "text", "limits" and "json_schema"
+                support_judge: { type: 'llm_judge', platform: 'ai.platform.openai', model: 'gpt-4o' }
+                grounded: { type: 'faithfulness', platform: 'ai.platform.openai', model: 'gpt-4o' }
+                similar: { type: 'similarity', platform: 'ai.platform.openai', model: 'text-embedding-3-small' }
+            suites:
+                support:
+                    agent: 'support'
+                    datasets: ['%kernel.project_dir%/evals/support.yaml']
+                    # answers the tool calls with the fixtures of the cases, true by default
+                    fixtures: true
+                    repetitions: 2
+                    variants:
+                        baseline: { prompt_version: '2026-08-v2' }
+                        cheap: { platform: 'ai.platform.openai', model: 'gpt-4o-mini' }
+                    evaluators: ['tools_called', 'text', 'support_judge']
+                    gates:
+                        pass_rate: 0.9
+                        label_pass_rate: { refund: 0.95 }
+                        regression: { baseline: 'baseline', max_drop: 0.02 }
+                        max_cost_per_case: 0.05
+
+A variant runs the agent with its platform, model or ``prompt_version`` of a registry prompt, and the processors of
+the configured agent. Without variants, the suite runs the agent as configured. Run a suite with:
+
+.. code-block:: terminal
+
+    $ php bin/console ai:eval:run support --report=junit:var/eval/junit.xml
+
+The command exits with ``1`` if a gate fails. The cost of a case uses the prices of the platform's model catalog.
+
+To check a judge against human labels with ``ai:eval:calibrate``, tag services that iterate over
+``Symfony\AI\Eval\Calibration\LabeledRun`` objects with ``ai.eval.labeled_runs`` and a ``name`` attribute. The
+``llm_judge`` and ``faithfulness`` evaluators are the judges of the command.
+
+To pull datasets from Langfuse, add a case from a production trace and push the results of a run to Langfuse, add
+your Langfuse credentials:
+
+.. code-block:: yaml
+
+    ai:
+        eval:
+            langfuse:
+                public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                host: '%env(LANGFUSE_HOST)%'
+
+This adds the ``ai:eval:dataset:pull`` and ``ai:eval:dataset:add`` commands and the ``--push=langfuse`` option of
+``ai:eval:run``.
+
+Online Evaluation
+~~~~~~~~~~~~~~~~~
+
+To score a sample of the production runs, configure the ``online_evaluation`` of an agent. The runs are scored in a
+Messenger handler and the scores are recorded as :ref:`feedback <ai-bundle-feedback>`:
+
+.. code-block:: yaml
+
+    ai:
+        agent:
+            support:
+                model: 'gpt-4o-mini'
+                online_evaluation:
+                    # share of the runs, between 0.0 and 1.0
+                    sample_rate: 0.1
+                    evaluators: ['limits', 'support_judge']
+                    expectations:
+                        max_tool_calls: 5
+                        judge: { criteria: 'The answer is polite and confirms every refund with a ticket ID.' }
+
+Route ``Symfony\AI\Eval\Online\EvaluateRun`` to an async transport, so the scoring doesn't delay the answer.
+
 Message stores
 --------------
 
