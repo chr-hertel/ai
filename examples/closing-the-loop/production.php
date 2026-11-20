@@ -41,6 +41,7 @@ use Symfony\AI\Feedback\EventListener\ToolErrorSignalListener;
 use Symfony\AI\Feedback\Feedback;
 use Symfony\AI\Feedback\InMemoryRecorder;
 use Symfony\AI\Feedback\Signal;
+use Symfony\AI\Platform\Bridge\Anthropic\ModelCatalog;
 use Symfony\AI\Platform\Cost\CostCalculator;
 use Symfony\AI\Platform\Cost\PriceTable;
 use Symfony\AI\Platform\Test\MockPlatformFactory;
@@ -86,7 +87,7 @@ $prompt = new PromptInputProcessor(
 
 // Guardrails and budget, reported on the trace and as implicit feedback
 $dispatcher->addListener(ToolCallRequested::class, new RefundPolicyGuard($dispatcher));
-$prices = PriceTable::fromArray(SUPPORT_PRICES);
+$prices = PriceTable::fromModelCatalog(new ModelCatalog());
 $budget = new RunBudget(maxTokens: 8_000, costCalculator: new CostCalculator($prices), eventDispatcher: $dispatcher);
 $dispatcher->addListener(ToolCallsExecuted::class, $budget);
 $dispatcher->addListener(GuardrailTriggered::class, new GuardrailSpanListener());

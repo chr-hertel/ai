@@ -471,10 +471,11 @@ component for a cost budget::
 
     use Symfony\AI\Agent\Budget\RunBudget;
     use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
+    use Symfony\AI\Platform\Bridge\OpenAi\ModelCatalog;
     use Symfony\AI\Platform\Cost\CostCalculator;
     use Symfony\AI\Platform\Cost\PriceTable;
 
-    $prices = PriceTable::fromArray(['gpt-4o' => ['input' => 2.5, 'output' => 10.0]]);
+    $prices = PriceTable::fromModelCatalog(new ModelCatalog());
     $budget = new RunBudget(maxTokens: 20_000, maxCost: 0.25, costCalculator: new CostCalculator($prices), eventDispatcher: $dispatcher);
 
     $dispatcher->addListener(ToolCallsExecuted::class, $budget);

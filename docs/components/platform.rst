@@ -782,12 +782,28 @@ aggregates its usages into a
 :class:`Symfony\\AI\\Platform\\TokenUsage\\TokenUsageAggregation`. Its ``getModel()`` answers
 only when every usage agrees on a model.
 
-To get the cost of a usage, define the prices per one million tokens and use the
-:class:`Symfony\\AI\\Platform\\Cost\\CostCalculator`. It prices an aggregation per call, and it
-bills cache reads and writes at their own price::
+To get the cost of a usage, use the :class:`Symfony\\AI\\Platform\\Cost\\CostCalculator` with a
+:class:`Symfony\\AI\\Platform\\Cost\\PriceTable`. The model catalogs of the OpenAI, Anthropic and
+Gemini bridges contain the standard prices of their text generation models, in USD per one million
+tokens. Build the table from the catalog of your platform. The calculator prices an aggregation per
+call, and it bills cache reads and writes at their own price::
 
+    use Symfony\AI\Platform\Bridge\Anthropic\ModelCatalog;
     use Symfony\AI\Platform\Cost\CostCalculator;
     use Symfony\AI\Platform\Cost\PriceTable;
+
+    $prices = PriceTable::fromModelCatalog(new ModelCatalog());
+
+    // the model is used when the usage names none, the cost is null if a model has no price
+    $cost = (new CostCalculator($prices))->calculate('claude-sonnet-4-5', $usage);
+
+    $cost?->getAmount();
+    $cost?->getCurrency(); // "USD"
+
+The catalog prices are the standard prices of the provider. They do not cover batch or priority
+processing, and for models with a higher price for long prompts, they are the price of the shorter
+prompts. To use your own prices, for example negotiated ones, another currency or a model without
+a catalog price, define them yourself::
 
     $prices = PriceTable::fromArray([
         // cache_read and cache_write fall back to the input price
@@ -795,11 +811,18 @@ bills cache reads and writes at their own price::
         'claude-sonnet-4-5' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
     ]);
 
-    // the model is used when the usage names none, the cost is null if a model has no price
-    $cost = (new CostCalculator($prices))->calculate('gpt-4o', $usage);
+You can also add a price to a model of a catalog with the ``price`` key of its definition::
 
-    $cost?->getAmount();
-    $cost?->getCurrency(); // "USD"
+    use Symfony\AI\Platform\Bridge\Anthropic\Claude;
+    use Symfony\AI\Platform\Capability;
+
+    $catalog = new ModelCatalog([
+        'claude-custom' => [
+            'class' => Claude::class,
+            'capabilities' => [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT],
+            'price' => ['input' => 3.0, 'output' => 15.0],
+        ],
+    ]);
 
 A dated snapshot like ``gpt-4o-2024-08-06`` or ``claude-sonnet-4-5-20250929`` gets the price of
 ``gpt-4o`` or ``claude-sonnet-4-5``, unless the table has its own price for the snapshot.

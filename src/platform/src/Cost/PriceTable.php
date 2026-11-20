@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Platform\Cost;
 
+use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
+
 /**
  * Looks up the price of a model, also for a dated snapshot of a configured model name.
  *
@@ -38,6 +40,21 @@ final class PriceTable
         }
 
         return new self($table, $currency);
+    }
+
+    /**
+     * Prices every model of the catalog that comes with a price, in USD per one million tokens.
+     */
+    public static function fromModelCatalog(ModelCatalogInterface $catalog): self
+    {
+        $prices = [];
+        foreach ($catalog->getModels() as $model => $definition) {
+            if (isset($definition['price'])) {
+                $prices[$model] = $definition['price'];
+            }
+        }
+
+        return self::fromArray($prices);
     }
 
     public function getCurrency(): string

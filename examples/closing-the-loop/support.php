@@ -33,12 +33,6 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 const SHOP_NOW = '2026-10-01';
 
-const SUPPORT_PRICES = [
-    'claude-sonnet-4-5' => ['input' => 3.0, 'output' => 15.0],
-    'claude-haiku-4-5' => ['input' => 1.0, 'output' => 5.0],
-    'claude-opus-4-5' => ['input' => 5.0, 'output' => 25.0],
-];
-
 #[AsTool('order_lookup', 'Looks up an order by its number and returns status and delivery date.', method: 'lookup')]
 #[AsTool('open_refund', 'Opens a refund request. Only use after confirming the order with order_lookup.', method: 'refund')]
 final class ShopTools

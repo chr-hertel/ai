@@ -473,7 +473,7 @@ function ensureUseStatements(string $source, string $namespace, array $models): 
 }
 
 /**
- * @param array<string, array{class: class-string, capabilities: list<Capability>}> $models
+ * @param array<string, array{class: class-string, capabilities: list<Capability>, price?: array<string, float>}> $models
  */
 function renderBlock(array $models): string
 {
@@ -491,6 +491,9 @@ function renderBlock(array $models): string
             $out .= '                    Capability::'.$name.",\n";
         }
         $out .= "                ],\n";
+        if (isset($config['price'])) {
+            $out .= '                '."'price' => ".exportPrice($config['price']).",\n";
+        }
         $out .= "            ],\n";
     }
 
@@ -503,4 +506,18 @@ function renderBlock(array $models): string
 function exportString(string $value): string
 {
     return "'".strtr($value, ['\\' => '\\\\', "'" => "\\'"])."'";
+}
+
+/**
+ * @param array<string, float> $price
+ */
+function exportPrice(array $price): string
+{
+    $pairs = [];
+    foreach ($price as $key => $value) {
+        $number = (string) $value;
+        $pairs[] = exportString($key).' => '.(str_contains($number, '.') ? $number : $number.'.0');
+    }
+
+    return '['.implode(', ', $pairs).']';
 }

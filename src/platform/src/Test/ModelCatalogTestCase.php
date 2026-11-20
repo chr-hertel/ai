@@ -92,6 +92,10 @@ abstract class ModelCatalogTestCase extends TestCase
             foreach ($modelDefinition['capabilities'] as $capability) {
                 $this->assertInstanceOf(Capability::class, $capability);
             }
+
+            if (isset($modelDefinition['price'])) {
+                $this->assertPriceIsValid($modelName, $modelDefinition['price']);
+            }
         }
     }
 
@@ -120,4 +124,18 @@ abstract class ModelCatalogTestCase extends TestCase
     }
 
     abstract protected function createModelCatalog(): ModelCatalogInterface;
+
+    /**
+     * @param array<string, mixed> $price
+     */
+    private function assertPriceIsValid(string $modelName, array $price): void
+    {
+        $this->assertSame([], array_diff(array_keys($price), ['input', 'output', 'cache_read', 'cache_write']), \sprintf('Model "%s" has an unknown price key', $modelName));
+        $this->assertArrayHasKey('input', $price, \sprintf('Model "%s" has no input price', $modelName));
+        $this->assertArrayHasKey('output', $price, \sprintf('Model "%s" has no output price', $modelName));
+        foreach ($price as $value) {
+            $this->assertIsFloat($value, \sprintf('Model "%s" has a price that is no float', $modelName));
+            $this->assertGreaterThanOrEqual(0.0, $value);
+        }
+    }
 }

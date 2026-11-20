@@ -40,6 +40,7 @@ use Symfony\AI\Eval\Gate\RegressionGate;
 use Symfony\AI\Eval\RecordedRun;
 use Symfony\AI\Eval\Suite;
 use Symfony\AI\Eval\Variant;
+use Symfony\AI\Platform\Bridge\Anthropic\ModelCatalog;
 use Symfony\AI\Platform\Cost\CostCalculator;
 use Symfony\AI\Platform\Cost\PriceTable;
 use Symfony\AI\Platform\Message\Message;
@@ -93,7 +94,7 @@ output()->writeln('<comment>5. Offline evaluation: golden cases and production r
 
 $application = new Application('eval');
 $application->setAutoExit(false);
-$application->addCommand(new RunCommand([$suite], new EvalRunner(new CostCalculator(PriceTable::fromArray(SUPPORT_PRICES)))));
+$application->addCommand(new RunCommand([$suite], new EvalRunner(new CostCalculator(PriceTable::fromModelCatalog(new ModelCatalog())))));
 
 $arguments = array_slice($_SERVER['argv'], 1);
 $exitCode = $application->run(new ArgvInput(['eval.php', 'ai:eval:run', 'support',

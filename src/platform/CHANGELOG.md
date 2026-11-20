@@ -4,7 +4,7 @@ CHANGELOG
 1.0
 ---
 
- * Add `Cost\PriceTable` and `Cost\CostCalculator` to calculate the cost of token usage
+ * Add `Cost\PriceTable` and `Cost\CostCalculator` to calculate the cost of token usage, with the standard prices of the OpenAI, Anthropic and Gemini models read from their model catalogs
  * [BC BREAK] Count the thinking tokens as part of the completion tokens in the Gemini and Vertex AI bridges, as all other bridges already do
  * [BC BREAK] Count the cached tokens as part of the prompt tokens in the Anthropic and Claude Code bridges, as all other bridges already do, and report cache reads through `TokenUsageInterface::getCacheReadTokens()` in every bridge that reports them
  * Add the status code and the request URL, without its query and credentials, to the message of the exceptions `HttpStatusErrorHandlingTrait` throws

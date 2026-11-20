@@ -13,7 +13,11 @@ namespace Symfony\AI\Platform\Tests\Cost;
 
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Cost\PriceTable;
+use Symfony\AI\Platform\Model;
+use Symfony\AI\Platform\ModelCatalog\CompositeModelCatalog;
+use Symfony\AI\Platform\ModelCatalog\InMemoryModelCatalog;
 
 final class PriceTableTest extends TestCase
 {
@@ -73,5 +77,28 @@ final class PriceTableTest extends TestCase
         $table = PriceTable::fromArray(['gpt-4o' => ['input' => 2.5, 'output' => 10.0]]);
 
         $this->assertSame(2.5, $table->get('unknown-model', 'gpt-4o-2024-08-06')?->getInput());
+    }
+
+    public function testModelCatalogPricesTheModelsWithAPrice()
+    {
+        $catalog = new CompositeModelCatalog([new InMemoryModelCatalog([
+            'priced' => [
+                'class' => Model::class,
+                'capabilities' => [Capability::INPUT_MESSAGES],
+                'price' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+            ],
+            'unpriced' => ['class' => Model::class, 'capabilities' => [Capability::INPUT_MESSAGES]],
+        ])]);
+
+        $table = PriceTable::fromModelCatalog($catalog);
+
+        $price = $table->get('priced');
+        $this->assertNotNull($price);
+        $this->assertSame(3.0, $price->getInput());
+        $this->assertSame(15.0, $price->getOutput());
+        $this->assertSame(0.3, $price->getCacheRead());
+        $this->assertSame(3.75, $price->getCacheWrite());
+        $this->assertNull($table->get('unpriced'));
+        $this->assertSame('USD', $table->getCurrency());
     }
 }

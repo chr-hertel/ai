@@ -20,7 +20,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -86,6 +86,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_PDF,
                     Capability::OUTPUT_STRUCTURED,
                 ],
+                'price' => ['input' => 2.0, 'output' => 8.0, 'cache_read' => 0.5],
             ],
             'gpt-4.1-mini' => [
                 'class' => Gpt::class,
@@ -98,6 +99,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_PDF,
                     Capability::OUTPUT_STRUCTURED,
                 ],
+                'price' => ['input' => 0.4, 'output' => 1.6, 'cache_read' => 0.1],
             ],
             'gpt-4.1-nano' => [
                 'class' => Gpt::class,
@@ -134,6 +136,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::OUTPUT_STRUCTURED,
                 ],
+                'price' => ['input' => 2.5, 'output' => 10.0, 'cache_read' => 1.25],
             ],
             'gpt-4o-2024-05-13' => [
                 'class' => Gpt::class,
@@ -191,6 +194,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_PDF,
                     Capability::OUTPUT_STRUCTURED,
                 ],
+                'price' => ['input' => 0.15, 'output' => 0.6, 'cache_read' => 0.075],
             ],
             'gpt-4o-mini-realtime-preview' => [
                 'class' => Realtime::class,
@@ -222,6 +226,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_PDF,
                     Capability::OUTPUT_STRUCTURED,
                 ],
+                'price' => ['input' => 1.25, 'output' => 10.0, 'cache_read' => 0.125],
             ],
             'gpt-5-chat-latest' => [
                 'class' => Gpt::class,
@@ -256,6 +261,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::OUTPUT_STRUCTURED,
                 ],
+                'price' => ['input' => 0.25, 'output' => 2.0, 'cache_read' => 0.025],
             ],
             'gpt-5-nano' => [
                 'class' => Gpt::class,
@@ -268,6 +274,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::OUTPUT_STRUCTURED,
                 ],
+                'price' => ['input' => 0.05, 'output' => 0.4, 'cache_read' => 0.005],
             ],
             'gpt-5-pro' => [
                 'class' => Gpt::class,
@@ -280,6 +287,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::INPUT_IMAGE,
                 ],
+                'price' => ['input' => 15.0, 'output' => 120.0],
             ],
             'gpt-5.1' => [
                 'class' => Gpt::class,
@@ -292,6 +300,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::INPUT_IMAGE,
                 ],
+                'price' => ['input' => 1.25, 'output' => 10.0, 'cache_read' => 0.125],
             ],
             'gpt-5.1-chat-latest' => [
                 'class' => Gpt::class,
@@ -352,6 +361,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_TEXT,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 1.75, 'output' => 14.0, 'cache_read' => 0.175],
             ],
             'gpt-5.2-chat-latest' => [
                 'class' => Gpt::class,
@@ -388,6 +398,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::INPUT_IMAGE,
                 ],
+                'price' => ['input' => 21.0, 'output' => 168.0],
             ],
             'gpt-5.3-chat-latest' => [
                 'class' => Gpt::class,
@@ -437,6 +448,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_TEXT,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 2.5, 'output' => 15.0, 'cache_read' => 0.25],
             ],
             'gpt-5.4-mini' => [
                 'class' => Gpt::class,
@@ -449,6 +461,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_TEXT,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 0.75, 'output' => 4.5, 'cache_read' => 0.075],
             ],
             'gpt-5.4-nano' => [
                 'class' => Gpt::class,
@@ -461,6 +474,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_TEXT,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 0.2, 'output' => 1.25, 'cache_read' => 0.02],
             ],
             'gpt-5.4-pro' => [
                 'class' => Gpt::class,
@@ -472,6 +486,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_TEXT,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 30.0, 'output' => 180.0],
             ],
             'gpt-5.5' => [
                 'class' => Gpt::class,
@@ -484,6 +499,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_TEXT,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 5.0, 'output' => 30.0, 'cache_read' => 0.5],
             ],
             'gpt-5.5-pro' => [
                 'class' => Gpt::class,
@@ -495,6 +511,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_TEXT,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 30.0, 'output' => 180.0],
             ],
             'gpt-5.6' => [
                 'class' => Gpt::class,
@@ -521,6 +538,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 0.2, 'output' => 1.2, 'cache_read' => 0.02],
             ],
             'gpt-5.6-sol' => [
                 'class' => Gpt::class,
@@ -534,6 +552,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 4.0, 'output' => 20.0, 'cache_read' => 0.4],
             ],
             'gpt-5.6-terra' => [
                 'class' => Gpt::class,
@@ -547,6 +566,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 2.0, 'output' => 12.0, 'cache_read' => 0.2],
             ],
             'gpt-6-astra' => [
                 'class' => Gpt::class,
@@ -560,6 +580,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 10.0, 'output' => 50.0, 'cache_read' => 1.0],
             ],
             'gpt-6-luna' => [
                 'class' => Gpt::class,
@@ -573,6 +594,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 0.1, 'output' => 0.5, 'cache_read' => 0.01],
             ],
             'gpt-6-sol' => [
                 'class' => Gpt::class,
@@ -586,6 +608,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 2.0, 'output' => 10.0, 'cache_read' => 0.2],
             ],
             'gpt-6.1-sol' => [
                 'class' => Gpt::class,
@@ -599,6 +622,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 2.0, 'output' => 10.0, 'cache_read' => 0.1],
             ],
             'gpt-daybreak-blue-latest' => [
                 'class' => Gpt::class,
@@ -752,6 +776,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::TOOL_CALLING,
                     Capability::INPUT_IMAGE,
                 ],
+                'price' => ['input' => 2.0, 'output' => 8.0, 'cache_read' => 0.5],
             ],
             'o3-deep-research' => [
                 'class' => Gpt::class,
@@ -796,6 +821,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::INPUT_IMAGE,
                 ],
+                'price' => ['input' => 20.0, 'output' => 80.0],
             ],
             'o4-mini' => [
                 'class' => Gpt::class,
