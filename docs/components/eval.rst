@@ -156,3 +156,107 @@ Online Evaluation
 The :class:`Symfony\\AI\\Eval\\Online\\SamplingProcessor` is an output processor of the agent. It sends a sample of
 production runs to a message bus, where the
 :class:`Symfony\\AI\\Eval\\Online\\EvaluateRunHandler` records the scores as feedback next to the feedback of users.
+
+Testing with External Tools
+---------------------------
+
+Tools like `promptfoo`_ and `garak`_ test an agent from the outside, for example with red-teaming attacks. They call
+the agent over HTTP. The :class:`Symfony\\AI\\Eval\\Http\\TargetController` turns a request of these tools into a call
+of your agent. Install the HttpFoundation component first:
+
+.. code-block:: terminal
+
+    $ composer require --dev symfony/http-foundation
+
+.. warning::
+
+    The controller calls your agent with any prompt it receives, without authentication. Only use it in your
+    development environment and never expose it in production.
+
+The controller takes a JSON body with a ``prompt``:
+
+.. code-block:: json
+
+    {"prompt": "I want my money back for SO-10023."}
+
+Or with a list of ``messages`` with the roles ``system``, ``user`` and ``assistant``:
+
+.. code-block:: json
+
+    {
+        "messages": [
+            {"role": "user", "content": "I want my money back."},
+            {"role": "assistant", "content": "For which order?"},
+            {"role": "user", "content": "SO-10023"}
+        ]
+    }
+
+It answers with the text of the agent in ``output``, the run ID, the token usage, the tool calls and the duration in
+seconds:
+
+.. code-block:: json
+
+    {
+        "output": "I opened the refund ticket RF-4711 for you.",
+        "run_id": "01a1f6a8-8ef8-7e59-9838-dd86e708e94e",
+        "token_usage": {"prompt": 120, "completion": 18, "total": 138},
+        "tool_calls": [{"name": "order_lookup", "arguments": {"order": "SO-10023"}}],
+        "duration": 1.84
+    }
+
+An invalid request gets a ``400`` response with an ``error`` message. The controller works with any framework that
+uses HttpFoundation. In a Symfony application, register it only in the ``dev`` environment:
+
+.. code-block:: yaml
+
+    # config/services.yaml
+    when@dev:
+        services:
+            ai.eval.target:
+                class: Symfony\AI\Eval\Http\TargetController
+                arguments: ['@ai.agent.support']
+                tags: ['controller.service_arguments']
+
+    # config/routes.yaml
+    when@dev:
+        eval_target:
+            path: /_eval/target
+            controller: ai.eval.target
+            methods: [POST]
+
+Then point promptfoo to the route with its HTTP provider:
+
+.. code-block:: yaml
+
+    # promptfooconfig.yaml
+    providers:
+        - id: http
+          config:
+              url: http://localhost:8000/_eval/target
+              method: POST
+              headers:
+                  Content-Type: application/json
+              body:
+                  prompt: '{{prompt}}'
+              transformResponse: '({ output: json.output, tokenUsage: json.token_usage })'
+
+For garak, use the REST generator with a generator options file and run ``garak --model_type rest -G rest.json``:
+
+.. code-block:: json
+
+    {
+        "rest": {
+            "RestGenerator": {
+                "name": "support agent",
+                "uri": "http://localhost:8000/_eval/target",
+                "method": "post",
+                "headers": {"Content-Type": "application/json"},
+                "req_template_json_object": {"prompt": "$INPUT"},
+                "response_json": true,
+                "response_json_field": "output"
+            }
+        }
+    }
+
+.. _`promptfoo`: https://www.promptfoo.dev/docs/providers/http/
+.. _`garak`: https://reference.garak.ai/en/latest/garak.generators.rest.html
