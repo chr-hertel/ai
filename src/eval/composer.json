@@ -42,7 +42,7 @@
         "phpunit/phpunit": "To assert agent behavior in tests with the AgentAssertionsTrait",
         "symfony/ai-feedback": "To record online evaluation scores as feedback",
         "symfony/ai-langfuse-dataset-source": "To pull datasets from Langfuse",
-        "symfony/console": "To run suites with the ai:eval:run command",
+        "symfony/console": "To run suites and calibrate judges with the ai:eval:run and ai:eval:calibrate commands",
         "symfony/messenger": "To evaluate a sample of production runs asynchronously",
         "symfony/yaml": "To load datasets from YAML files"
     },

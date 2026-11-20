@@ -107,11 +107,52 @@ The :class:`Symfony\\AI\\Eval\\Test\\AgentAssertionsTrait` brings the determinis
     $this->assertToolsCalledInOrder(['order_lookup', 'open_refund'], $run);
     $this->assertAnswerMatches('/RF-\d+/', $run);
 
-Calibrating Judges and Online Evaluation
-----------------------------------------
+Calibrating Judges
+------------------
 
-The :class:`Symfony\\AI\\Eval\\Calibration\\JudgeCalibrator` measures the agreement of an LLM judge with human labels,
-including Cohen's kappa, so a drifting judge is noticed before its scores mislead anyone. The
-:class:`Symfony\\AI\\Eval\\Online\\SamplingProcessor` is an output processor of the agent. It sends a sample of
+An LLM judge is only useful if it agrees with the people who know what a good answer is. The
+:class:`Symfony\\AI\\Eval\\Calibration\\JudgeCalibrator` runs a judge on runs a human labeled with the same criteria
+and compares the verdicts. The :class:`Symfony\\AI\\Eval\\Calibration\\CalibrationReport` gives you the agreement,
+Cohen's kappa, the false pass rate, the false fail rate and the cases where the judge and the human disagree::
+
+    use Symfony\AI\Eval\Calibration\JudgeCalibrator;
+    use Symfony\AI\Eval\Calibration\LabeledRun;
+    use Symfony\AI\Eval\RunRecorder;
+
+    $labeledRuns = [
+        new LabeledRun($case, RunRecorder::record($agent, $case->getMessages()), humanPassed: true),
+        // ...
+    ];
+
+    $report = (new JudgeCalibrator())->calibrate($judge, $labeledRuns);
+
+    if ($report->getKappa() < 0.6) {
+        // the judge is not reliable enough, improve its criteria or use a stronger model
+    }
+
+A kappa of ``1.0`` means the judge always agrees with the human, ``0.0`` means it agrees only as often as chance.
+Values above ``0.6`` are usually considered substantial agreement.
+
+The ``ai:eval:calibrate`` command of :class:`Symfony\\AI\\Eval\\Command\\CalibrateCommand` does the same on the
+command line. It takes the judges and the sets of labeled runs, keyed by the name of the set::
+
+    use Symfony\AI\Eval\Command\CalibrateCommand;
+
+    $command = new CalibrateCommand([$judge], ['support-labeled' => $labeledRuns]);
+
+Pass the name of the judge, as returned by its ``getName()`` method, and the name of the set. With the ``--min-kappa`` option, the command exits with ``1`` if the
+kappa is below the given value, so you can check the judge in CI:
+
+.. code-block:: terminal
+
+    $ php bin/console ai:eval:calibrate llm_judge support-labeled --min-kappa=0.6
+
+Run the calibration when you change the judge, its criteria or its model, not on every run of a suite. The result
+does not depend on the agent under test, and every calibration pays for a judge call per labeled run.
+
+Online Evaluation
+-----------------
+
+The :class:`Symfony\\AI\\Eval\\Online\\SamplingProcessor` is an output processor of the agent. It sends a sample of
 production runs to a message bus, where the
 :class:`Symfony\\AI\\Eval\\Online\\EvaluateRunHandler` records the scores as feedback next to the feedback of users.
