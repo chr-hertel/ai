@@ -14,6 +14,7 @@ namespace App\Blog;
 use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
+use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
@@ -48,6 +49,22 @@ final class TwigComponent
         $this->chat->submitMessage($this->message);
 
         $this->message = null;
+    }
+
+    #[LiveAction]
+    public function rate(#[LiveArg] string $messageId, #[LiveArg] bool $positive): void
+    {
+        $this->chat->rate($messageId, $positive);
+    }
+
+    public function isRatable(MessageInterface $message): bool
+    {
+        return $this->chat->isRatable($message->getId()->toRfc4122());
+    }
+
+    public function getRating(MessageInterface $message): ?bool
+    {
+        return $this->chat->getRating($message->getId()->toRfc4122());
     }
 
     #[LiveAction]

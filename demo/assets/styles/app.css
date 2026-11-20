@@ -638,6 +638,14 @@ body.chat-page {
     gap: 6px;
 }
 
+.message-rating {
+    display: flex;
+    gap: 6px;
+    /* aligned with the text of the bot message, next to the avatar */
+    margin-top: -14px;
+    padding-left: 46px;
+}
+
 .avatar {
     display: inline-flex;
     align-items: center;

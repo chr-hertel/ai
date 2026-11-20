@@ -16,6 +16,8 @@ use App\Conversation\ConversationIds;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\MessageStore\InMemoryMessageStore;
+use Symfony\AI\Feedback\InMemoryRecorder;
+use Symfony\AI\Feedback\Signal;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Model;
@@ -34,6 +36,8 @@ final class ChatTest extends TestCase
     private array $requests = [];
 
     private InMemoryMessageStore $messageStore;
+
+    private InMemoryRecorder $feedbackRecorder;
 
     public function testLoadMessagesStartsWithAnEmptyConversation()
     {
@@ -84,6 +88,37 @@ final class ChatTest extends TestCase
         $this->assertCount(0, $this->messageStore->load($previousId));
     }
 
+    public function testRatingAnAnswerRecordsFeedbackForItsRun()
+    {
+        $chat = $this->createChat();
+        $chat->submitMessage('What is Symfony?');
+        $answerId = $chat->loadMessages()->getMessages()[1]->getId()->toRfc4122();
+
+        $this->assertTrue($chat->isRatable($answerId));
+        $this->assertNull($chat->getRating($answerId));
+
+        $chat->rate($answerId, false);
+        $chat->rate($answerId, true);
+
+        $this->assertFalse($chat->getRating($answerId));
+        $feedback = $this->feedbackRecorder->all();
+        $this->assertCount(1, $feedback, 'An answer is rated only once');
+        $this->assertSame(Signal::Thumbs, $feedback[0]->getSignal());
+        $this->assertFalse($feedback[0]->getValue());
+        $this->assertSame($answerId, $feedback[0]->getMessageId());
+        $this->assertNotSame('', $feedback[0]->getRunId());
+    }
+
+    public function testUnknownMessagesAreNotRated()
+    {
+        $chat = $this->createChat();
+
+        $chat->rate('01a1f6a8-8ef8-7e59-9838-dd86e708e94e', true);
+
+        $this->assertFalse($chat->isRatable('01a1f6a8-8ef8-7e59-9838-dd86e708e94e'));
+        $this->assertCount(0, $this->feedbackRecorder->all());
+    }
+
     private function createChat(): Chat
     {
         $platform = MockPlatformFactory::createPlatform(function (Model $model, array $input): TextResult {
@@ -98,6 +133,8 @@ final class ChatTest extends TestCase
         $requestStack = new RequestStack();
         $requestStack->push($request);
 
-        return new Chat(new ConversationIds($requestStack), $this->messageStore, new Agent($platform, 'gpt-4.1', messageStore: $this->messageStore));
+        $this->feedbackRecorder = new InMemoryRecorder();
+
+        return new Chat(new ConversationIds($requestStack), $this->messageStore, new Agent($platform, 'gpt-4.1', messageStore: $this->messageStore), $this->feedbackRecorder, $requestStack);
     }
 }

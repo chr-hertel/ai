@@ -220,6 +220,13 @@ ai:
             resource_attributes:
                 service.name: 'symfony-ai-demo'
 
+    feedback:
+        recorders:
+            langfuse:
+                public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                host: '%env(LANGFUSE_HOST)%'
+
 services:
     _defaults:
         autowire: true
