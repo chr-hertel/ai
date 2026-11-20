@@ -19,10 +19,11 @@ Symfony\AI\Agent\Attribute\AsOutputProcessor: final class
 Symfony\AI\Agent\Attribute\AsOutputProcessor::$agent: public readonly null|string
 Symfony\AI\Agent\Attribute\AsOutputProcessor::$priority: public readonly int
 Symfony\AI\Agent\Attribute\AsOutputProcessor::__construct(): public function __construct(null|string $agent = null, int $priority = 0)
-Symfony\AI\Agent\Budget\RunBudget: final class
-Symfony\AI\Agent\Budget\RunBudget::__construct(): public function __construct(int|null $maxTokens = null, float|null $maxCost = null, Symfony\AI\Platform\Cost\CostCalculator|null $costCalculator = null, Symfony\Contracts\EventDispatcher\EventDispatcherInterface|null $eventDispatcher = null, string $message = 'I could not finish this request within the configured budget. Please narrow it down or ask a human for help.')
+Symfony\AI\Agent\Budget\RunBudget: final class implements Symfony\AI\Agent\InputProcessorInterface
+Symfony\AI\Agent\Budget\RunBudget::__construct(): public function __construct(int|null $maxTokens = null, float|null $maxCost = null, Symfony\AI\Platform\Cost\CostCalculator|null $costCalculator = null, Symfony\Contracts\EventDispatcher\EventDispatcherInterface|null $eventDispatcher = null, string $message = 'I could not finish this request within the configured budget. Please narrow it down or ask a human for help.', bool $onlyProcessedRuns = false)
 Symfony\AI\Agent\Budget\RunBudget::__invoke(): public function __invoke(Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted $event): void
 Symfony\AI\Agent\Budget\RunBudget::getSpent(): public function getSpent(Symfony\AI\Agent\Run\RunContext $runContext): array|null
+Symfony\AI\Agent\Budget\RunBudget::processInput(): public function processInput(Symfony\AI\Agent\Input $input): void
 Symfony\AI\Agent\Command\DropMessageStoreCommand: final class extends Symfony\Component\Console\Command\Command
 Symfony\AI\Agent\Command\DropMessageStoreCommand::__construct(): public function __construct(Symfony\Contracts\Service\ServiceProviderInterface $stores)
 Symfony\AI\Agent\Command\DropMessageStoreCommand::complete(): public function complete(Symfony\Component\Console\Completion\CompletionInput $input, Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
@@ -104,11 +105,13 @@ Symfony\AI\Agent\Execution\ExecutionStatus::Running: case
 Symfony\AI\Agent\Execution\ExecutionStatus::WaitingForInput: case
 Symfony\AI\Agent\Execution\ExecutionStatus::isFinished(): public function isFinished(): bool
 Symfony\AI\Agent\Execution\Turn: final class
-Symfony\AI\Agent\Execution\Turn::__construct(): public function __construct(Symfony\AI\Platform\Model|string $model, Symfony\AI\Platform\Result\ResultInterface $result, array $toolResults = [], float|null $duration = null)
+Symfony\AI\Agent\Execution\Turn::__construct(): public function __construct(Symfony\AI\Platform\Model|string $model, Symfony\AI\Platform\Result\ResultInterface $result, array $toolResults = [], float|null $duration = null, Symfony\AI\Platform\Message\MessageBag|null $messages = null, float|null $toolDuration = null)
 Symfony\AI\Agent\Execution\Turn::getDuration(): public function getDuration(): float|null
+Symfony\AI\Agent\Execution\Turn::getMessages(): public function getMessages(): Symfony\AI\Platform\Message\MessageBag|null
 Symfony\AI\Agent\Execution\Turn::getMetadata(): public function getMetadata(): Symfony\AI\Platform\Metadata\Metadata
 Symfony\AI\Agent\Execution\Turn::getModel(): public function getModel(): Symfony\AI\Platform\Model|string
 Symfony\AI\Agent\Execution\Turn::getResult(): public function getResult(): Symfony\AI\Platform\Result\ResultInterface
+Symfony\AI\Agent\Execution\Turn::getToolDuration(): public function getToolDuration(): float|null
 Symfony\AI\Agent\Execution\Turn::getToolResults(): public function getToolResults(): array
 Symfony\AI\Agent\Execution\Turn::hasToolResults(): public function hasToolResults(): bool
 Symfony\AI\Agent\Execution\UpdateInterface: interface
@@ -276,9 +279,8 @@ Symfony\AI\Agent\Run\RunContext::withPrompt(): public function withPrompt(Symfon
 Symfony\AI\Agent\Run\RunContext::withRelease(): public function withRelease(null|string $release): self
 Symfony\AI\Agent\Run\RunContext::withRunId(): public function withRunId(string $runId): self
 Symfony\AI\Agent\Run\RunContext::withTraceId(): public function withTraceId(null|string $traceId): self
-Symfony\AI\Agent\Run\RunScope: final class
-Symfony\AI\Agent\Run\RunScope::current(): public static function current(): Symfony\AI\Agent\Run\RunContext|null
-Symfony\AI\Agent\Run\RunScope::run(): public static function run(Symfony\AI\Agent\Run\RunContext|null $runContext, Closure $callback): mixed
+Symfony\AI\Agent\Run\RunContextAwareInterface: interface
+Symfony\AI\Agent\Run\RunContextAwareInterface::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Agent\SpeechAgent: final class implements Symfony\AI\Agent\AgentInterface
 Symfony\AI\Agent\SpeechAgent::__construct(): public function __construct(Symfony\AI\Agent\AgentInterface $agent, Symfony\AI\Agent\Speech\SpeechConfiguration $configuration, Symfony\AI\Platform\PlatformInterface|null $speechToTextPlatform = null, Symfony\AI\Platform\PlatformInterface|null $textToSpeechPlatform = null)
 Symfony\AI\Agent\SpeechAgent::call(): public function call(Symfony\AI\Platform\Message\MessageBag|Symfony\AI\Platform\Message\UserMessage|string $input, array $options = []): Symfony\AI\Agent\Execution\ExecutionInterface
@@ -291,7 +293,7 @@ Symfony\AI\Agent\Speech\SpeechConfiguration::getTextToSpeechModel(): public func
 Symfony\AI\Agent\Speech\SpeechConfiguration::getTextToSpeechOptions(): public function getTextToSpeechOptions(): array
 Symfony\AI\Agent\Speech\SpeechConfiguration::supportsSpeechToText(): public function supportsSpeechToText(): bool
 Symfony\AI\Agent\Speech\SpeechConfiguration::supportsTextToSpeech(): public function supportsTextToSpeech(): bool
-Symfony\AI\Agent\Toolbox\AbstractToolbox: abstract class implements Symfony\AI\Agent\Toolbox\ToolboxInterface
+Symfony\AI\Agent\Toolbox\AbstractToolbox: abstract class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\Agent\Toolbox\AbstractToolbox::$eventDispatcher: protected readonly Symfony\Contracts\EventDispatcher\EventDispatcherInterface|null
 Symfony\AI\Agent\Toolbox\AbstractToolbox::$logger: protected readonly Psr\Log\LoggerInterface
 Symfony\AI\Agent\Toolbox\AbstractToolbox::__construct(): public function __construct(Psr\Log\LoggerInterface $logger = new \Psr\Log\NullLogger(), Symfony\Contracts\EventDispatcher\EventDispatcherInterface|null $eventDispatcher = null)
@@ -301,6 +303,7 @@ Symfony\AI\Agent\Toolbox\AbstractToolbox::getMetadata(): final protected functio
 Symfony\AI\Agent\Toolbox\AbstractToolbox::invoke(): abstract protected function invoke(object $tool, Symfony\AI\Platform\Tool\Tool $metadata, array $arguments): mixed
 Symfony\AI\Agent\Toolbox\AbstractToolbox::prepareSources(): protected function prepareSources(object $tool): Symfony\AI\Agent\Toolbox\Source\SourceCollection|null
 Symfony\AI\Agent\Toolbox\AbstractToolbox::resolveArguments(): abstract protected function resolveArguments(object $tool, Symfony\AI\Platform\Tool\Tool $metadata, Symfony\AI\Platform\Result\ToolCall $toolCall): array
+Symfony\AI\Agent\Toolbox\AbstractToolbox::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Agent\Toolbox\Attribute\AsTool: final class
 Symfony\AI\Agent\Toolbox\Attribute\AsTool::$description: public readonly string
 Symfony\AI\Agent\Toolbox\Attribute\AsTool::$effectHints: public readonly Symfony\AI\Platform\Tool\ToolEffectHints
@@ -309,10 +312,11 @@ Symfony\AI\Agent\Toolbox\Attribute\AsTool::$method: public readonly string
 Symfony\AI\Agent\Toolbox\Attribute\AsTool::$name: public readonly string
 Symfony\AI\Agent\Toolbox\Attribute\AsTool::__construct(): public function __construct(string $name, string $description, string $method = '__invoke', array $metadata = [], Symfony\AI\Platform\Tool\ToolEffectHints $effectHints = new \Symfony\AI\Platform\Tool\ToolEffectHints())
 Symfony\AI\Agent\Toolbox\Attribute\MapToolArguments: final class
-Symfony\AI\Agent\Toolbox\ChainToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface
+Symfony\AI\Agent\Toolbox\ChainToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\Agent\Toolbox\ChainToolbox::__construct(): public function __construct(iterable $toolboxes)
 Symfony\AI\Agent\Toolbox\ChainToolbox::execute(): public function execute(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\Agent\Toolbox\ChainToolbox::getTools(): public function getTools(): array
+Symfony\AI\Agent\Toolbox\ChainToolbox::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Agent\Toolbox\EventListener\ValidateToolCallArgumentsListener: final class
 Symfony\AI\Agent\Toolbox\EventListener\ValidateToolCallArgumentsListener::__construct(): public function __construct(Symfony\Component\Validator\Validator\ValidatorInterface|null $validator = null)
 Symfony\AI\Agent\Toolbox\EventListener\ValidateToolCallArgumentsListener::__invoke(): public function __invoke(Symfony\AI\Agent\Toolbox\Event\ToolCallArgumentsResolved $event): void
@@ -322,31 +326,35 @@ Symfony\AI\Agent\Toolbox\Event\ToolCallArgumentsResolved::getArguments(): public
 Symfony\AI\Agent\Toolbox\Event\ToolCallArgumentsResolved::getDefinition(): public function getDefinition(): Symfony\AI\Platform\Tool\Tool
 Symfony\AI\Agent\Toolbox\Event\ToolCallArgumentsResolved::getTool(): public function getTool(): object
 Symfony\AI\Agent\Toolbox\Event\ToolCallFailed: final class
-Symfony\AI\Agent\Toolbox\Event\ToolCallFailed::__construct(): public function __construct(object $tool, Symfony\AI\Platform\Tool\Tool $definition, array $arguments, Throwable $exception)
+Symfony\AI\Agent\Toolbox\Event\ToolCallFailed::__construct(): public function __construct(object $tool, Symfony\AI\Platform\Tool\Tool $definition, array $arguments, Throwable $exception, Symfony\AI\Agent\Run\RunContext|null $runContext = null)
 Symfony\AI\Agent\Toolbox\Event\ToolCallFailed::getArguments(): public function getArguments(): array
 Symfony\AI\Agent\Toolbox\Event\ToolCallFailed::getDefinition(): public function getDefinition(): Symfony\AI\Platform\Tool\Tool
 Symfony\AI\Agent\Toolbox\Event\ToolCallFailed::getException(): public function getException(): Throwable
+Symfony\AI\Agent\Toolbox\Event\ToolCallFailed::getRunContext(): public function getRunContext(): Symfony\AI\Agent\Run\RunContext|null
 Symfony\AI\Agent\Toolbox\Event\ToolCallFailed::getTool(): public function getTool(): object
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested: final class implements Psr\EventDispatcher\StoppableEventInterface
-Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::__construct(): public function __construct(Symfony\AI\Platform\Result\ToolCall $toolCall, Symfony\AI\Platform\Tool\Tool $definition)
+Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::__construct(): public function __construct(Symfony\AI\Platform\Result\ToolCall $toolCall, Symfony\AI\Platform\Tool\Tool $definition, Symfony\AI\Agent\Run\RunContext|null $runContext = null)
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::deny(): public function deny(null|string $reason = null): void
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::getDefinition(): public function getDefinition(): Symfony\AI\Platform\Tool\Tool
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::getDenialReason(): public function getDenialReason(): null|string
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::getResult(): public function getResult(): Symfony\AI\Agent\Toolbox\ToolResult|null
+Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::getRunContext(): public function getRunContext(): Symfony\AI\Agent\Run\RunContext|null
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::getToolCall(): public function getToolCall(): Symfony\AI\Platform\Result\ToolCall
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::hasResult(): public function hasResult(): bool
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::isDenied(): public function isDenied(): bool
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::isPropagationStopped(): public function isPropagationStopped(): bool
 Symfony\AI\Agent\Toolbox\Event\ToolCallRequested::setResult(): public function setResult(Symfony\AI\Agent\Toolbox\ToolResult $result): void
 Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded: final class
-Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::__construct(): public function __construct(object $tool, Symfony\AI\Platform\Tool\Tool $definition, array $arguments, Symfony\AI\Agent\Toolbox\ToolResult $result)
+Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::__construct(): public function __construct(object $tool, Symfony\AI\Platform\Tool\Tool $definition, array $arguments, Symfony\AI\Agent\Toolbox\ToolResult $result, Symfony\AI\Agent\Run\RunContext|null $runContext = null)
 Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getArguments(): public function getArguments(): array
 Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getDefinition(): public function getDefinition(): Symfony\AI\Platform\Tool\Tool
 Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getResult(): public function getResult(): Symfony\AI\Agent\Toolbox\ToolResult
+Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getRunContext(): public function getRunContext(): Symfony\AI\Agent\Run\RunContext|null
 Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded::getTool(): public function getTool(): object
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted: final class
-Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::__construct(): public function __construct(array $toolResults, Symfony\AI\Agent\Execution\Turn|null $turn = null)
+Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::__construct(): public function __construct(array $toolResults, Symfony\AI\Agent\Execution\Turn|null $turn = null, Symfony\AI\Agent\Run\RunContext|null $runContext = null)
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getResult(): public function getResult(): Symfony\AI\Platform\Result\ResultInterface
+Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getRunContext(): public function getRunContext(): Symfony\AI\Agent\Run\RunContext|null
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getToolResults(): public function getToolResults(): array
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getTurn(): public function getTurn(): Symfony\AI\Agent\Execution\Turn|null
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::hasResult(): public function hasResult(): bool
@@ -375,19 +383,22 @@ Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException: final class extends Ru
 Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException::getToolCall(): public function getToolCall(): Symfony\AI\Platform\Result\ToolCall|null
 Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException::notFoundForReference(): public static function notFoundForReference(Symfony\AI\Platform\Tool\ExecutionReference $reference): self
 Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException::notFoundForToolCall(): public static function notFoundForToolCall(Symfony\AI\Platform\Result\ToolCall $toolCall): self
-Symfony\AI\Agent\Toolbox\FaultTolerantToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface
+Symfony\AI\Agent\Toolbox\FaultTolerantToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\Agent\Toolbox\FaultTolerantToolbox::__construct(): public function __construct(Symfony\AI\Agent\Toolbox\ToolboxInterface $innerToolbox)
 Symfony\AI\Agent\Toolbox\FaultTolerantToolbox::execute(): public function execute(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\Agent\Toolbox\FaultTolerantToolbox::getTools(): public function getTools(): array
-Symfony\AI\Agent\Toolbox\FiberToolExecutor: final class implements Symfony\AI\Agent\Toolbox\ToolExecutorInterface
+Symfony\AI\Agent\Toolbox\FaultTolerantToolbox::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
+Symfony\AI\Agent\Toolbox\FiberToolExecutor: final class implements Symfony\AI\Agent\Toolbox\ToolExecutorInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\Agent\Toolbox\FiberToolExecutor::__construct(): public function __construct(Symfony\AI\Agent\Toolbox\ToolboxInterface $toolbox)
 Symfony\AI\Agent\Toolbox\FiberToolExecutor::execute(): public function execute(array $toolCalls): Generator
+Symfony\AI\Agent\Toolbox\FiberToolExecutor::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Agent\Toolbox\MapToolArgumentsDescriber: final class implements Symfony\AI\Platform\Contract\JsonSchema\Describer\ObjectDescriberInterface
 Symfony\AI\Agent\Toolbox\MapToolArgumentsDescriber::__construct(): public function __construct(Symfony\AI\Platform\Contract\JsonSchema\Describer\ObjectDescriberInterface $inner = new \Symfony\AI\Platform\Contract\JsonSchema\Describer\Describer())
 Symfony\AI\Agent\Toolbox\MapToolArgumentsDescriber::describeObject(): public function describeObject(Symfony\AI\Platform\Contract\JsonSchema\Subject\ObjectSubject $subject, array|null &$schema): iterable
-Symfony\AI\Agent\Toolbox\SequentialToolExecutor: final class implements Symfony\AI\Agent\Toolbox\ToolExecutorInterface
+Symfony\AI\Agent\Toolbox\SequentialToolExecutor: final class implements Symfony\AI\Agent\Toolbox\ToolExecutorInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\Agent\Toolbox\SequentialToolExecutor::__construct(): public function __construct(Symfony\AI\Agent\Toolbox\ToolboxInterface $toolbox)
 Symfony\AI\Agent\Toolbox\SequentialToolExecutor::execute(): public function execute(array $toolCalls): Generator
+Symfony\AI\Agent\Toolbox\SequentialToolExecutor::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Agent\Toolbox\Source\HasSourcesInterface: interface
 Symfony\AI\Agent\Toolbox\Source\HasSourcesInterface::setSourceCollection(): public function setSourceCollection(Symfony\AI\Agent\Toolbox\Source\SourceCollection $sourceMap): void
 Symfony\AI\Agent\Toolbox\Source\HasSourcesTrait: trait
@@ -451,12 +462,13 @@ Symfony\AI\Agent\Toolbox\Toolbox::getTools(): public function getTools(): array
 Symfony\AI\Agent\Toolbox\ToolboxInterface: interface
 Symfony\AI\Agent\Toolbox\ToolboxInterface::execute(): public function execute(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\Agent\Toolbox\ToolboxInterface::getTools(): public function getTools(): array
-Symfony\AI\Agent\Toolbox\TraceableToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\Contracts\Service\ResetInterface
+Symfony\AI\Agent\Toolbox\TraceableToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\Contracts\Service\ResetInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\Agent\Toolbox\TraceableToolbox::__construct(): public function __construct(Symfony\AI\Agent\Toolbox\ToolboxInterface $toolbox, Symfony\Component\Stopwatch\Stopwatch|null $stopwatch = null)
 Symfony\AI\Agent\Toolbox\TraceableToolbox::execute(): public function execute(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\Agent\Toolbox\TraceableToolbox::getCalls(): public function getCalls(): array
 Symfony\AI\Agent\Toolbox\TraceableToolbox::getTools(): public function getTools(): array
 Symfony\AI\Agent\Toolbox\TraceableToolbox::reset(): public function reset(): void
+Symfony\AI\Agent\Toolbox\TraceableToolbox::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Agent\TraceableAgent: final class implements Symfony\AI\Agent\AgentInterface, Symfony\Contracts\Service\ResetInterface
 Symfony\AI\Agent\TraceableAgent::__construct(): public function __construct(Symfony\AI\Agent\AgentInterface $agent, Symfony\Component\Clock\ClockInterface $clock = new \Symfony\Component\Clock\MonotonicClock(), Symfony\Component\Stopwatch\Stopwatch|null $stopwatch = null)
 Symfony\AI\Agent\TraceableAgent::call(): public function call(Symfony\AI\Platform\Message\MessageBag|Symfony\AI\Platform\Message\UserMessage|string $input, array $options = []): Symfony\AI\Agent\Execution\ExecutionInterface

@@ -89,9 +89,10 @@ Symfony\AI\Telemetry\SemanticConvention\MessageSerializer::systemInstructions():
 Symfony\AI\Telemetry\Store\TracingRetriever: final class implements Symfony\AI\Store\RetrieverInterface
 Symfony\AI\Telemetry\Store\TracingRetriever::__construct(): public function __construct(Symfony\AI\Store\RetrieverInterface $retriever, OpenTelemetry\API\Trace\TracerInterface $tracer, string $dataSource)
 Symfony\AI\Telemetry\Store\TracingRetriever::retrieve(): public function retrieve(string $query, array $options = []): iterable
-Symfony\AI\Telemetry\Toolbox\TracingToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface
+Symfony\AI\Telemetry\Toolbox\TracingToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\Telemetry\Toolbox\TracingToolbox::__construct(): public function __construct(Symfony\AI\Agent\Toolbox\ToolboxInterface $toolbox, OpenTelemetry\API\Trace\TracerInterface $tracer, bool $captureContent = false, Symfony\AI\Telemetry\ContentRedactorInterface|null $redactor = null)
 Symfony\AI\Telemetry\Toolbox\TracingToolbox::execute(): public function execute(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\Telemetry\Toolbox\TracingToolbox::getTools(): public function getTools(): array
+Symfony\AI\Telemetry\Toolbox\TracingToolbox::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\Telemetry\UserIdResolverInterface: interface
 Symfony\AI\Telemetry\UserIdResolverInterface::resolve(): public function resolve(): null|string

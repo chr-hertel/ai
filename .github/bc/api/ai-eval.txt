@@ -15,8 +15,10 @@ Symfony\AI\Eval\Calibration\LabeledRun::__construct(): public function __constru
 Symfony\AI\Eval\Calibration\LabeledRun::getCase(): public function getCase(): Symfony\AI\Eval\EvalCase
 Symfony\AI\Eval\Calibration\LabeledRun::getRun(): public function getRun(): Symfony\AI\Eval\RecordedRun
 Symfony\AI\Eval\Calibration\LabeledRun::isHumanPassed(): public function isHumanPassed(): bool
+Symfony\AI\Eval\Command\CalibrateCommand: final class extends Symfony\Component\Console\Command\Command
+Symfony\AI\Eval\Command\CalibrateCommand::__construct(): public function __construct(iterable $judges, iterable $labeledRuns, Symfony\AI\Eval\Calibration\JudgeCalibrator $calibrator = new \Symfony\AI\Eval\Calibration\JudgeCalibrator())
 Symfony\AI\Eval\Command\RunCommand: final class extends Symfony\Component\Console\Command\Command
-Symfony\AI\Eval\Command\RunCommand::__construct(): public function __construct(iterable $suites, Symfony\AI\Eval\EvalRunner $runner = new \Symfony\AI\Eval\EvalRunner())
+Symfony\AI\Eval\Command\RunCommand::__construct(): public function __construct(iterable $suites, Symfony\AI\Eval\EvalRunner $runner = new \Symfony\AI\Eval\EvalRunner(), iterable $publishers = [])
 Symfony\AI\Eval\Dataset: final class implements IteratorAggregate, Countable
 Symfony\AI\Eval\Dataset::__construct(): public function __construct(string $name, array $cases, null|string $description = null)
 Symfony\AI\Eval\Dataset::count(): public function count(): int
@@ -29,7 +31,7 @@ Symfony\AI\Eval\Dataset::getName(): public function getName(): string
 Symfony\AI\Eval\Dataset::toArray(): public function toArray(): array
 Symfony\AI\Eval\Dataset::with(): public function with(Symfony\AI\Eval\EvalCase $case): self
 Symfony\AI\Eval\EvalCase: final class
-Symfony\AI\Eval\EvalCase::__construct(): public function __construct(string $id, array|string $input, array $labels = [], array $fixtures = [], array $expectations = [], null|string $sourceRun = null)
+Symfony\AI\Eval\EvalCase::__construct(): public function __construct(string $id, array|string $input, array $labels = [], array $fixtures = [], array $expectations = [], null|string $sourceRun = null, array $metadata = [])
 Symfony\AI\Eval\EvalCase::expectation(): public function expectation(string $path, mixed $default = null): mixed
 Symfony\AI\Eval\EvalCase::getExpectations(): public function getExpectations(): array
 Symfony\AI\Eval\EvalCase::getFixtures(): public function getFixtures(): array
@@ -37,6 +39,7 @@ Symfony\AI\Eval\EvalCase::getId(): public function getId(): string
 Symfony\AI\Eval\EvalCase::getInput(): public function getInput(): array|string
 Symfony\AI\Eval\EvalCase::getLabels(): public function getLabels(): array
 Symfony\AI\Eval\EvalCase::getMessages(): public function getMessages(): Symfony\AI\Platform\Message\MessageBag
+Symfony\AI\Eval\EvalCase::getMetadata(): public function getMetadata(): array
 Symfony\AI\Eval\EvalCase::getSourceRun(): public function getSourceRun(): null|string
 Symfony\AI\Eval\EvalCase::hasExpectation(): public function hasExpectation(string $path): bool
 Symfony\AI\Eval\EvalCase::hasLabel(): public function hasLabel(string $label): bool
@@ -46,6 +49,15 @@ Symfony\AI\Eval\EvalRunner::run(): public function run(Symfony\AI\Eval\Suite $su
 Symfony\AI\Eval\EvaluatorInterface: interface
 Symfony\AI\Eval\EvaluatorInterface::evaluate(): public function evaluate(Symfony\AI\Eval\EvalCase $case, Symfony\AI\Eval\RecordedRun $run): Symfony\AI\Eval\Score|null
 Symfony\AI\Eval\EvaluatorInterface::getName(): public function getName(): string
+Symfony\AI\Eval\Evaluator\Faithfulness: final class implements Symfony\AI\Eval\EvaluatorInterface
+Symfony\AI\Eval\Evaluator\Faithfulness::DEFAULT_PROMPT: public const
+Symfony\AI\Eval\Evaluator\Faithfulness::__construct(): public function __construct(Symfony\AI\Platform\PlatformInterface $platform, string $model, float $threshold = 0.8, string $prompt = self::DEFAULT_PROMPT, string $name = 'faithfulness')
+Symfony\AI\Eval\Evaluator\Faithfulness::evaluate(): public function evaluate(Symfony\AI\Eval\EvalCase $case, Symfony\AI\Eval\RecordedRun $run): Symfony\AI\Eval\Score|null
+Symfony\AI\Eval\Evaluator\Faithfulness::getName(): public function getName(): string
+Symfony\AI\Eval\Evaluator\JsonSchema: final class implements Symfony\AI\Eval\EvaluatorInterface
+Symfony\AI\Eval\Evaluator\JsonSchema::__construct(): public function __construct()
+Symfony\AI\Eval\Evaluator\JsonSchema::evaluate(): public function evaluate(Symfony\AI\Eval\EvalCase $case, Symfony\AI\Eval\RecordedRun $run): Symfony\AI\Eval\Score|null
+Symfony\AI\Eval\Evaluator\JsonSchema::getName(): public function getName(): string
 Symfony\AI\Eval\Evaluator\Limits: final class implements Symfony\AI\Eval\EvaluatorInterface
 Symfony\AI\Eval\Evaluator\Limits::evaluate(): public function evaluate(Symfony\AI\Eval\EvalCase $case, Symfony\AI\Eval\RecordedRun $run): Symfony\AI\Eval\Score|null
 Symfony\AI\Eval\Evaluator\Limits::getName(): public function getName(): string
@@ -54,6 +66,10 @@ Symfony\AI\Eval\Evaluator\LlmJudge::DEFAULT_PROMPT: public const
 Symfony\AI\Eval\Evaluator\LlmJudge::__construct(): public function __construct(Symfony\AI\Platform\PlatformInterface $platform, string $model, float $threshold = 0.7, string $prompt = self::DEFAULT_PROMPT, string $name = 'llm_judge')
 Symfony\AI\Eval\Evaluator\LlmJudge::evaluate(): public function evaluate(Symfony\AI\Eval\EvalCase $case, Symfony\AI\Eval\RecordedRun $run): Symfony\AI\Eval\Score|null
 Symfony\AI\Eval\Evaluator\LlmJudge::getName(): public function getName(): string
+Symfony\AI\Eval\Evaluator\Similarity: final class implements Symfony\AI\Eval\EvaluatorInterface
+Symfony\AI\Eval\Evaluator\Similarity::__construct(): public function __construct(Symfony\AI\Platform\PlatformInterface $platform, string $model, float $threshold = 0.8, string $name = 'similarity')
+Symfony\AI\Eval\Evaluator\Similarity::evaluate(): public function evaluate(Symfony\AI\Eval\EvalCase $case, Symfony\AI\Eval\RecordedRun $run): Symfony\AI\Eval\Score|null
+Symfony\AI\Eval\Evaluator\Similarity::getName(): public function getName(): string
 Symfony\AI\Eval\Evaluator\TextAssertions: final class implements Symfony\AI\Eval\EvaluatorInterface
 Symfony\AI\Eval\Evaluator\TextAssertions::evaluate(): public function evaluate(Symfony\AI\Eval\EvalCase $case, Symfony\AI\Eval\RecordedRun $run): Symfony\AI\Eval\Score|null
 Symfony\AI\Eval\Evaluator\TextAssertions::getName(): public function getName(): string
@@ -84,16 +100,20 @@ Symfony\AI\Eval\Gate\PassRateGate::check(): public function check(Symfony\AI\Eva
 Symfony\AI\Eval\Gate\RegressionGate: final class implements Symfony\AI\Eval\Gate\GateInterface
 Symfony\AI\Eval\Gate\RegressionGate::__construct(): public function __construct(string $baseline, float $maxDrop)
 Symfony\AI\Eval\Gate\RegressionGate::check(): public function check(Symfony\AI\Eval\Report\Report $report): array
+Symfony\AI\Eval\Http\TargetController: final class
+Symfony\AI\Eval\Http\TargetController::__construct(): public function __construct(Symfony\AI\Agent\AgentInterface $agent, Symfony\AI\Eval\RunRecorder $recorder = new \Symfony\AI\Eval\RunRecorder())
+Symfony\AI\Eval\Http\TargetController::__invoke(): public function __invoke(Symfony\Component\HttpFoundation\Request $request): Symfony\Component\HttpFoundation\JsonResponse
 Symfony\AI\Eval\Online\EvaluateRun: final class
-Symfony\AI\Eval\Online\EvaluateRun::__construct(): public function __construct(string $runId, Symfony\AI\Eval\RecordedRun $run, array $expectations = [])
+Symfony\AI\Eval\Online\EvaluateRun::__construct(): public function __construct(string $runId, Symfony\AI\Eval\RecordedRun $run, array $expectations = [], null|string $agent = null)
+Symfony\AI\Eval\Online\EvaluateRun::getAgent(): public function getAgent(): null|string
 Symfony\AI\Eval\Online\EvaluateRun::getExpectations(): public function getExpectations(): array
 Symfony\AI\Eval\Online\EvaluateRun::getRun(): public function getRun(): Symfony\AI\Eval\RecordedRun
 Symfony\AI\Eval\Online\EvaluateRun::getRunId(): public function getRunId(): string
 Symfony\AI\Eval\Online\EvaluateRunHandler: final class
-Symfony\AI\Eval\Online\EvaluateRunHandler::__construct(): public function __construct(iterable $evaluators, Symfony\AI\Feedback\FeedbackRecorderInterface $recorder)
+Symfony\AI\Eval\Online\EvaluateRunHandler::__construct(): public function __construct(iterable $evaluators, Symfony\AI\Feedback\FeedbackRecorderInterface $recorder, null|string $agent = null)
 Symfony\AI\Eval\Online\EvaluateRunHandler::__invoke(): public function __invoke(Symfony\AI\Eval\Online\EvaluateRun $message): void
 Symfony\AI\Eval\Online\SamplingProcessor: final class implements Symfony\AI\Agent\OutputProcessorInterface
-Symfony\AI\Eval\Online\SamplingProcessor::__construct(): public function __construct(Symfony\Component\Messenger\MessageBusInterface $bus, float $sampleRate, array $expectations = [], Closure|null $random = null)
+Symfony\AI\Eval\Online\SamplingProcessor::__construct(): public function __construct(Symfony\Component\Messenger\MessageBusInterface $bus, float $sampleRate, array $expectations = [], Closure|null $random = null, null|string $agent = null)
 Symfony\AI\Eval\Online\SamplingProcessor::processOutput(): public function processOutput(Symfony\AI\Agent\Output $output): void
 Symfony\AI\Eval\RecordedRun: final class
 Symfony\AI\Eval\RecordedRun::__construct(): public function __construct(Symfony\AI\Platform\Message\MessageBag $input, Symfony\AI\Platform\Result\ResultInterface|null $result, array $toolCalls = [], array $turns = [], Symfony\AI\Platform\TokenUsage\TokenUsageInterface|null $tokenUsage = null, float $duration = 0.0, Symfony\AI\Agent\Run\RunContext|null $runContext = null, Throwable|null $error = null)
@@ -162,6 +182,8 @@ Symfony\AI\Eval\Report\Report::getResults(): public function getResults(null|str
 Symfony\AI\Eval\Report\Report::getSuite(): public function getSuite(): string
 Symfony\AI\Eval\Report\Report::getVariants(): public function getVariants(): array
 Symfony\AI\Eval\Report\Report::isPassed(): public function isPassed(): bool
+Symfony\AI\Eval\Report\ReportPublisherInterface: interface
+Symfony\AI\Eval\Report\ReportPublisherInterface::publish(): public function publish(Symfony\AI\Eval\Report\Report $report): void
 Symfony\AI\Eval\RunRecorder: final class
 Symfony\AI\Eval\RunRecorder::record(): public static function record(Symfony\AI\Agent\AgentInterface $agent, Symfony\AI\Platform\Message\MessageBag|Symfony\AI\Platform\Message\UserMessage|string $input, Symfony\AI\Agent\Run\RunContext|null $runContext = null, array $options = []): Symfony\AI\Eval\RecordedRun
 Symfony\AI\Eval\RunRecorder::run(): public function run(Symfony\AI\Agent\AgentInterface $agent, Symfony\AI\Platform\Message\MessageBag|Symfony\AI\Platform\Message\UserMessage|string $input, Symfony\AI\Agent\Run\RunContext|null $runContext = null, array $options = []): Symfony\AI\Eval\RecordedRun

@@ -181,6 +181,7 @@ Symfony\AI\Platform\Cost\Price::getOutput(): public function getOutput(): float
 Symfony\AI\Platform\Cost\PriceTable: final class
 Symfony\AI\Platform\Cost\PriceTable::__construct(): public function __construct(array $prices, string $currency = 'USD')
 Symfony\AI\Platform\Cost\PriceTable::fromArray(): public static function fromArray(array $prices, string $currency = 'USD'): self
+Symfony\AI\Platform\Cost\PriceTable::fromModelCatalog(): public static function fromModelCatalog(Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface $catalog): self
 Symfony\AI\Platform\Cost\PriceTable::get(): public function get(string $model, string ...$fallbacks): Symfony\AI\Platform\Cost\Price|null
 Symfony\AI\Platform\Cost\PriceTable::getCurrency(): public function getCurrency(): string
 Symfony\AI\Platform\EventListener\StringToMessageBagListener: final class

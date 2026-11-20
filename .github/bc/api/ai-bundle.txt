@@ -10,6 +10,8 @@ Symfony\AI\AiBundle\Command\AgentCallCommand::complete(): public function comple
 Symfony\AI\AiBundle\Command\PlatformInvokeCommand: final class extends Symfony\Component\Console\Command\Command
 Symfony\AI\AiBundle\Command\PlatformInvokeCommand::__construct(): public function __construct(Symfony\Component\DependencyInjection\ServiceLocator $platforms)
 Symfony\AI\AiBundle\Command\PlatformInvokeCommand::complete(): public function complete(Symfony\Component\Console\Completion\CompletionInput $input, Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
+Symfony\AI\AiBundle\Command\SetupFeedbackCommand: final class extends Symfony\Component\Console\Command\Command
+Symfony\AI\AiBundle\Command\SetupFeedbackCommand::__construct(): public function __construct(Symfony\AI\Feedback\Bridge\Doctrine\DoctrineRecorder $recorder)
 Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
 Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
 Symfony\AI\AiBundle\DependencyInjection\DoctrineVectorDistancePass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
@@ -49,12 +51,13 @@ Symfony\AI\AiBundle\Profiler\DataCollector::getToolCalls(): public function getT
 Symfony\AI\AiBundle\Profiler\DataCollector::getTools(): public function getTools(): array
 Symfony\AI\AiBundle\Profiler\DataCollector::hasCalls(): public function hasCalls(): bool
 Symfony\AI\AiBundle\Profiler\DataCollector::lateCollect(): public function lateCollect(): void
-Symfony\AI\AiBundle\Profiler\DeferredToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\Contracts\Service\ResetInterface
+Symfony\AI\AiBundle\Profiler\DeferredToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\Contracts\Service\ResetInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::__construct(): public function __construct(Symfony\AI\Agent\Toolbox\ToolboxInterface $toolbox)
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::execute(): public function execute(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::getLoadedTools(): public function getLoadedTools(): array
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::getTools(): public function getTools(): array
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::reset(): public function reset(): void
+Symfony\AI\AiBundle\Profiler\DeferredToolbox::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool: final class
 Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool::$attribute: public Symfony\Component\ExpressionLanguage\Expression|string
 Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool::$exceptionCode: public int|null
