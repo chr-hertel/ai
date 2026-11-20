@@ -170,6 +170,55 @@ jobs:
 
             - name: Validate telemetry bridges are covered in deptrac.yaml
               run: .github/scripts/validate-bridge-deptrac.sh telemetry telemetry
+    validate_feedback_recorders:
+        name: Feedback Recorder Bridges
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Fetch base branch for LICENSE validation
+              run: git fetch origin ${{ github.base_ref || 'main' }} --depth=1
+
+            - name: Validate feedback recorder bridge naming conventions
+              run: .github/scripts/validate-bridge-naming.sh feedback-recorder feedback
+
+            - name: Validate feedback recorder bridges are in splitsh.json
+              run: .github/scripts/validate-bridge-splitsh.sh feedback-recorder feedback
+
+            - name: Validate feedback recorder bridges have required files
+              run: .github/scripts/validate-bridge-files.sh feedback-recorder feedback
+
+            - name: Validate feedback recorder bridges have correct type
+              run: .github/scripts/validate-bridge-type.sh feedback-recorder feedback
+
+            - name: Validate feedback recorder bridges are covered in deptrac.yaml
+              run: .github/scripts/validate-bridge-deptrac.sh feedback-recorder feedback
+
+    validate_dataset_sources:
+        name: Dataset Source Bridges
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Fetch base branch for LICENSE validation
+              run: git fetch origin ${{ github.base_ref || 'main' }} --depth=1
+
+            - name: Validate dataset source bridge naming conventions
+              run: .github/scripts/validate-bridge-naming.sh dataset-source eval
+
+            - name: Validate dataset source bridges are in splitsh.json
+              run: .github/scripts/validate-bridge-splitsh.sh dataset-source eval
+
+            - name: Validate dataset source bridges have required files
+              run: .github/scripts/validate-bridge-files.sh dataset-source eval
+
+            - name: Validate dataset source bridges have correct type
+              run: .github/scripts/validate-bridge-type.sh dataset-source eval
+
+            - name: Validate dataset source bridges are covered in deptrac.yaml
+              run: .github/scripts/validate-bridge-deptrac.sh dataset-source eval
 
     validate_dependency_versions:
         name: "Validate ${{ matrix.package }} requires version ${{ matrix.version }}"

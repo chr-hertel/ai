@@ -1,0 +1,70 @@
+{
+    "name": "symfony/ai-eval",
+    "description": "Evaluation of AI agents: datasets, evaluators, LLM judges, gates and reports for offline, online and CI evaluation.",
+    "license": "MIT",
+    "type": "library",
+    "keywords": [
+        "ai",
+        "llm",
+        "agent",
+        "evaluation",
+        "eval",
+        "testing"
+    ],
+    "authors": [
+        {
+            "name": "Christopher Hertel",
+            "email": "mail@christopher-hertel.de"
+        },
+        {
+            "name": "Symfony Community",
+            "homepage": "https://symfony.com/contributors"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "ext-dom": "*",
+        "symfony/ai-agent": "^1.0",
+        "symfony/ai-platform": "^1.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.5.53",
+        "symfony/ai-feedback": "^1.0",
+        "symfony/console": "^7.4|^8.0",
+        "symfony/event-dispatcher": "^7.4|^8.0",
+        "symfony/messenger": "^7.4|^8.0",
+        "symfony/yaml": "^7.4|^8.0"
+    },
+    "suggest": {
+        "phpunit/phpunit": "To assert agent behavior in tests with the AgentAssertionsTrait",
+        "symfony/ai-feedback": "To record online evaluation scores as feedback",
+        "symfony/ai-langfuse-dataset-source": "To pull datasets from Langfuse",
+        "symfony/console": "To run suites with the ai:eval:run command",
+        "symfony/messenger": "To evaluate a sample of production runs asynchronously",
+        "symfony/yaml": "To load datasets from YAML files"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Symfony\\AI\\Eval\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Symfony\\AI\\Eval\\Tests\\": "tests/",
+            "Symfony\\AI\\PHPStan\\": "../../.phpstan/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "thanks": {
+            "name": "symfony/ai",
+            "url": "https://github.com/symfony/ai"
+        }
+    }
+}

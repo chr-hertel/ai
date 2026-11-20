@@ -40,6 +40,10 @@
         "ai-langfuse-telemetry": "src/telemetry/src/Bridge/Langfuse",
         "ai-phoenix-telemetry": "src/telemetry/src/Bridge/Phoenix",
         "ai-tempo-telemetry": "src/telemetry/src/Bridge/Tempo",
+        "ai-eval": "src/eval",
+        "ai-feedback": "src/feedback",
+        "ai-langfuse-feedback-recorder": "src/feedback/src/Bridge/Langfuse",
+        "ai-langfuse-dataset-source": "src/eval/src/Bridge/Langfuse",
         "ai-platform": {
             "prefixes": [{ "from": "src/platform", "to": "", "excludes": ["src/Bridge"] }]
         },

@@ -421,6 +421,22 @@ deptrac:
       collectors:
         - type: classLike
           value: Symfony\\AI\\Telemetry\\Bridge\\Tempo\\.*
+    - name: FeedbackComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Feedback\\(?!Bridge\\).*
+    - name: FeedbackLangfuseBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Feedback\\Bridge\\Langfuse\\.*
+    - name: EvalComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Eval\\(?!Bridge\\).*
+    - name: EvalLangfuseBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Eval\\Bridge\\Langfuse\\.*
   ruleset:
     Fixtures: ~
     AgentComponent:
@@ -706,3 +722,13 @@ deptrac:
       - TelemetryComponent
     TelemetryTempoBridge:
       - TelemetryComponent
+    FeedbackComponent:
+      - AgentComponent
+    FeedbackLangfuseBridge:
+      - FeedbackComponent
+    EvalComponent:
+      - AgentComponent
+      - PlatformComponent
+      - FeedbackComponent
+    EvalLangfuseBridge:
+      - EvalComponent

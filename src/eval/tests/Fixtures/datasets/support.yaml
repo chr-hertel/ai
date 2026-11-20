@@ -1,0 +1,28 @@
+name: support-regressions
+description: Failures found in production, reviewed and labeled.
+cases:
+    - id: refund-without-ticket-001
+      source_run: 4bf92f3577b34da6a3ce929d0e0e4736
+      labels: [refund]
+      input:
+          - user: "I want my money back for SO-10023, the jacket is too small."
+      fixtures:
+          order_lookup:
+              SO-10023: { status: delivered }
+          open_refund: 'RF-4711'
+      expect:
+          tools_called: [order_lookup, open_refund]
+          tool_order: strict
+          tool_arguments:
+              open_refund: { orderNumber: SO-10023 }
+          not_contains: ["has been processed"]
+          matches: '/RF-\d+/'
+
+    - id: missed-escalation-002
+      labels: [escalation]
+      input:
+          - user: "This is the third time I'm asking. I want to speak to a person."
+      expect:
+          tools_called: []
+          contains: [human]
+          max_tool_calls: 0
