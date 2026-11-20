@@ -94,6 +94,67 @@ A :class:`Symfony\\AI\\Eval\\Suite` combines datasets, the variants of the agent
 The ``ai:eval:run`` command of :class:`Symfony\\AI\\Eval\\Command\\RunCommand` runs a suite, writes reports in the
 ``text``, ``markdown``, ``json`` and ``junit`` format and exits with ``1`` if a gate fails.
 
+Evaluators
+----------
+
+An evaluator only scores the cases that have its expectation. It skips all other cases. The component comes with
+these evaluators:
+
+``ToolsCalled``
+    Checks the tools in ``expect.tools_called``, in the given order if ``expect.tool_order`` is ``strict``.
+``ToolArguments``
+    Checks the arguments in ``expect.tool_arguments``, either as exact value or as regular expression.
+``TextAssertions``
+    Checks the final answer against ``expect.contains``, ``expect.not_contains`` and ``expect.matches``.
+``Limits``
+    Checks ``expect.max_tool_calls``, ``expect.max_tokens`` and ``expect.max_latency`` (in seconds).
+``JsonSchema``
+    Checks that the final answer is valid JSON and matches the JSON schema in ``expect.json_schema``.
+``LlmJudge``
+    Lets a model grade the run against the criteria in ``expect.judge.criteria``.
+``Faithfulness``
+    Lets a model check that the final answer is supported by the tool results of the run.
+``Similarity``
+    Compares the final answer with the reference answer in ``expect.answer`` by meaning.
+
+The ``JsonSchema`` evaluator needs the ``opis/json-schema`` package:
+
+.. code-block:: terminal
+
+    $ composer require --dev opis/json-schema
+
+If the agent uses structured output, the evaluator validates the object. A text answer must be plain JSON, without
+Markdown code fences around it:
+
+.. code-block:: yaml
+
+    expect:
+        json_schema:
+            type: object
+            properties:
+                ticket: { type: string, pattern: '^RF-\d+$' }
+            required: [ticket]
+
+The ``Faithfulness`` evaluator catches answers that make up facts. It does not need an expectation: the model lists
+the claims of the final answer and checks each one against the results of the tool calls. The score is the share of
+supported claims, and the run passes from ``0.8`` on. Runs without an answer or without a successful tool call have
+nothing to check against, so the evaluator skips them::
+
+    use Symfony\AI\Eval\Evaluator\Faithfulness;
+
+    $faithfulness = new Faithfulness($platform, 'claude-opus-4-5', threshold: 0.9);
+
+The ``Similarity`` evaluator is useful when many answers are correct, but you cannot list the words they must
+contain. It creates embeddings of the final answer and of ``expect.answer`` and passes if their cosine similarity is
+at least ``0.8``::
+
+    use Symfony\AI\Eval\Evaluator\Similarity;
+
+    $similarity = new Similarity($platform, 'text-embedding-3-small', threshold: 0.85);
+
+The threshold depends on the embeddings model, so check the scores of a few good and bad answers before you choose
+it.
+
 Testing Agent Behavior
 ----------------------
 

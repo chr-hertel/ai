@@ -28,6 +28,7 @@
         "symfony/ai-platform": "^1.0"
     },
     "require-dev": {
+        "opis/json-schema": "^2.4",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
@@ -40,6 +41,7 @@
         "symfony/yaml": "^7.4|^8.0"
     },
     "suggest": {
+        "opis/json-schema": "To validate answers against a JSON schema with the JsonSchema evaluator",
         "phpunit/phpunit": "To assert agent behavior in tests with the AgentAssertionsTrait",
         "symfony/ai-feedback": "To record online evaluation scores as feedback",
         "symfony/ai-langfuse-dataset-source": "To pull datasets from Langfuse",

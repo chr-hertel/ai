@@ -7,3 +7,4 @@ CHANGELOG
  * Add the component
  * Add the `ai:eval:calibrate` command to check the agreement of a judge with human labels
  * Add `TargetController` to expose an agent over HTTP to external eval tools like promptfoo and garak
+ * Add the `JsonSchema`, `Faithfulness` and `Similarity` evaluators
