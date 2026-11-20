@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Agent\Toolbox;
 
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Toolbox\Exception\ToolConfigurationException;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Platform\Result\ToolCall;
@@ -23,7 +25,7 @@ use Symfony\AI\Platform\Tool\Tool;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class ChainToolbox implements ToolboxInterface
+final class ChainToolbox implements ToolboxInterface, RunContextAwareInterface
 {
     /**
      * The toolbox advertising each tool name, as of the latest listing.
@@ -38,6 +40,15 @@ final class ChainToolbox implements ToolboxInterface
     public function __construct(
         private readonly iterable $toolboxes,
     ) {
+    }
+
+    public function setRunContext(RunContext $runContext): void
+    {
+        foreach ($this->toolboxes as $toolbox) {
+            if ($toolbox instanceof RunContextAwareInterface) {
+                $toolbox->setRunContext($runContext);
+            }
+        }
     }
 
     public function getTools(): array

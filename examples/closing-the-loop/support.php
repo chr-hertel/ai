@@ -19,7 +19,6 @@
 
 use Symfony\AI\Agent\Event\GuardrailTriggered;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
-use Symfony\AI\Agent\Run\RunScope;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 use Symfony\AI\Eval\Evaluator\Verdict;
@@ -104,7 +103,7 @@ final class RefundPolicyGuard
         $reason = 'This order is outside the refund window. Offer to escalate to a human instead.';
         $event->deny($reason);
 
-        $this->dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, $reason, RunScope::current(), ['order' => $orderNumber]));
+        $this->dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, $reason, $event->getRunContext(), ['order' => $orderNumber]));
     }
 }
 

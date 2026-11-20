@@ -19,8 +19,9 @@ use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Output;
 use Symfony\AI\Agent\OutputProcessorInterface;
 use Symfony\AI\Agent\Run\RunContext;
-use Symfony\AI\Agent\Run\RunScope;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Tests\Fixtures\Tool\ToolNoParams;
+use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\FaultTolerantToolbox;
@@ -74,27 +75,26 @@ final class RunContextTest extends TestCase
         $agent->call('Hi', ['run_context' => 'run-1']);
     }
 
-    public function testToolsAndListenersSeeTheRun()
+    public function testToolCallEventsCarryTheRun()
     {
         $seen = [];
         $dispatcher = new EventDispatcher();
-        $dispatcher->addListener(ToolCallRequested::class, static function () use (&$seen): void {
-            $seen[] = RunScope::current()?->getRunId();
+        $dispatcher->addListener(ToolCallRequested::class, static function (ToolCallRequested $event) use (&$seen): void {
+            $seen[] = $event->getRunContext()?->getRunId();
         });
 
         $agent = new Agent($this->platform('tool_no_params'), 'gpt-4o', toolbox: new Toolbox([new ToolNoParams()], eventDispatcher: $dispatcher));
         $agent->call('Hi', ['run_context' => new RunContext('run-1')])->getResult();
 
         $this->assertSame(['run-1'], $seen);
-        $this->assertNull(RunScope::current());
     }
 
     public function testInterleavedExecutionsSeeTheirOwnRun()
     {
         $seen = [];
         $dispatcher = new EventDispatcher();
-        $dispatcher->addListener(ToolCallRequested::class, static function () use (&$seen): void {
-            $seen[] = RunScope::current()?->getRunId();
+        $dispatcher->addListener(ToolCallRequested::class, static function (ToolCallRequested $event) use (&$seen): void {
+            $seen[] = $event->getRunContext()?->getRunId();
         });
 
         $toolbox = new Toolbox([new ToolNoParams()], eventDispatcher: $dispatcher);
@@ -105,7 +105,6 @@ final class RunContextTest extends TestCase
         $secondUpdates = (static fn (): \Generator => yield from $second)();
         while ($firstUpdates->valid() || $secondUpdates->valid()) {
             if ($firstUpdates->valid()) {
-                $this->assertNull(RunScope::current());
                 $firstUpdates->next();
             }
 
@@ -156,6 +155,34 @@ final class RunContextTest extends TestCase
         $this->assertTrue($turns[0]->hasToolResults());
         $this->assertFalse($turns[1]->hasToolResults());
         $this->assertNotNull($turns[0]->getDuration());
+        $this->assertNotNull($turns[0]->getToolDuration());
+        $this->assertNull($turns[1]->getToolDuration());
+        $this->assertCount(1, $turns[0]->getMessages() ?? []);
+        $this->assertCount(3, $turns[1]->getMessages() ?? [], 'The second request carries the tool call and its result');
+        $this->assertSame('run-1', $executed->getRunContext()?->getRunId());
+    }
+
+    public function testRunContextAwareToolsAndProcessorsGetTheRun()
+    {
+        $tool = new RunContextAwareTool();
+        $outputProcessor = new class implements OutputProcessorInterface, RunContextAwareInterface {
+            public ?RunContext $runContext = null;
+
+            public function setRunContext(RunContext $runContext): void
+            {
+                $this->runContext = $runContext;
+            }
+
+            public function processOutput(Output $output): void
+            {
+            }
+        };
+
+        $agent = new Agent($this->platform('run_aware'), 'gpt-4o', outputProcessors: [$outputProcessor], toolbox: new Toolbox([$tool]));
+        $agent->call('Hi', ['run_context' => new RunContext('run-1')])->getResult();
+
+        $this->assertSame(['run-1'], $tool->seen);
+        $this->assertSame('run-1', $outputProcessor->runContext?->getRunId());
     }
 
     private function platform(string $toolName): PlatformInterface
@@ -165,5 +192,28 @@ final class RunContextTest extends TestCase
         return MockPlatformFactory::createPlatform(static function () use (&$results): ResultInterface {
             return array_shift($results);
         });
+    }
+}
+
+#[AsTool('run_aware', 'Reports the run it belongs to')]
+final class RunContextAwareTool implements RunContextAwareInterface
+{
+    /**
+     * @var list<string>
+     */
+    public array $seen = [];
+
+    private ?RunContext $runContext = null;
+
+    public function __invoke(): string
+    {
+        $this->seen[] = $this->runContext?->getRunId() ?? '';
+
+        return 'ok';
+    }
+
+    public function setRunContext(RunContext $runContext): void
+    {
+        $this->runContext = $runContext;
     }
 }

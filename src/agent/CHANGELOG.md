@@ -5,7 +5,7 @@ CHANGELOG
 ---
 
  * Add `Run\RunContext`, passed as `run_context` option or created for every call with the execution ID as run ID, available to the processors through `Input::getRunContext()` and `Output::getRunContext()` and echoed as `run_id` and `run_context` result metadata
- * Add `Run\RunScope`, the run context of the running agent for toolboxes and event listeners
+ * Add `Run\RunContextAwareInterface` for tools, processors and toolboxes that need the run context of the running agent, and `getRunContext()` of the tool call events
  * Add an optional `$id` argument to `Execution\Execution`
  * Add `Prompt\PromptRegistryInterface` with `InMemoryPromptRegistry` and `YamlPromptRegistry`, plus `PromptInputProcessor` and `PercentageRolloutSelector` to roll out prompt versions
  * Add `Budget\RunBudget` to stop a run gracefully once it spent a token or cost budget

@@ -13,6 +13,8 @@ namespace Symfony\AI\Agent\Toolbox;
 
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\UpdateInterface;
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Platform\Result\ToolCall;
 
 /**
@@ -20,11 +22,18 @@ use Symfony\AI\Platform\Result\ToolCall;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class SequentialToolExecutor implements ToolExecutorInterface
+final class SequentialToolExecutor implements ToolExecutorInterface, RunContextAwareInterface
 {
     public function __construct(
         private readonly ToolboxInterface $toolbox,
     ) {
+    }
+
+    public function setRunContext(RunContext $runContext): void
+    {
+        if ($this->toolbox instanceof RunContextAwareInterface) {
+            $this->toolbox->setRunContext($runContext);
+        }
     }
 
     /**

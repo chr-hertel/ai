@@ -15,6 +15,8 @@ use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
@@ -28,7 +30,7 @@ use Symfony\AI\Telemetry\SemanticConvention\MessageSerializer;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class TracingToolbox implements ToolboxInterface
+final class TracingToolbox implements ToolboxInterface, RunContextAwareInterface
 {
     public function __construct(
         private readonly ToolboxInterface $toolbox,
@@ -36,6 +38,13 @@ final class TracingToolbox implements ToolboxInterface
         private readonly bool $captureContent = false,
         private readonly ?ContentRedactorInterface $redactor = null,
     ) {
+    }
+
+    public function setRunContext(RunContext $runContext): void
+    {
+        if ($this->toolbox instanceof RunContextAwareInterface) {
+            $this->toolbox->setRunContext($runContext);
+        }
     }
 
     public function getTools(): array

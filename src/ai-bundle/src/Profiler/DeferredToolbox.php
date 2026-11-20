@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\AiBundle\Profiler;
 
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ToolCall;
@@ -22,7 +24,7 @@ use Symfony\Contracts\Service\ResetInterface;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class DeferredToolbox implements ToolboxInterface, ResetInterface
+final class DeferredToolbox implements ToolboxInterface, ResetInterface, RunContextAwareInterface
 {
     /**
      * @var Tool[]|null
@@ -32,6 +34,13 @@ final class DeferredToolbox implements ToolboxInterface, ResetInterface
     public function __construct(
         private readonly ToolboxInterface $toolbox,
     ) {
+    }
+
+    public function setRunContext(RunContext $runContext): void
+    {
+        if ($this->toolbox instanceof RunContextAwareInterface) {
+            $this->toolbox->setRunContext($runContext);
+        }
     }
 
     public function getTools(): array

@@ -13,7 +13,6 @@ namespace Symfony\AI\Agent\Budget;
 
 use Symfony\AI\Agent\Event\GuardrailTriggered;
 use Symfony\AI\Agent\Run\RunContext;
-use Symfony\AI\Agent\Run\RunScope;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Platform\Cost\Cost;
 use Symfony\AI\Platform\Cost\CostCalculator;
@@ -49,7 +48,7 @@ final class RunBudget
 
     public function __invoke(ToolCallsExecuted $event): void
     {
-        $runContext = RunScope::current();
+        $runContext = $event->getRunContext();
         $turn = $event->getTurn();
         $usage = $turn?->getMetadata()->get('token_usage');
 

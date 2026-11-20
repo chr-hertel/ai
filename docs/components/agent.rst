@@ -354,8 +354,10 @@ reports a :class:`Symfony\\AI\\Agent\\Execution\\Turn` as payload of a ``Progres
             $turn = $update->getPayload();
 
             $turn->getMetadata()->get('token_usage'); // the usage of this model request
+            $turn->getMessages();                     // the messages the model got in this turn
             $turn->getToolResults();                  // the results of the tool calls, empty for the final answer
             $turn->getDuration();                     // seconds the model took to answer, without the tool calls
+            $turn->getToolDuration();                 // seconds the tool calls took, null for the final answer
         }
     }
 
@@ -383,12 +385,37 @@ result has the run ID as ``run_id`` and the run context as ``run_context`` metad
 frontend, so feedback on the answer can refer to the run.
 
 Input processors read and change the run context with ``Input::getRunContext()`` and ``setRunContext()``, output
-processors read it with ``Output::getRunContext()``. Toolboxes and event listeners get the run context of the running
-agent from :class:`Symfony\\AI\\Agent\\Run\\RunScope`::
+processors read it with ``Output::getRunContext()``. The tool call events have it as ``getRunContext()``.
 
-    use Symfony\AI\Agent\Run\RunScope;
+Tools, processors, toolboxes and tool executors that implement
+:class:`Symfony\\AI\\Agent\\Run\\RunContextAwareInterface` get the run context before each step of the run::
 
-    $runContext = RunScope::current(); // null outside of an agent run
+    use Symfony\AI\Agent\Run\RunContext;
+    use Symfony\AI\Agent\Run\RunContextAwareInterface;
+    use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
+
+    #[AsTool('open_ticket', 'Opens a support ticket for the current customer')]
+    final class OpenTicket implements RunContextAwareInterface
+    {
+        private ?RunContext $runContext = null;
+
+        public function __construct(
+            private readonly TicketSystem $tickets,
+        ) {
+        }
+
+        public function setRunContext(RunContext $runContext): void
+        {
+            $this->runContext = $runContext;
+        }
+
+        public function __invoke(string $subject): string
+        {
+            return $this->tickets->open($subject, $this->runContext?->getUserId());
+        }
+    }
+
+Toolboxes that wrap another toolbox, like the ``FaultTolerantToolbox``, pass the run context on.
 
 Versioned Prompts
 -----------------
@@ -463,7 +490,6 @@ To make its interventions visible, dispatch a :class:`Symfony\\AI\\Agent\\Event\
 :doc:`Feedback component </components/feedback>` as a signal on the run::
 
     use Symfony\AI\Agent\Event\GuardrailTriggered;
-    use Symfony\AI\Agent\Run\RunScope;
     use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 
     $dispatcher->addListener(ToolCallRequested::class, function (ToolCallRequested $event) use ($dispatcher, $policy) {
@@ -472,7 +498,7 @@ To make its interventions visible, dispatch a :class:`Symfony\\AI\\Agent\\Event\
         if ('open_refund' === $event->getDefinition()->getName() && !$policy->isRefundable($order)) {
             $event->deny('This order is outside the refund window.');
 
-            $dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, runContext: RunScope::current()));
+            $dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, runContext: $event->getRunContext()));
         }
     });
 

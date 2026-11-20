@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Agent\Toolbox;
 
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Toolbox\Exception\ToolExecutionExceptionInterface;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Platform\Result\ToolCall;
@@ -21,11 +23,18 @@ use Symfony\AI\Platform\Tool\Tool;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class FaultTolerantToolbox implements ToolboxInterface
+final class FaultTolerantToolbox implements ToolboxInterface, RunContextAwareInterface
 {
     public function __construct(
         private readonly ToolboxInterface $innerToolbox,
     ) {
+    }
+
+    public function setRunContext(RunContext $runContext): void
+    {
+        if ($this->innerToolbox instanceof RunContextAwareInterface) {
+            $this->innerToolbox->setRunContext($runContext);
+        }
     }
 
     public function getTools(): array

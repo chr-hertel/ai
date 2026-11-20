@@ -13,7 +13,6 @@ namespace Symfony\AI\Feedback\EventListener;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Symfony\AI\Agent\Run\RunScope;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Feedback\Feedback;
 use Symfony\AI\Feedback\FeedbackRecorderInterface;
@@ -35,7 +34,7 @@ final class ToolErrorSignalListener
 
     public function __invoke(ToolCallsExecuted $event): void
     {
-        $runContext = RunScope::current();
+        $runContext = $event->getRunContext();
         if (null === $runContext) {
             return;
         }

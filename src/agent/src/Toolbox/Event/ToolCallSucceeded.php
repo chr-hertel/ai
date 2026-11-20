@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Toolbox\Event;
 
+use Symfony\AI\Agent\Run\RunContext;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Tool\Tool;
 
@@ -27,6 +28,7 @@ final class ToolCallSucceeded
         private readonly Tool $definition,
         private readonly array $arguments,
         private readonly ToolResult $result,
+        private readonly ?RunContext $runContext = null,
     ) {
     }
 
@@ -51,5 +53,13 @@ final class ToolCallSucceeded
     public function getResult(): ToolResult
     {
         return $this->result;
+    }
+
+    /**
+     * The run that requested the tool call, null if the toolbox runs outside of an agent.
+     */
+    public function getRunContext(): ?RunContext
+    {
+        return $this->runContext;
     }
 }

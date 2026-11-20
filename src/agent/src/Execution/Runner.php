@@ -14,6 +14,7 @@ namespace Symfony\AI\Agent\Execution;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Run\RunContext;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
@@ -72,10 +73,11 @@ final class Runner
      * @param non-empty-string|Model            $model
      * @param array<string, mixed>              $options
      * @param (\Closure(MessageBag): void)|null $onToolRound receives the messages after each completed tool round
+     * @param RunContext|null                   $runContext  the run the tool call events belong to
      *
      * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    public function run(string|Model $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null, ?\Closure $onToolRound = null): \Generator
+    public function run(string|Model $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null, ?\Closure $onToolRound = null, ?RunContext $runContext = null): \Generator
     {
         [$options, $allowedTools] = $this->exposeTools($options);
 
@@ -118,7 +120,7 @@ final class Runner
 
             $toolCallResult = $this->extractToolCallResult($result);
             if (null === $toolCallResult || null === $this->toolExecutor) {
-                yield new Progress(Progress::STAGE_TURN, 'Completed a turn.', new Turn($model, $result, [], $duration));
+                yield new Progress(Progress::STAGE_TURN, 'Completed a turn.', new Turn($model, $result, [], $duration, $messages));
 
                 break;
             }
@@ -132,7 +134,10 @@ final class Runner
 
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
+            $requestMessages = $messages;
+            $toolsStartedAt = hrtime(true);
             $toolResults = yield from $this->toolExecutor->execute($toolCalls);
+            $toolDuration = (hrtime(true) - $toolsStartedAt) / 1e9;
 
             $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
             foreach ($toolResults as $i => $toolResult) {
@@ -148,10 +153,10 @@ final class Runner
                 $onToolRound($messages);
             }
 
-            $turn = new Turn($model, $result, array_values($toolResults), $duration);
+            $turn = new Turn($model, $result, array_values($toolResults), $duration, $requestMessages, $toolDuration);
             yield new Progress(Progress::STAGE_TURN, 'Completed a turn.', $turn);
 
-            $event = new ToolCallsExecuted($toolResults, $turn);
+            $event = new ToolCallsExecuted($toolResults, $turn, $runContext);
             $this->eventDispatcher?->dispatch($event);
 
             if ($event->hasResult()) {

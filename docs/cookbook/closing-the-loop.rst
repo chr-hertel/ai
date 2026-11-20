@@ -144,7 +144,6 @@ Guardrails stop known failures before they reach the customer. Deny refunds outs
 tool runs, and report the intervention::
 
     use Symfony\AI\Agent\Event\GuardrailTriggered;
-    use Symfony\AI\Agent\Run\RunScope;
     use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 
     $dispatcher->addListener(ToolCallRequested::class, function (ToolCallRequested $event) use ($dispatcher, $policy) {
@@ -155,7 +154,7 @@ tool runs, and report the intervention::
         }
 
         $event->deny('This order is outside the refund window. Offer to escalate to a human instead.');
-        $dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, runContext: RunScope::current()));
+        $dispatcher->dispatch(new GuardrailTriggered('refund_policy', GuardrailTriggered::ACTION_DENIED, runContext: $event->getRunContext()));
     });
 
 A run budget ends runaway tool-calling loops gracefully, instead of letting them burn tokens::

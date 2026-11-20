@@ -23,7 +23,7 @@ use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Execution\UpdateInterface;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
 use Symfony\AI\Agent\Run\RunContext;
-use Symfony\AI\Agent\Run\RunScope;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
@@ -44,6 +44,8 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 final class Agent implements AgentInterface
 {
     private readonly Runner $runner;
+    private readonly ?ToolboxInterface $toolbox;
+    private readonly ?ToolExecutorInterface $toolExecutor;
 
     /**
      * @param InputProcessorInterface[]  $inputProcessors
@@ -69,6 +71,9 @@ final class Agent implements AgentInterface
         if (null === $toolExecutor && $toolbox instanceof ToolboxInterface) {
             $toolExecutor = new SequentialToolExecutor($toolbox);
         }
+
+        $this->toolbox = $toolbox;
+        $this->toolExecutor = $toolExecutor;
 
         $this->runner = new Runner(
             $platform,
@@ -131,16 +136,13 @@ final class Agent implements AgentInterface
             $request = new Input($this->getModel(), $input, $options, $runContext);
             $updates = $this->run($input, $request, $cancellation);
 
-            // every step runs in the scope of this run, so processors, tools and listeners can read it
-            $valid = RunScope::run($request->getRunContext(), static fn (): bool => $updates->valid());
-            while ($valid) {
+            // injected before every step, since executions of the same agent can interleave
+            $this->injectRunContext($request->getRunContext());
+            while ($updates->valid()) {
                 yield $updates->current();
 
-                $valid = RunScope::run($request->getRunContext(), static function () use ($updates): bool {
-                    $updates->next();
-
-                    return $updates->valid();
-                });
+                $this->injectRunContext($request->getRunContext());
+                $updates->next();
             }
         };
 
@@ -177,7 +179,7 @@ final class Agent implements AgentInterface
             $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
         }
 
-        foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound) as $update) {
+        foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound, $request->getRunContext()) as $update) {
             if ($update instanceof ResultUpdate) {
                 $result = $update->getResult();
                 $resultUpdate = $update;
@@ -231,6 +233,15 @@ final class Agent implements AgentInterface
         $finalResult->getMetadata()->add('run_context', $runContext);
 
         yield new ResultUpdate($finalResult, $conversation);
+    }
+
+    private function injectRunContext(RunContext $runContext): void
+    {
+        foreach ([...$this->inputProcessors, ...$this->outputProcessors, $this->toolbox, $this->toolExecutor] as $target) {
+            if ($target instanceof RunContextAwareInterface) {
+                $target->setRunContext($runContext);
+            }
+        }
     }
 
     /**
