@@ -401,6 +401,50 @@ deptrac:
       collectors:
         - type: classLike
           value: Symfony\\AI\\Mate\\Bridge\\Symfony\\.*
+    - name: TelemetryComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Telemetry\\(?!Bridge\\).*
+    - name: TelemetryJaegerBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Jaeger\\.*
+    - name: TelemetryLangfuseBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Langfuse\\.*
+    - name: TelemetryPhoenixBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Phoenix\\.*
+    - name: TelemetryTempoBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Telemetry\\Bridge\\Tempo\\.*
+    - name: FeedbackComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Feedback\\(?!Bridge\\).*
+    - name: FeedbackDoctrineBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Feedback\\Bridge\\Doctrine\\.*
+    - name: FeedbackLangfuseBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Feedback\\Bridge\\Langfuse\\.*
+    - name: FeedbackPhoenixBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Feedback\\Bridge\\Phoenix\\.*
+    - name: EvalComponent
+      collectors:
+        - type: classLike
+          value: ^Symfony\\AI\\Eval\\(?!Bridge\\).*
+    - name: EvalLangfuseBridge
+      collectors:
+        - type: classLike
+          value: Symfony\\AI\\Eval\\Bridge\\Langfuse\\.*
   ruleset:
     Fixtures: ~
     AgentComponent:
@@ -674,3 +718,29 @@ deptrac:
       - MateComponent
     MateSymfonyBridge:
       - MateComponent
+    TelemetryComponent:
+      - AgentComponent
+      - PlatformComponent
+      - StoreComponent
+    TelemetryJaegerBridge:
+      - TelemetryComponent
+    TelemetryLangfuseBridge:
+      - TelemetryComponent
+    TelemetryPhoenixBridge:
+      - TelemetryComponent
+    TelemetryTempoBridge:
+      - TelemetryComponent
+    FeedbackComponent:
+      - AgentComponent
+    FeedbackDoctrineBridge:
+      - FeedbackComponent
+    FeedbackLangfuseBridge:
+      - FeedbackComponent
+    FeedbackPhoenixBridge:
+      - FeedbackComponent
+    EvalComponent:
+      - AgentComponent
+      - PlatformComponent
+      - FeedbackComponent
+    EvalLangfuseBridge:
+      - EvalComponent

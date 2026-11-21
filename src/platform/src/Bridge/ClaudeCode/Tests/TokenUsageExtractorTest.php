@@ -58,7 +58,7 @@ final class TokenUsageExtractorTest extends TestCase
         $tokenUsage = $extractor->extract($rawResult);
 
         $this->assertInstanceOf(TokenUsage::class, $tokenUsage);
-        $this->assertSame(100, $tokenUsage->getPromptTokens());
+        $this->assertSame(24126, $tokenUsage->getPromptTokens());
         $this->assertSame(50, $tokenUsage->getCompletionTokens());
         $this->assertSame(24026, $tokenUsage->getCachedTokens());
         $this->assertSame(9864, $tokenUsage->getCacheCreationTokens());
@@ -137,7 +137,7 @@ final class TokenUsageExtractorTest extends TestCase
         $tokenUsage = (new TokenUsageExtractor())->extract(new InMemoryRawResult($result));
 
         $this->assertInstanceOf(TokenUsage::class, $tokenUsage);
-        $this->assertSame(4, $tokenUsage->getPromptTokens());
+        $this->assertSame(38775, $tokenUsage->getPromptTokens());
         $this->assertSame(73, $tokenUsage->getCompletionTokens());
         $this->assertSame(9384, $tokenUsage->getCacheCreationTokens());
         $this->assertSame(29387, $tokenUsage->getCacheReadTokens());

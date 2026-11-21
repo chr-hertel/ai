@@ -437,6 +437,16 @@ Platform
    +$platform->invoke('gpt-5.4', $messages);
    ```
 
+ * `TokenUsageInterface::getCompletionTokens()` includes the thinking tokens for every bridge, with
+   `getThinkingTokens()` being the part of it spent on thinking. The Gemini and Vertex AI bridges reported the
+   thinking tokens on top of the completion tokens and now include them, so drop any sum of both on your side.
+
+ * `TokenUsageInterface::getPromptTokens()` includes the cached tokens for every bridge, with
+   `getCacheReadTokens()` and `getCacheCreationTokens()` being the part of it read from and written into the prompt
+   cache. The Anthropic and Claude Code bridges now add `cache_read_input_tokens` and `cache_creation_input_tokens`
+   to `input_tokens`, and every bridge reporting cache reads now fills `getCacheReadTokens()`, not only
+   `getCachedTokens()`.
+
 Store
 -----
 

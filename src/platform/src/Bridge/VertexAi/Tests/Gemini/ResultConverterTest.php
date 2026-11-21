@@ -530,7 +530,7 @@ final class ResultConverterTest extends TestCase
 
         $this->assertInstanceOf(TokenUsageInterface::class, $items[1]);
         $this->assertSame(15, $items[1]->getPromptTokens());
-        $this->assertSame(25, $items[1]->getCompletionTokens());
+        $this->assertSame(28, $items[1]->getCompletionTokens());
         $this->assertSame(3, $items[1]->getThinkingTokens());
         $this->assertSame(43, $items[1]->getTotalTokens());
         $this->assertSame('gemini-2.5-pro', $items[1]->getModel());

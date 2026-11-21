@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Agent\Toolbox;
 
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\Component\Stopwatch\Stopwatch;
 use Symfony\Contracts\Service\ResetInterface;
@@ -18,7 +20,7 @@ use Symfony\Contracts\Service\ResetInterface;
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class TraceableToolbox implements ToolboxInterface, ResetInterface
+final class TraceableToolbox implements ToolboxInterface, ResetInterface, RunContextAwareInterface
 {
     /**
      * @var ToolResult[]
@@ -29,6 +31,13 @@ final class TraceableToolbox implements ToolboxInterface, ResetInterface
         private readonly ToolboxInterface $toolbox,
         private readonly ?Stopwatch $stopwatch = null,
     ) {
+    }
+
+    public function setRunContext(RunContext $runContext): void
+    {
+        if ($this->toolbox instanceof RunContextAwareInterface) {
+            $this->toolbox->setRunContext($runContext);
+        }
     }
 
     public function getTools(): array

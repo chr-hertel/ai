@@ -393,6 +393,9 @@ so you can also use this option to change the capabilities of an existing model.
   :class:`Symfony\\AI\\Platform\\Bridge\\Generic\\EmbeddingsModel` for embedding models.
 * ``capabilities`` (list): The :class:`Symfony\\AI\\Platform\\Capability` cases the model supports.
   At least one capability must be specified for each model.
+* ``price`` (map, optional): The price per 1M tokens with the keys ``input``, ``output``, ``cache_read`` and
+  ``cache_write``, used by the ``max_cost_per_run`` of a :ref:`run budget <ai-bundle-run-budget>`. The cache prices
+  are the input price when omitted.
 
 The ``models`` option works with every platform and catalog: the bundled list, a custom
 ``service`` and a catalog that fetches its models from the provider API. The ``generic``,
@@ -610,6 +613,57 @@ Then configure the prompt with translation enabled:
 
 The system prompt text will be automatically translated using the configured translator service.
 If no translation domain is specified, the default domain will be used.
+
+Versioned Prompts
+~~~~~~~~~~~~~~~~~
+
+To know which prompt version produced an answer, keep the system prompts in versioned YAML files, see
+:doc:`the Agent documentation </components/agent>` for the file format. Configure the directories of the files and
+use a prompt of the registry for an agent:
+
+.. code-block:: yaml
+
+    ai:
+        prompt_registry:
+            paths: ['%kernel.project_dir%/prompts']
+        agent:
+            support:
+                model: 'gpt-4o-mini'
+                prompt:
+                    registry: 'support/system'
+                    # the latest version when omitted
+                    version: '2026-08-v2'
+                    variables:
+                        shop_name: 'Acme'
+
+The agent resolves the prompt for every call and records its name and version in the run context. The registry is
+available as ``Symfony\AI\Agent\Prompt\PromptRegistryInterface`` service. A registry prompt can't include the tools
+or be translated.
+
+.. _ai-bundle-run-budget:
+
+Run Budgets
+~~~~~~~~~~~
+
+A run budget stops a runaway tool calling loop gracefully. The run ends with an apology instead of asking the model
+again:
+
+.. code-block:: yaml
+
+    ai:
+        agent:
+            support:
+                model: 'gpt-4o-mini'
+                budget:
+                    max_tokens_per_run: 20000
+                    # in USD for the prices of the bridges
+                    max_cost_per_run: 0.25
+                    # the answer of a stopped run, a generic apology when omitted
+                    message: 'I could not finish this request, a colleague will get back to you.'
+
+The cost uses the prices of the platform's model catalog. A model without a price has no cost, so only its tokens
+count. Add the price of your own models with the ``price`` option of the catalog ``models``. A stopped run dispatches
+a ``GuardrailTriggered`` event.
 
 Message Template Support
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1589,6 +1643,240 @@ agents, message stores and stores that took part in the request.
     separate web server - Panther, for instance - cannot reach the collector through the container,
     and are not covered by the trait.
 
+.. _ai-bundle-tracing:
+
+Tracing
+-------
+
+With the :doc:`Telemetry component </components/telemetry>` installed, the bundle traces platform calls, agent
+runs, tool calls and retrievals with OpenTelemetry, in every environment:
+
+.. code-block:: terminal
+
+    $ composer require symfony/ai-telemetry
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            # service ID of the tracer provider, the one registered in OpenTelemetry\API\Globals when omitted
+            tracer_provider: 'app.tracer_provider'
+            # record prompts, completions, tool arguments and tool results
+            capture_content: false
+            # service ID of a ContentRedactorInterface masking personal data in the captured content
+            content_redactor: 'app.pii_redactor'
+            # record the identifier of the authenticated Symfony user as "user.id"
+            capture_user: false
+            # service ID of a UserIdResolverInterface recording e.g. a pseudonymous ID instead of the user identifier
+            user_id_resolver: null
+            # disable single kinds of spans, all enabled by default
+            instrument:
+                platform: true
+                agent: true
+                toolbox: true
+                retriever: true
+
+Disabled kinds of spans are not decorated at all, so they cost nothing. Guardrail interventions are recorded as
+span events, and the spans of an OpenTelemetry SDK tracer provider are flushed once the response is sent or the
+command finished.
+
+.. caution::
+
+    With ``capture_content`` enabled, user input and model output are sent to your tracing backend, and with
+    ``capture_user`` the user identifier, often an email address. Only enable them for backends that are allowed to
+    store that data.
+
+Exporting without an OpenTelemetry Setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your application has no OpenTelemetry setup yet, the ``exporter`` option sends the spans to a tracing backend
+instead of a ``tracer_provider``. It requires the OpenTelemetry SDK and exporter, and the bridge of the backend, for
+example the one of `Langfuse`_:
+
+.. code-block:: terminal
+
+    $ composer require open-telemetry/sdk open-telemetry/exporter-otlp symfony/ai-langfuse-telemetry
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            enabled: true
+            exporter:
+                langfuse:
+                    public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                    secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                    # "https://cloud.langfuse.com" by default, an empty host disables the export
+                    host: '%env(LANGFUSE_HOST)%'
+                # optional OpenTelemetry resource attributes of the spans
+                resource_attributes:
+                    service.name: 'shop'
+
+Configure exactly one backend. The other ones are:
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        tracing:
+            exporter:
+                # Arize Phoenix, requires symfony/ai-phoenix-telemetry
+                phoenix:
+                    endpoint: 'http://localhost:6006'
+                    # the "default" project of Phoenix when omitted
+                    project: 'Shop'
+                    api_key: '%env(PHOENIX_API_KEY)%'
+
+                # Jaeger, requires symfony/ai-jaeger-telemetry
+                jaeger:
+                    endpoint: 'http://localhost:4318'
+
+                # Grafana Tempo, requires symfony/ai-tempo-telemetry
+                tempo:
+                    endpoint: 'http://localhost:4318'
+                    # sent as "X-Scope-OrgID" to a multi-tenant Tempo
+                    tenant: 'shop'
+
+                # any other backend ingesting OTLP over HTTP
+                otlp:
+                    # "/v1/traces" is appended, an empty endpoint disables the export
+                    endpoint: 'https://otel.example.com'
+                    headers:
+                        Authorization: 'Bearer %env(OTEL_TOKEN)%'
+                    # "http/protobuf" by default
+                    protocol: 'http/json'
+
+The endpoints shown are the defaults. The spans are sent over HTTP in batches, once the response is sent or the
+command finished. For sampling, other protocols or a tracer provider shared with the rest of your application, set up
+OpenTelemetry yourself and pass its ``tracer_provider`` instead.
+
+.. _ai-bundle-feedback:
+
+Feedback
+--------
+
+To learn which answers fail, record the feedback of your users and implicit signals on the runs of your agents with
+the :doc:`Feedback component </components/feedback>`. Configure where the feedback goes:
+
+.. code-block:: yaml
+
+    ai:
+        feedback:
+            recorders:
+                langfuse:
+                    public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                    secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                    host: '%env(LANGFUSE_HOST)%'
+                # phoenix: { endpoint: 'http://localhost:6006', api_key: '%env(PHOENIX_API_KEY)%' }
+                # doctrine: { connection: 'default', table: 'ai_feedback' }
+                # services: ['app.feedback_recorder']
+            # records the feedback in a Messenger handler instead of during the request
+            async: true
+            signals:
+                tool_errors: true
+                guardrails: true
+
+Every configured recorder gets each feedback. Inject
+:class:`Symfony\\AI\\Feedback\\FeedbackRecorderInterface` to record the feedback of a user, keyed by the
+``run_id`` of the result. A failed tool call and a guardrail intervention are recorded as negative signals unless you
+disable them under ``signals``.
+
+With ``async: true``, route ``Symfony\AI\Feedback\Messenger\RecordFeedback`` to an async transport. The
+``doctrine`` recorder writes into a table of the DBAL connection. Create the table with:
+
+.. code-block:: terminal
+
+    $ php bin/console ai:feedback:setup
+
+.. _ai-bundle-eval:
+
+Evaluation
+----------
+
+The :doc:`Eval component </components/eval>` runs your agents against datasets and checks the results before a
+release. Configure a suite per agent:
+
+.. code-block:: yaml
+
+    ai:
+        eval:
+            evaluators:
+                # usable by name next to "tools_called", "tool_arguments", "text", "limits" and "json_schema"
+                support_judge: { type: 'llm_judge', platform: 'ai.platform.openai', model: 'gpt-4o' }
+                grounded: { type: 'faithfulness', platform: 'ai.platform.openai', model: 'gpt-4o' }
+                similar: { type: 'similarity', platform: 'ai.platform.openai', model: 'text-embedding-3-small' }
+            suites:
+                support:
+                    agent: 'support'
+                    datasets: ['%kernel.project_dir%/evals/support.yaml']
+                    # answers the tool calls with the fixtures of the cases, true by default
+                    fixtures: true
+                    repetitions: 2
+                    variants:
+                        baseline: { prompt_version: '2026-08-v2' }
+                        cheap: { platform: 'ai.platform.openai', model: 'gpt-4o-mini' }
+                    evaluators: ['tools_called', 'text', 'support_judge']
+                    gates:
+                        pass_rate: 0.9
+                        label_pass_rate: { refund: 0.95 }
+                        regression: { baseline: 'baseline', max_drop: 0.02 }
+                        max_cost_per_case: 0.05
+                        # calibrates the judge with the labeled runs of the "app.labeled_runs" service
+                        min_kappa: { judge: 'support_judge', runs: 'app.labeled_runs', min: 0.6 }
+
+A variant runs the agent with its platform, model or ``prompt_version`` of a registry prompt, and the processors of
+the configured agent. Without variants, the suite runs the agent as configured. Run a suite with:
+
+.. code-block:: terminal
+
+    $ php bin/console ai:eval:run support --report=junit:var/eval/junit.xml
+
+The command exits with ``1`` if a gate fails. The cost of a case uses the prices of the platform's model catalog.
+
+To check a judge against human labels with ``ai:eval:calibrate``, tag services that iterate over
+``Symfony\AI\Eval\Calibration\LabeledRun`` objects with ``ai.eval.labeled_runs`` and a ``name`` attribute. The
+``llm_judge`` and ``faithfulness`` evaluators are the judges of the command.
+
+To pull datasets from Langfuse, add a case from a production trace and push the results of a run to Langfuse, add
+your Langfuse credentials:
+
+.. code-block:: yaml
+
+    ai:
+        eval:
+            langfuse:
+                public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                host: '%env(LANGFUSE_HOST)%'
+
+This adds the ``ai:eval:dataset:pull`` and ``ai:eval:dataset:add`` commands and the ``--push=langfuse`` option of
+``ai:eval:run``.
+
+Online Evaluation
+~~~~~~~~~~~~~~~~~
+
+To score a sample of the production runs, configure the ``online_evaluation`` of an agent. The runs are scored in a
+Messenger handler and the scores are recorded as :ref:`feedback <ai-bundle-feedback>`:
+
+.. code-block:: yaml
+
+    ai:
+        agent:
+            support:
+                model: 'gpt-4o-mini'
+                online_evaluation:
+                    # share of the runs, between 0.0 and 1.0
+                    sample_rate: 0.1
+                    evaluators: ['limits', 'support_judge']
+                    expectations:
+                        max_tool_calls: 5
+                        judge: { criteria: 'The answer is polite and confirms every refund with a ticket ID.' }
+
+Route ``Symfony\AI\Eval\Online\EvaluateRun`` to an async transport, so the scoring doesn't delay the answer.
+
 Message stores
 --------------
 
@@ -1716,3 +2004,4 @@ When only STT is configured (no TTS), the agent returns the same result type as 
 .. _`Symfony AI Agent`: https://github.com/symfony/ai-agent
 .. _`Symfony AI Platform`: https://github.com/symfony/ai-platform
 .. _`Symfony AI Store`: https://github.com/symfony/ai-store
+.. _`Langfuse`: https://langfuse.com/

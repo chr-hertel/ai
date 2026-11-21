@@ -122,6 +122,7 @@ final class ResultConverter implements ResultConverterInterface
                     promptTokens: $data['usage']['input_tokens'] ?? null,
                     completionTokens: $data['usage']['output_tokens'] ?? null,
                     cachedTokens: $data['usage']['cached_input_tokens'] ?? null,
+                    cacheReadTokens: $data['usage']['cached_input_tokens'] ?? null,
                 );
             }
         }

@@ -89,10 +89,11 @@ final class Execution implements ExecutionInterface
         private readonly \Closure $factory,
         private readonly bool $streamed = false,
         ?Cancellation $cancellation = null,
+        (AbstractUid&TimeBasedUidInterface)|null $id = null,
     ) {
         $this->metadata = new Metadata();
         $this->cancellation = $cancellation ?? new Cancellation();
-        $this->id = Uuid::v7();
+        $this->id = $id ?? Uuid::v7();
     }
 
     /**

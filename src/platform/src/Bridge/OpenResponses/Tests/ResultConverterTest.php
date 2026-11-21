@@ -1669,6 +1669,7 @@ final class ResultConverterTest extends TestCase
         $this->assertSame(7, $chunks[2]->getCompletionTokens());
         $this->assertSame(2, $chunks[2]->getThinkingTokens());
         $this->assertSame(3, $chunks[2]->getCachedTokens());
+        $this->assertSame(3, $chunks[2]->getCacheReadTokens());
         $this->assertSame($cacheWriteTokens, $chunks[2]->getCacheCreationTokens());
         $this->assertSame(18, $chunks[2]->getTotalTokens());
     }

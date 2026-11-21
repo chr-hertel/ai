@@ -17,8 +17,13 @@ use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\Runner;
+use Symfony\AI\Agent\Execution\Turn;
+use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\Execution\UpdateInterface;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
@@ -30,6 +35,7 @@ use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -38,6 +44,8 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 final class Agent implements AgentInterface
 {
     private readonly Runner $runner;
+    private readonly ?ToolboxInterface $toolbox;
+    private readonly ?ToolExecutorInterface $toolExecutor;
 
     /**
      * @param InputProcessorInterface[]  $inputProcessors
@@ -63,6 +71,9 @@ final class Agent implements AgentInterface
         if (null === $toolExecutor && $toolbox instanceof ToolboxInterface) {
             $toolExecutor = new SequentialToolExecutor($toolbox);
         }
+
+        $this->toolbox = $toolbox;
+        $this->toolExecutor = $toolExecutor;
 
         $this->runner = new Runner(
             $platform,
@@ -103,88 +114,134 @@ final class Agent implements AgentInterface
      */
     public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
     {
+        $runContext = $options['run_context'] ?? new RunContext();
+        if (!$runContext instanceof RunContext) {
+            throw new InvalidArgumentException(\sprintf('The "run_context" option must be an instance of "%s", "%s" given.', RunContext::class, get_debug_type($runContext)));
+        }
+        unset($options['run_context']);
+
+        $id = Uuid::v7();
+        if ('' === $runContext->getRunId()) {
+            $runContext = $runContext->withRunId($id->toRfc4122());
+        }
+
         $cancellation = new Cancellation();
-        $factory = function () use ($input, $options, $cancellation): \Generator {
+        $factory = function () use ($input, $options, $cancellation, $runContext): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
                 $input = $this->continueStored($input, $this->messageStore);
                 $this->messageStore->save($input);
             }
 
-            $request = new Input($this->getModel(), $input, $options);
-            foreach ($this->inputProcessors as $inputProcessor) {
-                if (!$inputProcessor instanceof InputProcessorInterface) {
-                    throw new InvalidArgumentException(\sprintf('Input processor "%s" must implement "%s".', $inputProcessor::class, InputProcessorInterface::class));
-                }
+            $request = new Input($this->getModel(), $input, $options, $runContext);
+            $updates = $this->run($input, $request, $cancellation);
 
-                if ($inputProcessor instanceof AgentAwareInterface) {
-                    $inputProcessor->setAgent($this);
-                }
+            // injected before every step, since executions of the same agent can interleave
+            $this->injectRunContext($request->getRunContext());
+            while ($updates->valid()) {
+                yield $updates->current();
 
-                $inputProcessor->processInput($request);
+                $this->injectRunContext($request->getRunContext());
+                $updates->next();
             }
-
-            $model = $request->getModel();
-            $messages = $request->getMessageBag();
-            $processedOptions = $request->getOptions();
-
-            $result = null;
-            $resultUpdate = null;
-            $onToolRound = null;
-            if (null !== $this->messageStore) {
-                $store = $this->messageStore;
-                $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
-            }
-
-            foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound) as $update) {
-                if ($update instanceof ResultUpdate) {
-                    $result = $update->getResult();
-                    $resultUpdate = $update;
-
-                    continue;
-                }
-
-                yield $update;
-            }
-
-            if ($cancellation->isRequested()) {
-                return;
-            }
-
-            \assert($result instanceof ResultInterface && $resultUpdate instanceof ResultUpdate);
-
-            $output = new Output($model, $result, $messages, $processedOptions);
-            foreach ($this->outputProcessors as $outputProcessor) {
-                if (!$outputProcessor instanceof OutputProcessorInterface) {
-                    throw new InvalidArgumentException(\sprintf('Output processor "%s" must implement "%s".', $outputProcessor::class, OutputProcessorInterface::class));
-                }
-
-                if ($outputProcessor instanceof AgentAwareInterface) {
-                    $outputProcessor->setAgent($this);
-                }
-
-                $outputProcessor->processOutput($output);
-            }
-
-            $finalResult = $output->getResult();
-            $conversation = static function () use ($resultUpdate, $messages, $input, $result, $finalResult): MessageBag {
-                $runMessages = $resultUpdate->getMessages($finalResult !== $result ? $finalResult : null);
-
-                // the runner appended to the processed request, the caller's input only gets the new messages
-                $newMessages = \array_slice($runMessages?->getMessages() ?? [], \count($messages));
-
-                return $input->merge(new MessageBag(...$newMessages));
-            };
-
-            if (null !== $this->messageStore) {
-                $conversation = $conversation();
-                $this->messageStore->save($conversation);
-            }
-
-            yield new ResultUpdate($finalResult, $conversation);
         };
 
-        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
+        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation, $id);
+    }
+
+    /**
+     * @return \Generator<int, UpdateInterface, mixed, void>
+     */
+    private function run(MessageBag $input, Input $request, Cancellation $cancellation): \Generator
+    {
+        foreach ($this->inputProcessors as $inputProcessor) {
+            if (!$inputProcessor instanceof InputProcessorInterface) {
+                throw new InvalidArgumentException(\sprintf('Input processor "%s" must implement "%s".', $inputProcessor::class, InputProcessorInterface::class));
+            }
+
+            if ($inputProcessor instanceof AgentAwareInterface) {
+                $inputProcessor->setAgent($this);
+            }
+
+            $inputProcessor->processInput($request);
+        }
+
+        $model = $request->getModel();
+        $messages = $request->getMessageBag();
+        $processedOptions = $request->getOptions();
+
+        $result = null;
+        $resultUpdate = null;
+        $turns = [];
+        $onToolRound = null;
+        if (null !== $this->messageStore) {
+            $store = $this->messageStore;
+            $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
+        }
+
+        foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound, $request->getRunContext()) as $update) {
+            if ($update instanceof ResultUpdate) {
+                $result = $update->getResult();
+                $resultUpdate = $update;
+
+                continue;
+            }
+
+            if ($update instanceof Progress && $update->getPayload() instanceof Turn) {
+                $turns[] = $update->getPayload();
+            }
+
+            yield $update;
+        }
+
+        if ($cancellation->isRequested()) {
+            return;
+        }
+
+        \assert($result instanceof ResultInterface && $resultUpdate instanceof ResultUpdate);
+
+        $runContext = $request->getRunContext();
+        $output = new Output($model, $result, $messages, $processedOptions, $runContext, $turns);
+        foreach ($this->outputProcessors as $outputProcessor) {
+            if (!$outputProcessor instanceof OutputProcessorInterface) {
+                throw new InvalidArgumentException(\sprintf('Output processor "%s" must implement "%s".', $outputProcessor::class, OutputProcessorInterface::class));
+            }
+
+            if ($outputProcessor instanceof AgentAwareInterface) {
+                $outputProcessor->setAgent($this);
+            }
+
+            $outputProcessor->processOutput($output);
+        }
+
+        $finalResult = $output->getResult();
+        $conversation = static function () use ($resultUpdate, $messages, $input, $result, $finalResult): MessageBag {
+            $runMessages = $resultUpdate->getMessages($finalResult !== $result ? $finalResult : null);
+
+            // the runner appended to the processed request, the caller's input only gets the new messages
+            $newMessages = \array_slice($runMessages?->getMessages() ?? [], \count($messages));
+
+            return $input->merge(new MessageBag(...$newMessages));
+        };
+
+        if (null !== $this->messageStore) {
+            $conversation = $conversation();
+            $this->messageStore->save($conversation);
+        }
+
+        $finalResult->getMetadata()->add('run_id', $runContext->getRunId());
+        $finalResult->getMetadata()->add('run_context', $runContext);
+
+        yield new ResultUpdate($finalResult, $conversation);
+    }
+
+    private function injectRunContext(RunContext $runContext): void
+    {
+        foreach ([...$this->inputProcessors, ...$this->outputProcessors, $this->toolbox, $this->toolExecutor] as $target) {
+            if ($target instanceof RunContextAwareInterface) {
+                $target->setRunContext($runContext);
+            }
+        }
     }
 
     /**

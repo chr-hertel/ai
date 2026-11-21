@@ -21,7 +21,7 @@ use Symfony\AI\Platform\Capability;
 final class InMemoryModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: class-string, capabilities: list<Capability>}> $models
+     * @param array<string, array{class: class-string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}> $models
      */
     public function __construct(array $models = [])
     {

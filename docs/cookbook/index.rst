@@ -21,6 +21,7 @@ Getting Started Guides
     context-compression
     rag-implementation
     build-an-mcp-server
+    closing-the-loop
 
 Symfony Integration
 -------------------
@@ -53,6 +54,11 @@ Retrieval Augmented Generation
 ------------------------------
 
 * :doc:`rag-implementation` - Implement complete RAG systems with vector stores and semantic search
+
+Quality & Observability
+-----------------------
+
+* :doc:`closing-the-loop` - Trace production runs, collect feedback, turn failures into eval cases and gate releases on them
 
 Model Context Protocol
 ----------------------

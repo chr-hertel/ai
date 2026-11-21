@@ -1,16 +1,15 @@
 Dimensions: 1536
 
-+------------------ Token Usage -------------------+
-| Model                   | text-embedding-3-small |
-| Prompt tokens           | 64                     |
-| Completion tokens       | n/a                    |
-| Thinking tokens         | n/a                    |
-| Tool tokens             | n/a                    |
-| Cached tokens           | n/a                    |
-| Cache creation tokens   | n/a                    |
-| Cache read tokens       | n/a                    |
-| Remaining tokens minute | n/a                    |
-| Remaining tokens month  | n/a                    |
-| Remaining tokens        | n/a                    |
-| Total tokens            | 64                     |
-+-------------------------+------------------------+
++-------------------------- Token Usage -+------------------------+
+| Model                                  | text-embedding-3-small |
+| Prompt tokens                          | 64                     |
+| Cache read tokens (part of prompt)     | n/a                    |
+| Cache creation tokens (part of prompt) | n/a                    |
+| Completion tokens                      | n/a                    |
+| Thinking tokens (part of completion)   | n/a                    |
+| Tool tokens                            | n/a                    |
+| Remaining tokens minute                | n/a                    |
+| Remaining tokens month                 | n/a                    |
+| Remaining tokens                       | n/a                    |
+| Total tokens                           | 64                     |
++----------------------------------------+------------------------+

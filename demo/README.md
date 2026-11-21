@@ -34,6 +34,7 @@ This small demo sits on top of following technologies:
 ## Setup
 
 The setup is split into three parts, the Symfony application, the OpenAI configuration, and initializing PostgreSQL.
+Tracing with Langfuse comes with the docker environment, see the fourth part.
 
 ### 1. Symfony App
 
@@ -107,6 +108,37 @@ To embed all movies again, for example after changing the embedding model, run
 `symfony console ai:store:index movies`.
 
 **Don't forget to set up the project in your favorite IDE or editor.**
+
+### 4. Tracing with Langfuse
+
+Every agent run, model call, tool call and retrieval is traced with OpenTelemetry. The spans follow the GenAI semantic
+conventions and go to the local [Langfuse](https://langfuse.com/) that `docker compose up -d` starts next to the
+database. It comes with a project and API keys already set up. Use the demo, then open http://localhost:3000 and log in
+with `demo@symfony.com` / `symfony-ai-demo`.
+
+The `LANGFUSE_*` variables in `.env` point to that Langfuse. Leave `LANGFUSE_HOST` empty to disable the export. To also
+see prompts and completions, add `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` to `.env.local`.
+
+> [!WARNING]
+> `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` sends prompts, completions and tool arguments to the
+> tracing backend. Only enable it for backends that are allowed to store that data.
+
+The spans come from `symfony/ai-telemetry`, enabled by the `tracing` section of `config/packages/ai.yaml`. Its
+`exporter` sends them to Langfuse with `symfony/ai-langfuse-telemetry`.
+
+#### Other Tracing Backends
+
+`compose.yaml` also has Arize Phoenix, Jaeger and Grafana with Tempo, each behind a profile. Start one of them and
+replace the `langfuse` exporter in `config/packages/ai.yaml` by the matching one:
+
+| Backend | Start | Exporter | UI |
+|---|---|---|---|
+| [Arize Phoenix](https://phoenix.arize.com/) | `docker compose --profile phoenix up -d` | `phoenix: { project: 'Symfony AI Demo' }` | http://localhost:6006 |
+| [Jaeger](https://www.jaegertracing.io/) | `docker compose --profile jaeger up -d` | `jaeger: { endpoint: 'http://localhost:4319' }` | http://localhost:16686 |
+| [Grafana Tempo](https://grafana.com/oss/tempo/) | `docker compose --profile grafana up -d` | `tempo: ~` | http://localhost:3001 |
+
+Grafana also shows the "Symfony AI" dashboard, with calls and latency per model, agent and tool. Tempo derives these
+metrics from the spans and stores them in Prometheus.
 
 ## Testing
 

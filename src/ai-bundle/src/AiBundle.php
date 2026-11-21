@@ -15,6 +15,11 @@ use AsyncAws\S3Vectors\S3VectorsClient;
 use Google\Auth\ApplicationDefaultCredentials;
 use Google\Auth\FetchAuthTokenInterface;
 use Mcp\Server\Capability\Attribute\Schema as McpSchema;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\TracerInterface;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
+use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
+use OpenTelemetry\SDK\Trace\TracerProvider;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
@@ -30,6 +35,8 @@ use Symfony\AI\Agent\Bridge\Pogocache\MessageStore as PogocacheMessageStore;
 use Symfony\AI\Agent\Bridge\Redis\MessageStore as RedisMessageStore;
 use Symfony\AI\Agent\Bridge\Session\MessageStore as SessionMessageStore;
 use Symfony\AI\Agent\Bridge\SurrealDb\MessageStore as SurrealDbMessageStore;
+use Symfony\AI\Agent\Budget\RunBudget;
+use Symfony\AI\Agent\Event\GuardrailTriggered;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
 use Symfony\AI\Agent\InputProcessorInterface;
 use Symfony\AI\Agent\Memory\MemoryInputProcessor;
@@ -40,24 +47,67 @@ use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
 use Symfony\AI\Agent\MultiAgent\Handoff;
 use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\OutputProcessorInterface;
+use Symfony\AI\Agent\Prompt\PromptInputProcessor;
+use Symfony\AI\Agent\Prompt\PromptRegistryInterface;
+use Symfony\AI\Agent\Prompt\YamlPromptRegistry;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\ChainToolbox;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\FaultTolerantToolbox;
 use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
 use Symfony\AI\Agent\Toolbox\Tool\Subagent;
 use Symfony\AI\Agent\Toolbox\ToolFactory\ChainFactory;
 use Symfony\AI\Agent\Toolbox\ToolFactory\MemoryToolFactory;
+use Symfony\AI\AiBundle\Command\SetupFeedbackCommand;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\DoctrineVectorDistancePass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
 use Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass;
+use Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass;
+use Symfony\AI\AiBundle\Eval\SuiteAgentFactory;
 use Symfony\AI\AiBundle\Exception\InvalidArgumentException;
 use Symfony\AI\AiBundle\Mcp\ConnectionToolset;
 use Symfony\AI\AiBundle\Profiler\DeferredToolbox;
 use Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool;
+use Symfony\AI\AiBundle\Tracing\FlushTracesListener;
+use Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver;
+use Symfony\AI\Eval\Bridge\Langfuse\Command\DatasetAddCommand;
+use Symfony\AI\Eval\Bridge\Langfuse\Command\DatasetPullCommand;
+use Symfony\AI\Eval\Bridge\Langfuse\LangfuseDatasetSource;
+use Symfony\AI\Eval\Bridge\Langfuse\LangfuseReportPublisher;
+use Symfony\AI\Eval\Command\CalibrateCommand;
+use Symfony\AI\Eval\Command\RunCommand;
+use Symfony\AI\Eval\Dataset;
+use Symfony\AI\Eval\EvalRunner;
+use Symfony\AI\Eval\Evaluator\Faithfulness;
+use Symfony\AI\Eval\Evaluator\JsonSchema;
+use Symfony\AI\Eval\Evaluator\Limits;
+use Symfony\AI\Eval\Evaluator\LlmJudge;
+use Symfony\AI\Eval\Evaluator\Similarity;
+use Symfony\AI\Eval\Evaluator\TextAssertions;
+use Symfony\AI\Eval\Evaluator\ToolArguments;
+use Symfony\AI\Eval\Evaluator\ToolsCalled;
+use Symfony\AI\Eval\EvaluatorInterface;
+use Symfony\AI\Eval\Gate\CostPerCaseGate;
+use Symfony\AI\Eval\Gate\MinKappaGate;
+use Symfony\AI\Eval\Gate\PassRateGate;
+use Symfony\AI\Eval\Gate\RegressionGate;
+use Symfony\AI\Eval\Online\EvaluateRunHandler;
+use Symfony\AI\Eval\Online\SamplingProcessor;
+use Symfony\AI\Eval\Suite;
+use Symfony\AI\Eval\Variant;
+use Symfony\AI\Feedback\Bridge\Doctrine\DoctrineRecorder;
+use Symfony\AI\Feedback\Bridge\Langfuse\LangfuseRecorder;
+use Symfony\AI\Feedback\Bridge\Phoenix\PhoenixRecorder;
+use Symfony\AI\Feedback\ChainRecorder;
+use Symfony\AI\Feedback\EventListener\GuardrailSignalListener;
+use Symfony\AI\Feedback\EventListener\ToolErrorSignalListener;
+use Symfony\AI\Feedback\FeedbackRecorderInterface;
+use Symfony\AI\Feedback\Messenger\MessengerRecorder;
+use Symfony\AI\Feedback\Messenger\RecordFeedbackHandler;
 use Symfony\AI\McpBundle\Client\ServerConnectionInterface;
 use Symfony\AI\Platform\Bridge\Albert\Factory as AlbertFactory;
 use Symfony\AI\Platform\Bridge\AmazeeAi\Factory as AmazeeAiFactory;
@@ -106,6 +156,8 @@ use Symfony\AI\Platform\Bridge\VertexAi\Factory as VertexAiFactory;
 use Symfony\AI\Platform\Bridge\Voyage\Factory as VoyageFactory;
 use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Contract\JsonSchema\Provider\SchemaProviderInterface;
+use Symfony\AI\Platform\Cost\CostCalculator;
+use Symfony\AI\Platform\Cost\PriceTable;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Job\JobClientInterface;
 use Symfony\AI\Platform\Message\Content\File;
@@ -189,9 +241,20 @@ use Symfony\AI\Store\ManagedStoreInterface;
 use Symfony\AI\Store\Retriever;
 use Symfony\AI\Store\RetrieverInterface;
 use Symfony\AI\Store\StoreInterface;
+use Symfony\AI\Telemetry\Bridge\Jaeger\JaegerBackend;
+use Symfony\AI\Telemetry\Bridge\Langfuse\LangfuseBackend;
+use Symfony\AI\Telemetry\Bridge\Phoenix\PhoenixBackend;
+use Symfony\AI\Telemetry\Bridge\Tempo\TempoBackend;
+use Symfony\AI\Telemetry\EventListener\GuardrailSpanListener;
+use Symfony\AI\Telemetry\Exporter\OtlpBackend;
+use Symfony\AI\Telemetry\Exporter\OtlpTracerProviderFactory;
+use Symfony\AI\Telemetry\Platform\TracingPlatform;
+use Symfony\AI\Telemetry\SemanticConvention\GenAiAttributes;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
+use Symfony\Component\DependencyInjection\Argument\ServiceLocatorArgument;
+use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -200,6 +263,8 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Translation\TranslatableMessage;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -215,6 +280,7 @@ final class AiBundle extends AbstractBundle
         parent::build($container);
 
         $container->addCompilerPass(new DebugCompilerPass());
+        $container->addCompilerPass(new TracingCompilerPass());
         $container->addCompilerPass(new ProcessorCompilerPass());
         $container->addCompilerPass(new SchemaProviderValidationPass());
         $container->addCompilerPass(new DoctrineVectorDistancePass());
@@ -266,6 +332,28 @@ final class AiBundle extends AbstractBundle
         }
         if (1 === \count($taggedPlatforms)) {
             $builder->setAlias(PlatformInterface::class, array_key_first($taggedPlatforms));
+        }
+
+        if (isset($config['prompt_registry'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-agent', Agent::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Prompt registry configuration requires "symfony/ai-agent" package. Try running "composer require symfony/ai-agent".');
+            }
+
+            $builder->setDefinition('ai.prompt_registry', new Definition(YamlPromptRegistry::class, [$config['prompt_registry']['paths']]));
+            $builder->setAlias(PromptRegistryInterface::class, 'ai.prompt_registry');
+        }
+
+        $usesOnlineEvaluation = [] !== array_filter($config['agent'] ?? [], static fn (array $agent): bool => isset($agent['online_evaluation']));
+        if ([] !== $config['eval']['evaluators'] || [] !== $config['eval']['suites'] || $usesOnlineEvaluation) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-eval', EvaluatorInterface::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Eval configuration requires "symfony/ai-eval" package. Try running "composer require symfony/ai-eval".');
+            }
+
+            if ($usesOnlineEvaluation && !$config['feedback']['enabled']) {
+                throw new InvalidArgumentException('Online evaluation records its scores as feedback, configure "feedback" too.');
+            }
+
+            $this->processEvaluatorConfig($config['eval']['evaluators'], $builder);
         }
 
         if ([] !== ($config['agent'] ?? [])) {
@@ -372,6 +460,33 @@ final class AiBundle extends AbstractBundle
             if (1 === \count($config['retriever']) && isset($retrieverName)) {
                 $builder->setAlias(RetrieverInterface::class, 'ai.retriever.'.$retrieverName);
             }
+        }
+
+        if ($config['feedback']['enabled']) {
+            $this->processFeedbackConfig($config['feedback'], $builder);
+        }
+
+        if ([] !== $config['eval']['suites']) {
+            $this->processEvalSuitesConfig($config['eval']['suites'], $config['agent'] ?? [], $builder);
+        }
+
+        if (isset($config['eval']['langfuse'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-langfuse-dataset-source', LangfuseDatasetSource::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Langfuse datasets require "symfony/ai-langfuse-dataset-source" package. Try running "composer require symfony/ai-langfuse-dataset-source".');
+            }
+
+            $langfuse = [new Reference('http_client'), $config['eval']['langfuse']['host'], $config['eval']['langfuse']['public_key'], $config['eval']['langfuse']['secret_key']];
+            $builder->setDefinition('ai.eval.langfuse.dataset_source', new Definition(LangfuseDatasetSource::class, $langfuse));
+            $builder->setDefinition('ai.eval.langfuse.report_publisher', new Definition(LangfuseReportPublisher::class, $langfuse))
+                ->addTag('ai.eval.report_publisher', ['name' => 'langfuse']);
+            $builder->setDefinition('ai.eval.command.dataset_pull', new Definition(DatasetPullCommand::class, [new Reference('ai.eval.langfuse.dataset_source')]))
+                ->addTag('console.command');
+            $builder->setDefinition('ai.eval.command.dataset_add', new Definition(DatasetAddCommand::class, [new Reference('ai.eval.langfuse.dataset_source')]))
+                ->addTag('console.command');
+        }
+
+        if ($config['tracing']['enabled']) {
+            $this->processTracingConfig($config['tracing'], $builder);
         }
 
         if (ContainerBuilder::willBeAvailable('symfony/ai-agent', Agent::class, ['symfony/ai-bundle'])) {
@@ -1662,7 +1777,18 @@ final class AiBundle extends AbstractBundle
         }
 
         // SYSTEM PROMPT
-        if (isset($config['prompt'])) {
+        if (isset($config['prompt']['registry'])) {
+            if (!$container->hasDefinition('ai.prompt_registry')) {
+                throw new InvalidArgumentException(\sprintf('Agent "%s" uses the prompt "%s" of the registry, but no "prompt_registry" is configured.', $name, $config['prompt']['registry']));
+            }
+
+            $container->setDefinition('ai.agent.'.$name.'.prompt_processor', new Definition(PromptInputProcessor::class, [
+                new Reference('ai.prompt_registry'),
+                $config['prompt']['registry'],
+                $config['prompt']['version'] ?? null,
+                $config['prompt']['variables'],
+            ]))->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -30]);
+        } elseif (isset($config['prompt'])) {
             $includeTools = isset($config['prompt']['include_tools']) && $config['prompt']['include_tools'];
 
             if ($includeTools && !$config['tools']['enabled']) {
@@ -1711,6 +1837,48 @@ final class AiBundle extends AbstractBundle
                 ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -30]);
 
             $container->setDefinition('ai.agent.'.$name.'.system_prompt_processor', $systemPromptInputProcessorDefinition);
+        }
+
+        // RUN BUDGET
+        if (isset($config['budget'])) {
+            $budgetDefinition = (new Definition(RunBudget::class))
+                ->setArgument('$maxTokens', $config['budget']['max_tokens_per_run'])
+                ->setArgument('$maxCost', $config['budget']['max_cost_per_run'])
+                ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+                ->setArgument('$onlyProcessedRuns', true)
+                // last, since the processors before it may replace the run context
+                ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => -1024])
+                ->addTag('kernel.event_listener', ['event' => ToolCallsExecuted::class]);
+
+            if (null !== $config['budget']['max_cost_per_run']) {
+                $modelCatalog = (new Definition(ModelCatalogInterface::class))->setFactory([new Reference($config['platform']), 'getModelCatalog']);
+                $prices = (new Definition(PriceTable::class))->setFactory([PriceTable::class, 'fromModelCatalog'])->setArguments([$modelCatalog]);
+                $budgetDefinition->setArgument('$costCalculator', new Definition(CostCalculator::class, [$prices]));
+            }
+
+            if (null !== $config['budget']['message']) {
+                $budgetDefinition->setArgument('$message', $config['budget']['message']);
+            }
+
+            $container->setDefinition('ai.agent.'.$name.'.budget', $budgetDefinition);
+        }
+
+        // ONLINE EVALUATION
+        if (isset($config['online_evaluation'])) {
+            $online = $config['online_evaluation'];
+            $container->setDefinition('ai.agent.'.$name.'.online_evaluation', new Definition(SamplingProcessor::class, [
+                new Reference($online['bus']),
+                $online['sample_rate'],
+                $online['expectations'],
+                null,
+                $name,
+            ]))->addTag('ai.agent.output_processor', ['agent' => $agentId]);
+
+            $container->setDefinition('ai.agent.'.$name.'.online_evaluation_handler', new Definition(EvaluateRunHandler::class, [
+                array_map(fn (string $evaluator): Reference => $this->evaluatorReference($evaluator, $container), $online['evaluators']),
+                new Reference('ai.feedback.recorder'),
+                $name,
+            ]))->addTag('messenger.message_handler');
         }
 
         // MEMORY PROVIDER
@@ -1767,7 +1935,8 @@ final class AiBundle extends AbstractBundle
                     null !== $config['speech']['speech_to_text_platform'] ? new Reference($config['speech']['speech_to_text_platform']) : null,
                     null !== $config['speech']['text_to_speech_platform'] ? new Reference($config['speech']['text_to_speech_platform']) : null,
                 ])
-                ->setDecoratedService($agentId, priority: -1024);
+                // Inside the tracing decorator, so speech-to-text and text-to-speech are part of the traced run
+                ->setDecoratedService($agentId, priority: -512);
         }
     }
 
@@ -3089,6 +3258,318 @@ final class AiBundle extends AbstractBundle
         $definition->addTag('ai.indexer', ['name' => $name]);
         $container->setDefinition($serviceId, $definition);
         $container->registerAliasForArgument($serviceId, IndexerInterface::class, (new Target((string) $name))->getParsedName());
+    }
+
+    /**
+     * @param array<string, array{type: string, platform: string, model: string, threshold: float|null, prompt: string|null}> $evaluators
+     */
+    private function processEvaluatorConfig(array $evaluators, ContainerBuilder $container): void
+    {
+        $builtIn = [
+            'tools_called' => ToolsCalled::class,
+            'tool_arguments' => ToolArguments::class,
+            'text' => TextAssertions::class,
+            'limits' => Limits::class,
+            'json_schema' => JsonSchema::class,
+        ];
+        foreach ($builtIn as $name => $class) {
+            $container->setDefinition('ai.eval.evaluator.'.$name, new Definition($class));
+        }
+
+        $classes = ['llm_judge' => LlmJudge::class, 'faithfulness' => Faithfulness::class, 'similarity' => Similarity::class];
+        foreach ($evaluators as $name => $evaluator) {
+            if (isset($builtIn[$name])) {
+                throw new InvalidArgumentException(\sprintf('The evaluator "%s" has the name of a built-in evaluator.', $name));
+            }
+
+            $definition = (new Definition($classes[$evaluator['type']]))
+                ->setArgument('$platform', new Reference($evaluator['platform']))
+                ->setArgument('$model', $evaluator['model'])
+                ->setArgument('$name', $name)
+                ->addTag('ai.eval.judge');
+
+            if (null !== $evaluator['threshold']) {
+                $definition->setArgument('$threshold', $evaluator['threshold']);
+            }
+
+            if (null !== $evaluator['prompt']) {
+                $definition->setArgument('$prompt', $evaluator['prompt']);
+            }
+
+            if ('similarity' === $evaluator['type']) {
+                $definition->clearTag('ai.eval.judge');
+            }
+
+            $container->setDefinition('ai.eval.evaluator.'.$name, $definition);
+        }
+
+        $container->setDefinition('ai.eval.command.calibrate', new Definition(CalibrateCommand::class, [
+            new TaggedIteratorArgument('ai.eval.judge'),
+            new TaggedIteratorArgument('ai.eval.labeled_runs', 'name'),
+        ]))->addTag('console.command');
+    }
+
+    private function evaluatorReference(string $evaluator, ContainerBuilder $container): Reference
+    {
+        return new Reference($container->hasDefinition('ai.eval.evaluator.'.$evaluator) ? 'ai.eval.evaluator.'.$evaluator : $evaluator);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $suites
+     * @param array<string, array<string, mixed>> $agents
+     */
+    private function processEvalSuitesConfig(array $suites, array $agents, ContainerBuilder $container): void
+    {
+        $platforms = [];
+        foreach ($suites as $name => $suite) {
+            if (!isset($agents[$suite['agent']])) {
+                throw new InvalidArgumentException(\sprintf('The eval suite "%s" tests the agent "%s", which is not configured.', $name, $suite['agent']));
+            }
+
+            $agent = $agents[$suite['agent']];
+            $toolbox = $container->hasDefinition('ai.toolbox.'.$suite['agent']) ? new Reference('ai.toolbox.'.$suite['agent']) : null;
+
+            $variants = [];
+            $suitePlatforms = [$agent['platform'] => new Reference($agent['platform'])];
+            foreach ([] === $suite['variants'] ? ['default' => []] : $suite['variants'] as $variantName => $variant) {
+                $parameters = array_filter($variant, static fn (mixed $value): bool => null !== $value);
+                $parameters['model'] ??= $agent['model'];
+                if (isset($parameters['platform'])) {
+                    $suitePlatforms[$parameters['platform']] = new Reference($parameters['platform']);
+                }
+
+                $variants[] = new Definition(Variant::class, [$variantName, $parameters]);
+            }
+            $platforms += $suitePlatforms;
+
+            $usesRegistry = isset($agent['prompt']['registry']);
+            $factoryId = 'ai.eval.suite.'.$name.'.agent_factory';
+            $container->setDefinition($factoryId, new Definition(SuiteAgentFactory::class, [
+                '$platforms' => new ServiceLocatorArgument($suitePlatforms),
+                '$platform' => $agent['platform'],
+                '$model' => $agent['model'],
+                '$name' => $suite['agent'],
+                '$inputProcessors' => [], // placeholder until ProcessorCompilerPass process.
+                '$outputProcessors' => [],
+                '$toolbox' => $toolbox,
+                '$maxToolCalls' => $agent['max_tool_calls'],
+                '$eventDispatcher' => new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+                '$promptRegistry' => $usesRegistry ? new Reference('ai.prompt_registry') : null,
+                '$promptName' => $usesRegistry ? $agent['prompt']['registry'] : null,
+                '$promptVariables' => $usesRegistry ? $agent['prompt']['variables'] : [],
+            ]))->addTag('ai.eval.agent_factory', ['agent' => 'ai.agent.'.$suite['agent']]);
+
+            $gates = [];
+            if (null !== $suite['gates']['pass_rate']) {
+                $gates[] = new Definition(PassRateGate::class, [$suite['gates']['pass_rate']]);
+            }
+            foreach ($suite['gates']['label_pass_rate'] as $label => $min) {
+                $gates[] = new Definition(PassRateGate::class, [$min, (string) $label]);
+            }
+            if (isset($suite['gates']['regression'])) {
+                $gates[] = new Definition(RegressionGate::class, [$suite['gates']['regression']['baseline'], $suite['gates']['regression']['max_drop']]);
+            }
+            if (null !== $suite['gates']['max_cost_per_case']) {
+                $gates[] = new Definition(CostPerCaseGate::class, [$suite['gates']['max_cost_per_case']]);
+            }
+            if (isset($suite['gates']['min_kappa'])) {
+                $minKappa = $suite['gates']['min_kappa'];
+                $gates[] = new Definition(MinKappaGate::class, [$this->evaluatorReference($minKappa['judge'], $container), new Reference($minKappa['runs']), $minKappa['min']]);
+            }
+
+            $container->setDefinition('ai.eval.suite.'.$name, new Definition(Suite::class, [
+                $name,
+                array_map(static fn (string $path): Definition => (new Definition(Dataset::class))->setFactory([Dataset::class, 'fromFile'])->setArguments([$path]), $suite['datasets']),
+                $variants,
+                (new Definition(\Closure::class))->setFactory([\Closure::class, 'fromCallable'])->setArguments([new Reference($factoryId)]),
+                array_map(fn (string $evaluator): Reference => $this->evaluatorReference($evaluator, $container), $suite['evaluators']),
+                $gates,
+                $suite['repetitions'],
+                $suite['fixtures'] ? $toolbox : null,
+            ]))->addTag('ai.eval.suite');
+        }
+
+        $catalogs = array_map(static fn (Reference $platform): Definition => (new Definition(ModelCatalogInterface::class))->setFactory([$platform, 'getModelCatalog']), array_values($platforms));
+        $prices = (new Definition(PriceTable::class))
+            ->setFactory([PriceTable::class, 'fromModelCatalog'])
+            ->setArguments([new Definition(CompositeModelCatalog::class, [$catalogs])]);
+
+        $container->setDefinition('ai.eval.command.run', (new Definition(RunCommand::class))
+            ->setArgument('$suites', new TaggedIteratorArgument('ai.eval.suite'))
+            ->setArgument('$runner', new Definition(EvalRunner::class, [new Definition(CostCalculator::class, [$prices])]))
+            ->setArgument('$publishers', new TaggedIteratorArgument('ai.eval.report_publisher', 'name')))
+            ->addTag('console.command');
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function processFeedbackConfig(array $config, ContainerBuilder $container): void
+    {
+        if (!ContainerBuilder::willBeAvailable('symfony/ai-feedback', FeedbackRecorderInterface::class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException('Feedback configuration requires "symfony/ai-feedback" package. Try running "composer require symfony/ai-feedback".');
+        }
+
+        $recorders = array_map(static fn (string $id): Reference => new Reference($id), $config['recorders']['services']);
+
+        if (isset($config['recorders']['langfuse'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-langfuse-feedback-recorder', LangfuseRecorder::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('The Langfuse feedback recorder requires "symfony/ai-langfuse-feedback-recorder" package. Try running "composer require symfony/ai-langfuse-feedback-recorder".');
+            }
+
+            $langfuse = $config['recorders']['langfuse'];
+            $container->setDefinition('ai.feedback.recorder.langfuse', new Definition(LangfuseRecorder::class, [
+                new Reference('http_client'),
+                $langfuse['host'],
+                $langfuse['public_key'],
+                $langfuse['secret_key'],
+            ]));
+            $recorders[] = new Reference('ai.feedback.recorder.langfuse');
+        }
+
+        if (isset($config['recorders']['phoenix'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-phoenix-feedback-recorder', PhoenixRecorder::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('The Phoenix feedback recorder requires "symfony/ai-phoenix-feedback-recorder" package. Try running "composer require symfony/ai-phoenix-feedback-recorder".');
+            }
+
+            $container->setDefinition('ai.feedback.recorder.phoenix', new Definition(PhoenixRecorder::class, [
+                new Reference('http_client'),
+                $config['recorders']['phoenix']['endpoint'],
+                $config['recorders']['phoenix']['api_key'],
+            ]));
+            $recorders[] = new Reference('ai.feedback.recorder.phoenix');
+        }
+
+        if (isset($config['recorders']['doctrine'])) {
+            if (!ContainerBuilder::willBeAvailable('symfony/ai-doctrine-feedback-recorder', DoctrineRecorder::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('The Doctrine feedback recorder requires "symfony/ai-doctrine-feedback-recorder" package. Try running "composer require symfony/ai-doctrine-feedback-recorder".');
+            }
+
+            $container->setDefinition('ai.feedback.recorder.doctrine', new Definition(DoctrineRecorder::class, [
+                new Reference(\sprintf('doctrine.dbal.%s_connection', $config['recorders']['doctrine']['connection'])),
+                $config['recorders']['doctrine']['table'],
+            ]));
+            $container->setDefinition('ai.command.setup_feedback', new Definition(SetupFeedbackCommand::class, [new Reference('ai.feedback.recorder.doctrine')]))
+                ->addTag('console.command');
+            $recorders[] = new Reference('ai.feedback.recorder.doctrine');
+        }
+
+        $container->setDefinition('ai.feedback.recorder.chain', new Definition(ChainRecorder::class, [
+            $recorders,
+            new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
+        ]));
+
+        if ($config['async']) {
+            if (!interface_exists(MessageBusInterface::class)) {
+                throw new RuntimeException('Recording feedback asynchronously requires "symfony/messenger" package. Try running "composer require symfony/messenger".');
+            }
+
+            $container->setDefinition('ai.feedback.recorder', new Definition(MessengerRecorder::class, [new Reference('messenger.default_bus')]));
+            $container->setDefinition('ai.feedback.record_handler', new Definition(RecordFeedbackHandler::class, [new Reference('ai.feedback.recorder.chain')]))
+                ->addTag('messenger.message_handler');
+        } else {
+            $container->setAlias('ai.feedback.recorder', 'ai.feedback.recorder.chain');
+        }
+
+        $container->setAlias(FeedbackRecorderInterface::class, 'ai.feedback.recorder');
+
+        if ($config['signals']['tool_errors']) {
+            $container->setDefinition('ai.feedback.listener.tool_errors', new Definition(ToolErrorSignalListener::class, [
+                new Reference('ai.feedback.recorder'),
+                new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
+            ]))->addTag('kernel.event_listener', ['event' => ToolCallsExecuted::class]);
+        }
+
+        if ($config['signals']['guardrails']) {
+            $container->setDefinition('ai.feedback.listener.guardrails', new Definition(GuardrailSignalListener::class, [
+                new Reference('ai.feedback.recorder'),
+                new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE),
+            ]))->addTag('kernel.event_listener', ['event' => GuardrailTriggered::class]);
+        }
+    }
+
+    /**
+     * @param array{tracer_provider: string|null, exporter?: array{otlp?: array{endpoint: string, headers: array<string, string>, protocol: 'http/protobuf'|'http/json'}, langfuse?: array{public_key: string, secret_key: string, host: string}, phoenix?: array{endpoint: string, project: string|null, api_key: string|null}, jaeger?: array{endpoint: string}, tempo?: array{endpoint: string, tenant: string|null}, resource_attributes: array<non-empty-string, bool|int|string>}, capture_content: bool, content_redactor: string|null, capture_user: bool, user_id_resolver: string|null, instrument: array{platform: bool, agent: bool, toolbox: bool, retriever: bool}} $config
+     */
+    private function processTracingConfig(array $config, ContainerBuilder $container): void
+    {
+        if (!ContainerBuilder::willBeAvailable('symfony/ai-telemetry', TracingPlatform::class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException('Tracing configuration requires "symfony/ai-telemetry" package. Try running "composer require symfony/ai-telemetry".');
+        }
+
+        $tracerProvider = $config['tracer_provider'];
+        if (isset($config['exporter'])) {
+            if (!ContainerBuilder::willBeAvailable('open-telemetry/exporter-otlp', OtlpHttpTransportFactory::class, ['symfony/ai-bundle'])
+                || !ContainerBuilder::willBeAvailable('open-telemetry/sdk', TracerProvider::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Tracing exporter configuration requires "open-telemetry/sdk" and "open-telemetry/exporter-otlp" packages. Try running "composer require open-telemetry/sdk open-telemetry/exporter-otlp".');
+            }
+
+            $container->setDefinition('ai.tracing.backend', $this->createTracingBackend($config['exporter']));
+
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([OtlpTracerProviderFactory::class, 'create'])
+                ->setArguments([new Reference('ai.tracing.backend'), $config['exporter']['resource_attributes']]));
+        } elseif (null === $tracerProvider) {
+            $tracerProvider = 'ai.tracing.tracer_provider';
+            $container->setDefinition($tracerProvider, (new Definition(TracerProviderInterface::class))
+                ->setFactory([Globals::class, 'tracerProvider']));
+        }
+
+        // flushes SDK tracer providers only, so a custom one is flushed as well and a no-op one is left alone
+        $container->setDefinition('ai.tracing.flush_listener', new Definition(FlushTracesListener::class, [new Reference($tracerProvider)]))
+            ->addTag('kernel.event_listener', ['event' => 'kernel.terminate'])
+            ->addTag('kernel.event_listener', ['event' => 'console.terminate']);
+
+        $container->setDefinition('ai.tracing.tracer', (new Definition(TracerInterface::class))
+            ->setFactory([new Reference($tracerProvider), 'getTracer'])
+            ->setArguments(['symfony/ai', null, GenAiAttributes::SCHEMA_URL]));
+
+        if ($config['capture_user'] && null !== $config['user_id_resolver']) {
+            $container->setAlias('ai.tracing.user_id_resolver', $config['user_id_resolver']);
+        } elseif ($config['capture_user']) {
+            if (!ContainerBuilder::willBeAvailable('symfony/security-core', TokenStorageInterface::class, ['symfony/ai-bundle'])) {
+                throw new RuntimeException('Tracing "capture_user" requires "symfony/security-bundle" package. Try running "composer require symfony/security-bundle".');
+            }
+
+            $container->setDefinition('ai.tracing.user_id_resolver', new Definition(SecurityUserIdResolver::class, [
+                new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ]));
+        }
+
+        if (ContainerBuilder::willBeAvailable('symfony/ai-agent', GuardrailTriggered::class, ['symfony/ai-bundle'])) {
+            $container->setDefinition('ai.tracing.guardrail_listener', new Definition(GuardrailSpanListener::class))
+                ->addTag('kernel.event_listener', ['event' => GuardrailTriggered::class]);
+        }
+
+        $container->setParameter('.ai.tracing.content_redactor', $config['content_redactor']);
+        $container->setParameter('.ai.tracing.capture_content', $config['capture_content']);
+        $container->setParameter('.ai.tracing.capture_user', $config['capture_user']);
+        $container->setParameter('.ai.tracing.instrument', array_keys(array_filter($config['instrument'])));
+    }
+
+    /**
+     * @param array{otlp?: array{endpoint: string, headers: array<string, string>, protocol: 'http/protobuf'|'http/json'}, langfuse?: array{public_key: string, secret_key: string, host: string}, phoenix?: array{endpoint: string, project: string|null, api_key: string|null}, jaeger?: array{endpoint: string}, tempo?: array{endpoint: string, tenant: string|null}} $config
+     */
+    private function createTracingBackend(array $config): Definition
+    {
+        if (isset($config['otlp'])) {
+            return new Definition(OtlpBackend::class, [$config['otlp']['endpoint'], $config['otlp']['headers'], $config['otlp']['protocol']]);
+        }
+
+        [$name, $class, $arguments] = match (true) {
+            isset($config['langfuse']) => ['langfuse', LangfuseBackend::class, [$config['langfuse']['public_key'], $config['langfuse']['secret_key'], $config['langfuse']['host']]],
+            isset($config['phoenix']) => ['phoenix', PhoenixBackend::class, [$config['phoenix']['endpoint'], $config['phoenix']['project'], $config['phoenix']['api_key']]],
+            isset($config['jaeger']) => ['jaeger', JaegerBackend::class, [$config['jaeger']['endpoint']]],
+            isset($config['tempo']) => ['tempo', TempoBackend::class, [$config['tempo']['endpoint'], $config['tempo']['tenant']]],
+            default => throw new InvalidArgumentException('No tracing backend configured.'),
+        };
+
+        if (!ContainerBuilder::willBeAvailable(\sprintf('symfony/ai-%s-telemetry', $name), $class, ['symfony/ai-bundle'])) {
+            throw new RuntimeException(\sprintf('The "%1$s" tracing exporter requires "symfony/ai-%1$s-telemetry" package. Try running "composer require symfony/ai-%1$s-telemetry".', $name));
+        }
+
+        return new Definition($class, $arguments);
     }
 
     /**

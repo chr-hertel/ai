@@ -15,6 +15,7 @@ AI capabilities to your application:
 * :doc:`Agent Component </components/agent>`: Framework for building AI agents with tools and workflows
 * :doc:`Store Component </components/store>`: Data storage abstraction for vector databases and RAG applications
 * :doc:`Mate Component </components/mate>`: CLI that gives coding agents project-aware tools for your application
+* :doc:`Telemetry Component </components/telemetry>`: Tracing of platform calls, agent runs and tool calls with OpenTelemetry
 * :doc:`AI Bundle </bundles/ai-bundle>`: Symfony integration bringing all components together
 * :doc:`MCP Bundle </bundles/mcp-bundle>`: Integration for the Model Context Protocol SDK
 

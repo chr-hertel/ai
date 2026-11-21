@@ -19,19 +19,17 @@ Many other frameworks be built atop Symfony's components (like Laravel uses 'em)
 **Arrr, it be perfect fer large, complex applications** that need to sail the seven seas fer many years to come! ⚓
 
 What else ye be wantin' to know about this framework, matey?
-+-------------------- Token Usage ---------------------+
-| Model                   | claude-sonnet-4-5-20250929 |
-| Prompt tokens           | 24                         |
-| Completion tokens       | 409                        |
-| Thinking tokens         | n/a                        |
-| Tool tokens             | n/a                        |
-| Cached tokens           | n/a                        |
-| Cache creation tokens   | n/a                        |
-| Cache read tokens       | n/a                        |
-| Remaining tokens minute | n/a                        |
-| Remaining tokens month  | n/a                        |
-| Remaining tokens        | n/a                        |
-| Total tokens            | n/a                        |
-+-------------------------+----------------------------+
++---------------------------- Token Usage ----------------------------+
+| Model                                  | claude-sonnet-4-5-20250929 |
+| Prompt tokens                          | 24                         |
+| Cache read tokens (part of prompt)     | n/a                        |
+| Cache creation tokens (part of prompt) | n/a                        |
+| Completion tokens                      | 409                        |
+| Thinking tokens (part of completion)   | n/a                        |
+| Tool tokens                            | n/a                        |
+| Remaining tokens minute                | n/a                        |
+| Remaining tokens month                 | n/a                        |
+| Remaining tokens                       | n/a                        |
+| Total tokens                           | n/a                        |
++----------------------------------------+----------------------------+
 Aggregated token usage from 2 calls.
-

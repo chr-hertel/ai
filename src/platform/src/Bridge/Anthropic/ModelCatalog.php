@@ -20,7 +20,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -127,6 +127,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 10.0, 'output' => 50.0, 'cache_read' => 1.0, 'cache_write' => 12.5],
             ],
             'claude-fable-5-1' => [
                 'class' => Claude::class,
@@ -140,6 +141,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 10.0, 'output' => 50.0, 'cache_read' => 0.25, 'cache_write' => 12.5],
             ],
             'claude-haiku-4-5' => [
                 'class' => Claude::class,
@@ -152,6 +154,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 1.0, 'output' => 5.0, 'cache_read' => 0.1, 'cache_write' => 1.25],
             ],
             'claude-haiku-4-5-20251001' => [
                 'class' => Claude::class,
@@ -164,6 +167,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 1.0, 'output' => 5.0, 'cache_read' => 0.1, 'cache_write' => 1.25],
             ],
             'claude-haiku-5-5' => [
                 'class' => Claude::class,
@@ -177,6 +181,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 0.1, 'output' => 0.5, 'cache_read' => 0.01, 'cache_write' => 0.125],
             ],
             'claude-opus-4-0' => [
                 'class' => Claude::class,
@@ -188,6 +193,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 15.0, 'output' => 75.0, 'cache_read' => 1.5, 'cache_write' => 18.75],
             ],
             'claude-opus-4-1' => [
                 'class' => Claude::class,
@@ -200,6 +206,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 15.0, 'output' => 75.0, 'cache_read' => 1.5, 'cache_write' => 18.75],
             ],
             'claude-opus-4-1-20250805' => [
                 'class' => Claude::class,
@@ -212,6 +219,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 15.0, 'output' => 75.0, 'cache_read' => 1.5, 'cache_write' => 18.75],
             ],
             'claude-opus-4-20250514' => [
                 'class' => Claude::class,
@@ -223,6 +231,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 15.0, 'output' => 75.0, 'cache_read' => 1.5, 'cache_write' => 18.75],
             ],
             'claude-opus-4-5' => [
                 'class' => Claude::class,
@@ -235,6 +244,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 5.0, 'output' => 25.0, 'cache_read' => 0.5, 'cache_write' => 6.25],
             ],
             'claude-opus-4-5-20251101' => [
                 'class' => Claude::class,
@@ -247,6 +257,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 5.0, 'output' => 25.0, 'cache_read' => 0.5, 'cache_write' => 6.25],
             ],
             'claude-opus-4-6' => [
                 'class' => Claude::class,
@@ -259,6 +270,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 5.0, 'output' => 25.0, 'cache_read' => 0.5, 'cache_write' => 6.25],
             ],
             'claude-opus-4-7' => [
                 'class' => Claude::class,
@@ -271,6 +283,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 5.0, 'output' => 25.0, 'cache_read' => 0.5, 'cache_write' => 6.25],
             ],
             'claude-opus-4-8' => [
                 'class' => Claude::class,
@@ -283,6 +296,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 5.0, 'output' => 25.0, 'cache_read' => 0.5, 'cache_write' => 6.25],
             ],
             'claude-opus-5' => [
                 'class' => Claude::class,
@@ -296,6 +310,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 5.0, 'output' => 25.0, 'cache_read' => 0.5, 'cache_write' => 6.25],
             ],
             'claude-opus-5-5' => [
                 'class' => Claude::class,
@@ -309,6 +324,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 4.0, 'output' => 20.0, 'cache_read' => 0.2, 'cache_write' => 5.0],
             ],
             'claude-sonnet-4-0' => [
                 'class' => Claude::class,
@@ -320,6 +336,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
             ],
             'claude-sonnet-4-20250514' => [
                 'class' => Claude::class,
@@ -331,6 +348,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
             ],
             'claude-sonnet-4-5' => [
                 'class' => Claude::class,
@@ -343,6 +361,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
             ],
             'claude-sonnet-4-5-20250929' => [
                 'class' => Claude::class,
@@ -355,6 +374,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
             ],
             'claude-sonnet-4-6' => [
                 'class' => Claude::class,
@@ -367,6 +387,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::THINKING,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
             ],
             'claude-sonnet-5' => [
                 'class' => Claude::class,
@@ -380,6 +401,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 2.0, 'output' => 10.0, 'cache_read' => 0.2, 'cache_write' => 2.5],
             ],
             'claude-sonnet-5-5' => [
                 'class' => Claude::class,
@@ -393,6 +415,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_IMAGE,
                     Capability::INPUT_PDF,
                 ],
+                'price' => ['input' => 2.0, 'output' => 10.0, 'cache_read' => 0.1, 'cache_write' => 2.5],
             ],
         ];
         // STATIC LIST END
