@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * Add `Result\ToolCallState` and the state of a `Result\ToolCall`, with `suspend()` and `resume()` returning a suspended or requested copy, kept by `Serializer\MessageNormalizer`
  * Add the status code and the request URL, without its query and credentials, to the message of the exceptions `HttpStatusErrorHandlingTrait` throws
  * Throw a `BadRequestException` on HTTP 422 in `HttpStatusErrorHandlingTrait` and read the `detail` of FastAPI error bodies, which Mistral sends for validation errors
  * Add the serving provider to `InvocationEvent` and `ResultEvent`, as `ResultConvertedEvent` and `ResultErrorEvent` already have it, so a listener can attribute these events to the provider serving the call

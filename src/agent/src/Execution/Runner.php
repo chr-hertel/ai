@@ -11,21 +11,27 @@
 
 namespace Symfony\AI\Agent\Execution;
 
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
+use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Commentary;
+use Symfony\AI\Platform\Message\Content\ContentInterface;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\ToolCallMessage;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
@@ -69,19 +75,30 @@ final class Runner
     }
 
     /**
-     * @param non-empty-string|Model            $model
-     * @param array<string, mixed>              $options
-     * @param (\Closure(MessageBag): void)|null $onToolRound receives the messages after each completed tool round
+     * @param non-empty-string|Model                 $model
+     * @param array<string, mixed>                   $options
+     * @param (\Closure(MessageBag): void)|null      $onToolRound receives the messages after each completed tool round
+     * @param array<string, ToolCallResolution>|null $resolutions resolve the tool calls a suspended execution left unanswered
      *
      * @return \Generator<int, UpdateInterface, mixed, void>
      */
-    public function run(string|Model $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null, ?\Closure $onToolRound = null): \Generator
+    public function run(string|Model $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null, ?\Closure $onToolRound = null, ?array $resolutions = null): \Generator
     {
         [$options, $allowedTools] = $this->exposeTools($options);
 
         $sources = new SourceCollection();
         $metadata = new Metadata();
-        $iterations = 0;
+        // rounds of the current turn that an earlier, suspended execution already ran count as well
+        $iterations = $this->roundsSinceLastUserMessage($messages);
+        $suspended = false;
+
+        if (null !== $resolutions) {
+            [$messages, $sources] = yield from $this->resolve($messages, $resolutions, $allowedTools, $sources);
+
+            if (null !== $onToolRound) {
+                $onToolRound($messages);
+            }
+        }
 
         while (true) {
             $deferredResult = $this->platform->invoke($model, $messages, $options);
@@ -127,20 +144,37 @@ final class Runner
 
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
-            $toolResults = yield from $this->toolExecutor->execute($toolCalls);
 
-            $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
+            $requested = new ToolCallsRequested($toolCalls, $this->definitions(), $messages);
+            $this->eventDispatcher?->dispatch($requested);
+            $executable = array_values(array_filter($toolCalls, static fn (ToolCall $toolCall): bool => !$requested->isSuspended($toolCall)));
+
+            $toolResults = [];
+            if ([] !== $executable) {
+                $toolResults = yield from $this->toolExecutor->execute($executable);
+            }
+
+            $messages = $messages->with($this->withSuspendedToolCalls(
+                $this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()),
+                $requested,
+            ));
             foreach ($toolResults as $i => $toolResult) {
-                // a tool returning nothing still has to answer its call
-                $messages = $messages->with(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult) ?? ''));
-
-                if (null !== $toolResult->getSources()) {
-                    $sources = $sources->merge($toolResult->getSources());
-                }
+                [$messages, $sources] = $this->answer($messages, $sources, $executable[$i], $toolResult);
             }
 
             if (null !== $onToolRound) {
                 $onToolRound($messages);
+            }
+
+            $suspendedToolCalls = $requested->getSuspendedToolCalls();
+            if ([] !== $suspendedToolCalls) {
+                yield new Progress(Progress::STAGE_SUSPENSION, 'Waiting for the suspended tool calls to be resolved.', $suspendedToolCalls);
+
+                // the suspended calls are the result, the assistant message asking for them is already part of the messages
+                $result = new ToolCallResult($suspendedToolCalls);
+                $suspended = true;
+
+                break;
             }
 
             $event = new ToolCallsExecuted($toolResults);
@@ -162,6 +196,10 @@ final class Runner
             ? $this->toAssistantMessage($result, $assistantMessage, $roundMetadata)
             : $this->toAssistantMessage($replacement, null, $roundMetadata));
 
+        if ($suspended) {
+            $answer = static fn (?ResultInterface $replacement = null): MessageBag => $messages;
+        }
+
         // Merged in order, so mergeable values like the token usage add up and the final result's own values win
         $metadata->merge($result->getMetadata());
         $result->getMetadata()->set($metadata->all());
@@ -171,6 +209,157 @@ final class Runner
         }
 
         yield new ResultUpdate($result, $answer);
+    }
+
+    /**
+     * Answers the tool calls a suspended execution left at the end of the conversation.
+     *
+     * @param array<string, ToolCallResolution> $resolutions  keyed by tool call id
+     * @param list<string>|null                 $allowedTools
+     *
+     * @return \Generator<int, UpdateInterface, mixed, array{MessageBag, SourceCollection}>
+     */
+    private function resolve(MessageBag $messages, array $resolutions, ?array $allowedTools, SourceCollection $sources): \Generator
+    {
+        $pending = $this->suspendedToolCalls($messages);
+
+        foreach (array_keys($resolutions) as $id) {
+            if (!isset($pending[$id])) {
+                throw new InvalidArgumentException(\sprintf('The conversation has no suspended tool call with id "%s".', $id));
+            }
+        }
+
+        $executions = [];
+        foreach ($pending as $id => $toolCall) {
+            if (!isset($resolutions[$id])) {
+                throw new InvalidArgumentException(\sprintf('The suspended call of tool "%s" with id "%s" has no resolution.', $toolCall->getName(), $id));
+            }
+
+            if ($resolutions[$id]->isExecution()) {
+                $executions[$id] = $toolCall->resume($resolutions[$id]->getArguments());
+            }
+        }
+
+        $toolResults = [];
+        if ([] !== $executions) {
+            if (null === $this->toolExecutor) {
+                throw new InvalidArgumentException('Executing a resolved tool call requires a toolbox.');
+            }
+
+            $this->denyRestrictedToolCalls(array_values($executions), $allowedTools);
+            $toolResults = array_combine(array_keys($executions), yield from $this->toolExecutor->execute(array_values($executions)));
+        }
+
+        foreach ($pending as $id => $toolCall) {
+            if (isset($toolResults[$id])) {
+                [$messages, $sources] = $this->answer($messages, $sources, $executions[$id], $toolResults[$id]);
+
+                continue;
+            }
+
+            $messages = $messages->with(Message::ofToolCall($toolCall->resume(), $resolutions[$id]->getAnswer() ?? ''));
+        }
+
+        return [$messages, $sources];
+    }
+
+    /**
+     * @return array{MessageBag, SourceCollection}
+     */
+    private function answer(MessageBag $messages, SourceCollection $sources, ToolCall $toolCall, ToolResult $toolResult): array
+    {
+        // a tool returning nothing still has to answer its call
+        $messages = $messages->with(Message::ofToolCall($toolCall, $this->resultConverter->convert($toolResult) ?? ''));
+
+        if (null !== $toolResult->getSources()) {
+            $sources = $sources->merge($toolResult->getSources());
+        }
+
+        return [$messages, $sources];
+    }
+
+    /**
+     * The round's assistant message, carrying the calls the listeners suspended in their suspended state.
+     */
+    private function withSuspendedToolCalls(AssistantMessage $message, ToolCallsRequested $requested): AssistantMessage
+    {
+        if ([] === $requested->getSuspendedToolCalls()) {
+            return $message;
+        }
+
+        $content = array_map(static fn (ContentInterface $part): ContentInterface => $part instanceof ToolCall && $requested->isSuspended($part)
+            ? $part->suspend($requested->getReason($part))
+            : $part, $message->getContent());
+
+        $suspended = new AssistantMessage(...$content);
+        $suspended->getMetadata()->set($message->getMetadata()->all());
+
+        return $suspended;
+    }
+
+    /**
+     * The suspended tool calls of the last assistant message without an answer, as long as only tool messages follow it.
+     *
+     * @return array<string, ToolCall> keyed by tool call id
+     */
+    private function suspendedToolCalls(MessageBag $messages): array
+    {
+        $answered = [];
+        foreach (array_reverse($messages->getMessages()) as $message) {
+            if ($message instanceof ToolCallMessage) {
+                $answered[$message->getToolCall()->getId()] = true;
+
+                continue;
+            }
+
+            if (!$message instanceof AssistantMessage) {
+                return [];
+            }
+
+            $pending = [];
+            foreach ($message->getToolCalls() as $toolCall) {
+                if ($toolCall->isSuspended() && !isset($answered[$toolCall->getId()])) {
+                    $pending[$toolCall->getId()] = $toolCall;
+                }
+            }
+
+            return $pending;
+        }
+
+        return [];
+    }
+
+    private function roundsSinceLastUserMessage(MessageBag $messages): int
+    {
+        $rounds = 0;
+        foreach (array_reverse($messages->getMessages()) as $message) {
+            if ($message instanceof UserMessage) {
+                break;
+            }
+
+            if ($message instanceof AssistantMessage && $message->hasToolCalls()) {
+                ++$rounds;
+            }
+        }
+
+        return $rounds;
+    }
+
+    /**
+     * @return array<string, Tool> keyed by tool name
+     */
+    private function definitions(): array
+    {
+        if (!$this->toolbox instanceof ToolboxInterface) {
+            return [];
+        }
+
+        $definitions = [];
+        foreach ($this->toolbox->getTools() as $tool) {
+            $definitions[$tool->getName()] = $tool;
+        }
+
+        return $definitions;
     }
 
     /**

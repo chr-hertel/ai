@@ -1061,6 +1061,68 @@ confirmation system using the ``ToolCallRequested`` event.
 
 * `Human-in-the-Loop Confirmation`_
 
+Suspending Tool Calls
+~~~~~~~~~~~~~~~~~~~~~
+
+Denying a call answers it right away. To wait for a decision instead - of a human, a worker or another system -
+suspend the call. The agent dispatches :class:`Symfony\\AI\\Agent\\Toolbox\\Event\\ToolCallsRequested` once per model
+round, before it executes the requested tool calls. Calls a listener suspends are not executed: the agent executes the
+remaining calls of the round and ends the execution, waiting for input::
+
+    use Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested;
+
+    $eventDispatcher->addListener(ToolCallsRequested::class, function (ToolCallsRequested $event): void {
+        foreach ($event->getToolCalls() as $toolCall) {
+            // fail closed, so a tool without effect hints is suspended as well
+            if (true !== $event->getDefinition($toolCall)?->isReadOnly()) {
+                $event->suspend($toolCall, 'Needs approval.');
+            }
+        }
+    });
+
+    $execution = $agent->call($messages);
+    $execution->getResult();
+
+    $execution->isSuspended();          // true
+
+    foreach ($execution->getPendingToolCalls() as $toolCall) {
+        $toolCall->isSuspended();       // true
+        $toolCall->getReason();         // 'Needs approval.'
+    }
+
+The suspension is part of the :class:`Symfony\\AI\\Platform\\Result\\ToolCall` itself: the conversation keeps the
+assistant message with all its tool calls, the suspended ones in the ``ToolCallState::Suspended`` state with their
+reason, and the answers of the executed ones. A stored conversation therefore still knows which calls wait for a
+resolution, while the platforms never see the state. To resume, call the agent with
+:class:`Symfony\\AI\\Agent\\Execution\\ToolCallResolutions`: the conversation and a
+:class:`Symfony\\AI\\Agent\\Execution\\ToolCallResolution` for every suspended call, keyed by tool call id. They are
+applied before the model is invoked again::
+
+    use Symfony\AI\Agent\Execution\ToolCallResolution;
+    use Symfony\AI\Agent\Execution\ToolCallResolutions;
+
+    $execution = $agent->call(new ToolCallResolutions($conversation, [
+        'call_1' => ToolCallResolution::execute(),
+        'call_2' => ToolCallResolution::execute(['path' => 'archive/notes.txt']),
+        'call_3' => ToolCallResolution::answer('The user rejected this tool call.'),
+    ]));
+
+Continuing the conversation with a new message instead answers the suspended calls with "The tool call was suspended
+and not resolved." The rounds of the suspended execution count towards ``maxToolCalls``, which limits the tool calling rounds
+since the last user message.
+
+An executed resolution runs through the toolbox like any other call, so its events, argument validation and
+authorization still apply. Resolving a call that is not suspended, or leaving a suspended call unresolved, throws an
+:class:`Symfony\\AI\\Agent\\Exception\\InvalidArgumentException` - which also keeps a resolution from being applied twice.
+
+.. caution::
+
+    The conversation carries the tool calls that get executed. Resume from a :ref:`stored conversation
+    <agent-storing-conversations>` by passing only its id, never from messages a client sent back, since those
+    could contain tool calls the model never requested.
+
+* `Suspending Tool Calls Example`_
+
 Customizing Tool Execution
 --------------------------
 
@@ -1619,6 +1681,7 @@ Code Examples
 .. _`Chat with static memory`: https://github.com/symfony/ai/blob/main/examples/memory/static.php
 .. _`Chat with embedding search memory`: https://github.com/symfony/ai/blob/main/examples/memory/mariadb.php
 .. _`Human-in-the-Loop Confirmation`: https://github.com/symfony/ai/blob/main/examples/toolbox/confirmation.php
+.. _`Suspending Tool Calls Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/suspension.php
 .. _`Tool Call Argument Validation`: https://github.com/symfony/ai/blob/main/examples/toolbox/validation.php
 .. _`Parallel Tool Calls with Fibers`: https://github.com/symfony/ai/blob/main/examples/agent/toolcall-fibers.php
 .. _`Cache`: https://symfony.com/doc/current/components/cache.html

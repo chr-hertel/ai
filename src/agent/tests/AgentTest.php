@@ -18,14 +18,18 @@ use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Agent\Execution\ToolCallResolution;
+use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Input;
 use Symfony\AI\Agent\InputProcessor\ModelOverrideInputProcessor;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
 use Symfony\AI\Agent\InputProcessorInterface;
+use Symfony\AI\Agent\MessageStore\InMemoryMessageStore;
 use Symfony\AI\Agent\Output;
 use Symfony\AI\Agent\OutputProcessorInterface;
 use Symfony\AI\Agent\Tests\Fixtures\MessageBagCapturingProcessor;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
@@ -55,6 +59,7 @@ use Symfony\AI\Platform\Test\MockPlatformFactory;
 use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -571,5 +576,119 @@ final class AgentTest extends TestCase
         $agent = new Agent($platform, 'gpt-4', [], [], $name);
 
         $this->assertSame($name, $agent->getName());
+    }
+
+    public function testToolCallResolutionsResumeTheStoredConversation()
+    {
+        $listed = new ToolCall('id1', 'tool1');
+        $deleted = new ToolCall('id2', 'tool2', ['path' => 'notes.txt']);
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox
+            ->expects($this->exactly(2))
+            ->method('execute')
+            ->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, $toolCall->getName().' done'));
+
+        $eventDispatcher = new EventDispatcher();
+        $eventDispatcher->addListener(ToolCallsRequested::class, static function (ToolCallsRequested $event): void {
+            foreach ($event->getToolCalls() as $toolCall) {
+                if ('tool2' === $toolCall->getName()) {
+                    $event->suspend($toolCall);
+                }
+            }
+        });
+
+        $results = [new ToolCallResult([$listed, $deleted]), new TextResult('Deleted notes.txt.')];
+        $platform = MockPlatformFactory::createPlatform(static function () use (&$results): ResultInterface {
+            return array_shift($results);
+        });
+
+        $store = new InMemoryMessageStore();
+        $agent = new Agent($platform, 'gpt-4', toolbox: $toolbox, eventDispatcher: $eventDispatcher, messageStore: $store);
+
+        $messages = new MessageBag(Message::ofUser('List the files, then delete notes.txt'));
+        $execution = $agent->call($messages);
+        $execution->getResult();
+
+        $this->assertTrue($execution->isSuspended());
+        $this->assertEquals([$deleted->suspend()], $execution->getPendingToolCalls());
+
+        $resumed = $agent->call(new ToolCallResolutions((new MessageBag())->withId($messages->getId()), [
+            'id2' => ToolCallResolution::execute(),
+        ]));
+
+        $this->assertSame('Deleted notes.txt.', $resumed->getContent());
+
+        $stored = $store->load($messages->getId())->getMessages();
+        $this->assertCount(5, $stored);
+        $this->assertInstanceOf(AssistantMessage::class, $stored[1]);
+        $this->assertTrue($stored[1]->getToolCalls()[1]->isSuspended());
+        $this->assertInstanceOf(ToolCallMessage::class, $stored[3]);
+        $this->assertSame('tool2 done', $stored[3]->asText());
+    }
+
+    public function testAbandonedToolCallsAreAnsweredBeforeTheNextMessage()
+    {
+        $toolCall = new ToolCall('id1', 'tool1');
+
+        $roles = [];
+        $platform = MockPlatformFactory::createPlatform(static function ($model, array $input) use (&$roles): string {
+            $roles = array_column($input['messages'], 'role');
+
+            return 'Okay';
+        });
+
+        $agent = new Agent($platform, 'gpt-4');
+        $execution = $agent->call(new MessageBag(
+            Message::ofUser('Delete notes.txt'),
+            new AssistantMessage($toolCall),
+            Message::ofUser('Never mind, keep it'),
+        ));
+
+        $this->assertSame('Okay', $execution->getContent());
+        $this->assertSame(['user', 'assistant', 'tool', 'user'], $roles);
+
+        $messages = $execution->getMessages()->getMessages();
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[2]);
+        $this->assertSame('The tool call was not answered.', $messages[2]->asText());
+    }
+
+    public function testAbandonedSuspendedToolCallIsAnsweredAsUnresolved()
+    {
+        $toolCall = (new ToolCall('id1', 'tool1'))->suspend('Needs approval.');
+
+        $agent = new Agent(MockPlatformFactory::createPlatform('Okay'), 'gpt-4');
+        $execution = $agent->call(new MessageBag(
+            Message::ofUser('Delete notes.txt'),
+            new AssistantMessage($toolCall),
+            Message::ofUser('Never mind, keep it'),
+        ));
+
+        $messages = $execution->getMessages()->getMessages();
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[2]);
+        $this->assertSame('The tool call was suspended and not resolved.', $messages[2]->asText());
+        $this->assertFalse($messages[2]->getToolCall()->isSuspended());
+    }
+
+    public function testConversationWithoutAbandonedToolCallsStaysUntouched()
+    {
+        $toolCall = new ToolCall('id1', 'tool1');
+        $messages = new MessageBag(
+            Message::ofUser('Delete notes.txt'),
+            new AssistantMessage($toolCall),
+            Message::ofToolCall($toolCall, 'Deleted'),
+            Message::ofUser('Thanks'),
+        );
+
+        $roles = [];
+        $platform = MockPlatformFactory::createPlatform(static function ($model, array $input) use (&$roles): string {
+            $roles = array_column($input['messages'], 'role');
+
+            return 'You are welcome';
+        });
+
+        (new Agent($platform, 'gpt-4'))->call($messages)->getResult();
+
+        $this->assertSame(['user', 'assistant', 'tool', 'user'], $roles);
     }
 }

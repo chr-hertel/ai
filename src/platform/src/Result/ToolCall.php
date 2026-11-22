@@ -26,7 +26,45 @@ final class ToolCall implements ContentInterface
         private readonly string $name,
         private readonly array $arguments = [],
         private readonly ?string $signature = null,
+        private readonly ToolCallState $state = ToolCallState::Requested,
+        private readonly ?string $reason = null,
     ) {
+    }
+
+    /**
+     * A copy of this tool call, held back until it gets resolved.
+     */
+    public function suspend(?string $reason = null): self
+    {
+        return new self($this->id, $this->name, $this->arguments, $this->signature, ToolCallState::Suspended, $reason);
+    }
+
+    /**
+     * A copy of this tool call as requested by the model, e.g. to execute it once it got resolved.
+     *
+     * @param array<string, mixed>|null $arguments replace the arguments of the model
+     */
+    public function resume(?array $arguments = null): self
+    {
+        return new self($this->id, $this->name, $arguments ?? $this->arguments, $this->signature);
+    }
+
+    public function getState(): ToolCallState
+    {
+        return $this->state;
+    }
+
+    public function isSuspended(): bool
+    {
+        return ToolCallState::Suspended === $this->state;
+    }
+
+    /**
+     * Why the tool call is suspended.
+     */
+    public function getReason(): ?string
+    {
+        return $this->reason;
     }
 
     public function getId(): string
