@@ -5,7 +5,7 @@
     {{ include('_chat_header.html.twig', { demo: demos.blog }) }}
     <div id="chat-body" class="chat-body">
         {% for message in messages %}
-            {% include '_message.html.twig' with { message, latest: loop.last } %}
+            {% include '_message.html.twig' with { message, latest: loop.last, ratable: this.ratable(message), rating: this.rating(message) } %}
         {% else %}
             {{ message.welcome('Retrieval Augmented Generation based on the Symfony blog', 'I answer questions based on the blog of symfony.com, which got indexed into a vector store - and link the posts I used as sources.') }}
         {% endfor %}

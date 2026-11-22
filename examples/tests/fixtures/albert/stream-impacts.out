@@ -1,19 +1,18 @@
 La **French Public Administration** exploitation sa propre passerelle (ou plateforme) d’IA comme **Gaïa** (ou d’autres initiatives comme celles de **FranceNum**, **Datapublica** ou **INSEE Data Lab**) afin de **standardiser, sécuriser et accélérer l’accès aux technologies d’IA pour ses services** tout en garantissant la conformité avec le **RGPD**, les normes ouvertes (*open data/gouvernemental*) et une souveraineté numérique adaptée aux besoins spécifiques de l’administration française (ex : exploits publics, service public digital comme [FranceConnect](https://www.service-public.fr/professionnels-et-entreprises/vosdroits/F23599), ou partages inter-établissements).
 
-+-------------------------+ Token Usage ---------------------------+
-| Model                   | mistralai/Ministral-3-8B-Instruct-2512 |
-| Prompt tokens           | 28                                     |
-| Completion tokens       | 186                                    |
-| Thinking tokens         | n/a                                    |
-| Tool tokens             | n/a                                    |
-| Cached tokens           | n/a                                    |
-| Cache creation tokens   | n/a                                    |
-| Cache read tokens       | n/a                                    |
-| Remaining tokens minute | n/a                                    |
-| Remaining tokens month  | n/a                                    |
-| Remaining tokens        | n/a                                    |
-| Total tokens            | 214                                    |
-+-------------------------+----------------------------------------+
++---------------------------------- Token Usage ----------------------------------+
+| Model                                  | mistralai/Ministral-3-8B-Instruct-2512 |
+| Prompt tokens                          | 28                                     |
+| Cache read tokens (part of prompt)     | n/a                                    |
+| Cache creation tokens (part of prompt) | n/a                                    |
+| Completion tokens                      | 186                                    |
+| Thinking tokens (part of completion)   | n/a                                    |
+| Tool tokens                            | n/a                                    |
+| Remaining tokens minute                | n/a                                    |
+| Remaining tokens month                 | n/a                                    |
+| Remaining tokens                       | n/a                                    |
+| Total tokens                           | 214                                    |
++----------------------------------------+----------------------------------------+
 
 Environmental impact
   Energy:    1.200e-5 kWh

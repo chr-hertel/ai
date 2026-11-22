@@ -209,6 +209,23 @@ ai:
         movies:
             store: 'ai.store.doctrine.movies'
             vectorizer: 'ai.vectorizer.openai'
+    tracing:
+        enabled: true
+        capture_content: '%env(bool:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT)%'
+        exporter:
+            langfuse:
+                public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                host: '%env(LANGFUSE_HOST)%'
+            resource_attributes:
+                service.name: 'symfony-ai-demo'
+
+    feedback:
+        recorders:
+            langfuse:
+                public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+                secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+                host: '%env(LANGFUSE_HOST)%'
 
 services:
     _defaults:

@@ -20,7 +20,7 @@ use Symfony\AI\Platform\ModelCatalog\AbstractModelCatalog;
 final class ModelCatalog extends AbstractModelCatalog
 {
     /**
-     * @param array<string, array{class: string, capabilities: list<Capability>}> $additionalModels
+     * @param array<string, array{class: string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}> $additionalModels
      */
     public function __construct(array $additionalModels = [])
     {
@@ -107,6 +107,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::TOOL_CALLING,
                     Capability::THINKING,
                 ],
+                'price' => ['input' => 0.3, 'output' => 2.5, 'cache_read' => 0.03],
             ],
             'gemini-2.5-flash-image' => [
                 'class' => Gemini::class,
@@ -132,6 +133,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::TOOL_CALLING,
                     Capability::THINKING,
                 ],
+                'price' => ['input' => 0.1, 'output' => 0.4, 'cache_read' => 0.01],
             ],
             'gemini-2.5-flash-lite-preview-09-2025' => [
                 'class' => Gemini::class,
@@ -180,6 +182,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::TOOL_CALLING,
                     Capability::THINKING,
                 ],
+                'price' => ['input' => 1.25, 'output' => 10.0, 'cache_read' => 0.125],
             ],
             'gemini-2.5-pro-preview-tts' => [
                 'class' => Gemini::class,
@@ -200,6 +203,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::OUTPUT_STRUCTURED,
                     Capability::TOOL_CALLING,
                 ],
+                'price' => ['input' => 0.5, 'output' => 3.0, 'cache_read' => 0.05],
             ],
             'gemini-3-pro-image' => [
                 'class' => Gemini::class,
@@ -275,6 +279,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_PDF,
                     Capability::INPUT_AUDIO,
                 ],
+                'price' => ['input' => 0.25, 'output' => 1.5, 'cache_read' => 0.025],
             ],
             'gemini-3.1-flash-lite-image' => [
                 'class' => Gemini::class,
@@ -339,6 +344,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::TOOL_CALLING,
                     Capability::THINKING,
                 ],
+                'price' => ['input' => 2.0, 'output' => 12.0, 'cache_read' => 0.2],
             ],
             'gemini-3.1-pro-preview-customtools' => [
                 'class' => Gemini::class,
@@ -353,6 +359,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_PDF,
                     Capability::INPUT_AUDIO,
                 ],
+                'price' => ['input' => 2.0, 'output' => 12.0, 'cache_read' => 0.2],
             ],
             'gemini-3.5-flash' => [
                 'class' => Gemini::class,
@@ -381,6 +388,7 @@ final class ModelCatalog extends AbstractModelCatalog
                     Capability::INPUT_PDF,
                     Capability::INPUT_AUDIO,
                 ],
+                'price' => ['input' => 0.3, 'output' => 2.5, 'cache_read' => 0.03],
             ],
             'gemini-3.5-live-translate-preview' => [
                 'class' => Gemini::class,

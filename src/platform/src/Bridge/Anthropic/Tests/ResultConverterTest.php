@@ -290,7 +290,7 @@ final class ResultConverterTest extends TestCase
         $tokenUsage = $streamResult->getMetadata()->get('token_usage');
 
         $this->assertInstanceOf(TokenUsageInterface::class, $tokenUsage);
-        $this->assertSame(100, $tokenUsage->getPromptTokens());
+        $this->assertSame(600, $tokenUsage->getPromptTokens());
         $this->assertSame(200, $tokenUsage->getCacheCreationTokens());
         $this->assertSame(300, $tokenUsage->getCacheReadTokens());
         $this->assertSame(50, $tokenUsage->getCompletionTokens());

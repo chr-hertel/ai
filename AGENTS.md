@@ -13,6 +13,7 @@ This is the Symfony AI monorepo containing multiple components and bundles that 
 - **Agent** (`src/agent/`): Framework for building AI agents that interact with users and perform tasks
 - **Store** (`src/store/`): Data storage abstraction with indexing and retrieval for vector databases
 - **Mate** (`src/mate/`): AI-powered coding assistant for PHP development
+- **Telemetry** (`src/telemetry/`): Tracing decorators for Platform, Agent, Toolbox and Retriever following the OpenTelemetry GenAI semantic conventions, with bridges exporting to Langfuse, Arize Phoenix, Jaeger and Grafana Tempo
 
 ### Bridges
 Each core component has bridges in `src/<component>/src/Bridge/` that provide integrations with specific third-party services. Bridges are dedicated Composer packages with their own dependencies and can be installed independently.

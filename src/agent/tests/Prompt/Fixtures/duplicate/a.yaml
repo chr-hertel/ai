@@ -1,0 +1,3 @@
+name: greeting
+versions:
+    v1: 'Hello.'

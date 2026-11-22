@@ -375,6 +375,7 @@ final class OllamaResultConverterTest extends TestCase
         $this->assertCount(1, $tokenUsages);
         $this->assertSame(42, $tokenUsages[0]->getPromptTokens());
         $this->assertSame(36, $tokenUsages[0]->getCachedTokens());
+        $this->assertSame(36, $tokenUsages[0]->getCacheReadTokens());
     }
 
     /**

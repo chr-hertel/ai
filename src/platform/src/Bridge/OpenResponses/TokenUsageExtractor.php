@@ -56,6 +56,7 @@ class TokenUsageExtractor implements TokenUsageExtractorInterface
             completionTokens: $data['usage']['output_tokens'] ?? null,
             thinkingTokens: $data['usage']['output_tokens_details']['reasoning_tokens'] ?? null,
             cachedTokens: $data['usage']['input_tokens_details']['cached_tokens'] ?? null,
+            cacheReadTokens: $data['usage']['input_tokens_details']['cached_tokens'] ?? null,
             cacheCreationTokens: $data['usage']['input_tokens_details']['cache_write_tokens'] ?? null,
             remainingTokens: $remainingTokens,
             totalTokens: $data['usage']['total_tokens'] ?? null,

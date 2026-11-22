@@ -162,6 +162,8 @@ jobs:
                         find: "find src/agent/src/Bridge -mindepth 2 -maxdepth 2 -name phpunit.xml.dist"
                     -   name: Mate Bridges
                         find: "find src/mate/src/Bridge -mindepth 2 -maxdepth 2 -name phpunit.xml.dist"
+                    -   name: Feedback & Eval Bridges
+                        find: "find src/feedback/src/Bridge src/eval/src/Bridge -mindepth 2 -maxdepth 2 -name phpunit.xml.dist"
 
         env:
             SYMFONY_DEPRECATIONS_HELPER: weak

@@ -1,16 +1,14 @@
 Arrr! Symfony be a powerful PHP web framework o' reusable components and an MVC architecture that helps ye build maintainable, scalable web applications without walkin' the plank. It uses bundles (treasure chests o' features), Composer for dependencies, and a handy CLI (bin/console), with LTS releases and a hearty community to keep yer ship afloat. Perfect fer everything from wee skiff projects to giant enterprise galleons.
-+------------------ Token Usage ------------------+
-| Model                   | gpt-5-mini-2025-08-07 |
-| Prompt tokens           | 31                    |
-| Completion tokens       | 388                   |
-| Thinking tokens         | 256                   |
-| Tool tokens             | n/a                   |
-| Cached tokens           | 0                     |
-| Cache creation tokens   | 0                     |
-| Cache read tokens       | n/a                   |
-| Remaining tokens minute | n/a                   |
-| Remaining tokens month  | n/a                   |
-| Remaining tokens        | n/a                   |
-| Total tokens            | 419                   |
-+-------------------------+-----------------------+
-
++------------------------- Token Usage --+-----------------------+
+| Model                                  | gpt-5-mini-2025-08-07 |
+| Prompt tokens                          | 31                    |
+| Cache read tokens (part of prompt)     | 0                     |
+| Cache creation tokens (part of prompt) | 0                     |
+| Completion tokens                      | 388                   |
+| Thinking tokens (part of completion)   | 256                   |
+| Tool tokens                            | n/a                   |
+| Remaining tokens minute                | n/a                   |
+| Remaining tokens month                 | n/a                   |
+| Remaining tokens                       | n/a                   |
+| Total tokens                           | 419                   |
++----------------------------------------+-----------------------+

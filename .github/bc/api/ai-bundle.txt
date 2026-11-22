@@ -10,6 +10,8 @@ Symfony\AI\AiBundle\Command\AgentCallCommand::complete(): public function comple
 Symfony\AI\AiBundle\Command\PlatformInvokeCommand: final class extends Symfony\Component\Console\Command\Command
 Symfony\AI\AiBundle\Command\PlatformInvokeCommand::__construct(): public function __construct(Symfony\Component\DependencyInjection\ServiceLocator $platforms)
 Symfony\AI\AiBundle\Command\PlatformInvokeCommand::complete(): public function complete(Symfony\Component\Console\Completion\CompletionInput $input, Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
+Symfony\AI\AiBundle\Command\SetupFeedbackCommand: final class extends Symfony\Component\Console\Command\Command
+Symfony\AI\AiBundle\Command\SetupFeedbackCommand::__construct(): public function __construct(Symfony\AI\Feedback\Bridge\Doctrine\DoctrineRecorder $recorder)
 Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
 Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
 Symfony\AI\AiBundle\DependencyInjection\DoctrineVectorDistancePass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
@@ -20,6 +22,9 @@ Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass: class implements 
 Symfony\AI\AiBundle\DependencyInjection\ProcessorCompilerPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
 Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
 Symfony\AI\AiBundle\DependencyInjection\SchemaProviderValidationPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
+Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass: final class implements Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface
+Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass::PRIORITY: public const
+Symfony\AI\AiBundle\DependencyInjection\TracingCompilerPass::process(): public function process(Symfony\Component\DependencyInjection\ContainerBuilder $container): void
 Symfony\AI\AiBundle\Exception\ExceptionInterface: interface extends Throwable
 Symfony\AI\AiBundle\Exception\InvalidArgumentException: class extends InvalidArgumentException implements Symfony\AI\AiBundle\Exception\ExceptionInterface
 Symfony\AI\AiBundle\Exception\RuntimeException: class extends RuntimeException implements Symfony\AI\AiBundle\Exception\ExceptionInterface
@@ -46,12 +51,13 @@ Symfony\AI\AiBundle\Profiler\DataCollector::getToolCalls(): public function getT
 Symfony\AI\AiBundle\Profiler\DataCollector::getTools(): public function getTools(): array
 Symfony\AI\AiBundle\Profiler\DataCollector::hasCalls(): public function hasCalls(): bool
 Symfony\AI\AiBundle\Profiler\DataCollector::lateCollect(): public function lateCollect(): void
-Symfony\AI\AiBundle\Profiler\DeferredToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\Contracts\Service\ResetInterface
+Symfony\AI\AiBundle\Profiler\DeferredToolbox: final class implements Symfony\AI\Agent\Toolbox\ToolboxInterface, Symfony\Contracts\Service\ResetInterface, Symfony\AI\Agent\Run\RunContextAwareInterface
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::__construct(): public function __construct(Symfony\AI\Agent\Toolbox\ToolboxInterface $toolbox)
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::execute(): public function execute(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Agent\Toolbox\ToolResult
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::getLoadedTools(): public function getLoadedTools(): array
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::getTools(): public function getTools(): array
 Symfony\AI\AiBundle\Profiler\DeferredToolbox::reset(): public function reset(): void
+Symfony\AI\AiBundle\Profiler\DeferredToolbox::setRunContext(): public function setRunContext(Symfony\AI\Agent\Run\RunContext $runContext): void
 Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool: final class
 Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool::$attribute: public Symfony\Component\ExpressionLanguage\Expression|string
 Symfony\AI\AiBundle\Security\Attribute\IsGrantedTool::$exceptionCode: public int|null
@@ -68,3 +74,9 @@ Symfony\AI\AiBundle\Test\AiAssertionsTrait::assertToolCallCount(): public static
 Symfony\AI\AiBundle\Test\AiAssertionsTrait::assertToolCalled(): public static function assertToolCalled(string $tool, string $message = ''): void
 Symfony\AI\AiBundle\Test\AiAssertionsTrait::assertToolRegistered(): public static function assertToolRegistered(string $tool, string $message = ''): void
 Symfony\AI\AiBundle\Test\AiAssertionsTrait::getAiDataCollector(): protected static function getAiDataCollector(): Symfony\AI\AiBundle\Profiler\DataCollector
+Symfony\AI\AiBundle\Tracing\FlushTracesListener: final class
+Symfony\AI\AiBundle\Tracing\FlushTracesListener::__construct(): public function __construct(OpenTelemetry\API\Trace\TracerProviderInterface $tracerProvider)
+Symfony\AI\AiBundle\Tracing\FlushTracesListener::__invoke(): public function __invoke(): void
+Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver: final class implements Symfony\AI\Telemetry\UserIdResolverInterface
+Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver::__construct(): public function __construct(Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface|null $tokenStorage)
+Symfony\AI\AiBundle\Tracing\SecurityUserIdResolver::resolve(): public function resolve(): null|string

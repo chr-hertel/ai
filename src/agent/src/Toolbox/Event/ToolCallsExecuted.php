@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Agent\Toolbox\Event;
 
+use Symfony\AI\Agent\Execution\Turn;
+use Symfony\AI\Agent\Run\RunContext;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Result\ResultInterface;
 
@@ -23,9 +25,12 @@ final class ToolCallsExecuted
 
     /**
      * @param ToolResult[] $toolResults
+     * @param Turn|null    $turn        the round of the model that requested the tool calls, with its token usage
      */
     public function __construct(
         private readonly array $toolResults,
+        private readonly ?Turn $turn = null,
+        private readonly ?RunContext $runContext = null,
     ) {
     }
 
@@ -50,5 +55,18 @@ final class ToolCallsExecuted
     public function getToolResults(): array
     {
         return $this->toolResults;
+    }
+
+    public function getTurn(): ?Turn
+    {
+        return $this->turn;
+    }
+
+    /**
+     * The run that requested the tool call, null if the toolbox runs outside of an agent.
+     */
+    public function getRunContext(): ?RunContext
+    {
+        return $this->runContext;
     }
 }

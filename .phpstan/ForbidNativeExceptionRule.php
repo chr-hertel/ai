@@ -57,6 +57,9 @@ final class ForbidNativeExceptionRule implements Rule
         'Symfony\\AI\\Mate\\Bridge\\Monolog' => 'Symfony\\AI\\Mate\\Bridge\\Monolog\\Exception\\',
         'Symfony\\AI\\Mate\\Bridge\\Symfony' => 'Symfony\\AI\\Mate\\Bridge\\Symfony\\Exception\\',
         'Symfony\\AI\\Mate' => 'Symfony\\AI\\Mate\\Exception\\',
+        'Symfony\\AI\\Telemetry' => 'Symfony\\AI\\Telemetry\\Exception\\',
+        'Symfony\\AI\\Feedback' => 'Symfony\\AI\\Feedback\\Exception\\',
+        'Symfony\\AI\\Eval' => 'Symfony\\AI\\Eval\\Exception\\',
     ];
 
     public function getNodeType(): string

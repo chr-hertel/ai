@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Toolbox\Event;
 
+use Symfony\AI\Agent\Run\RunContext;
 use Symfony\AI\Platform\Tool\Tool;
 
 /**
@@ -26,6 +27,7 @@ final class ToolCallFailed
         private readonly Tool $definition,
         private readonly array $arguments,
         private readonly \Throwable $exception,
+        private readonly ?RunContext $runContext = null,
     ) {
     }
 
@@ -50,5 +52,13 @@ final class ToolCallFailed
     public function getException(): \Throwable
     {
         return $this->exception;
+    }
+
+    /**
+     * The run that requested the tool call, null if the toolbox runs outside of an agent.
+     */
+    public function getRunContext(): ?RunContext
+    {
+        return $this->runContext;
     }
 }

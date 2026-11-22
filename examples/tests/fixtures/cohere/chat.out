@@ -1,15 +1,14 @@
 The largest ocean on Earth is the **Pacific Ocean**. It covers approximately 63,800,000 square miles (165,250,000 square kilometers), which is about 46% of Earth's water surface and more than all of the land area combined. The Pacific Ocean extends from the Arctic in the north to the Antarctic in the south and is largely located between Asia and the Americas. It is known for its vast depth, including the Mariana Trench, the deepest point on Earth.
-+--------- Token Usage ---+-----+
-| Model                   | n/a |
-| Prompt tokens           | 503 |
-| Completion tokens       | 112 |
-| Thinking tokens         | n/a |
-| Tool tokens             | n/a |
-| Cached tokens           | n/a |
-| Cache creation tokens   | n/a |
-| Cache read tokens       | n/a |
-| Remaining tokens minute | n/a |
-| Remaining tokens month  | n/a |
-| Remaining tokens        | n/a |
-| Total tokens            | n/a |
-+-------------------------+-----+
++---------------- Token Usage -----------+-----+
+| Model                                  | n/a |
+| Prompt tokens                          | 503 |
+| Cache read tokens (part of prompt)     | n/a |
+| Cache creation tokens (part of prompt) | n/a |
+| Completion tokens                      | 112 |
+| Thinking tokens (part of completion)   | n/a |
+| Tool tokens                            | n/a |
+| Remaining tokens minute                | n/a |
+| Remaining tokens month                 | n/a |
+| Remaining tokens                       | n/a |
+| Total tokens                           | n/a |
++----------------------------------------+-----+

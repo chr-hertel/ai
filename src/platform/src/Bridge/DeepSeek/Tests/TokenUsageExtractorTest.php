@@ -54,6 +54,7 @@ final class TokenUsageExtractorTest extends TestCase
         $this->assertSame(10, $tokenUsage->getPromptTokens());
         $this->assertSame(20, $tokenUsage->getCompletionTokens());
         $this->assertSame(5, $tokenUsage->getCachedTokens());
+        $this->assertSame(5, $tokenUsage->getCacheReadTokens());
         $this->assertSame(30, $tokenUsage->getTotalTokens());
         $this->assertSame('deepseek-chat', $tokenUsage->getModel());
     }
@@ -91,6 +92,7 @@ final class TokenUsageExtractorTest extends TestCase
         $this->assertSame(10, $tokenUsage->getPromptTokens());
         $this->assertSame(20, $tokenUsage->getCompletionTokens());
         $this->assertSame(5, $tokenUsage->getCachedTokens());
+        $this->assertSame(5, $tokenUsage->getCacheReadTokens());
         $this->assertSame(30, $tokenUsage->getTotalTokens());
     }
 }

@@ -1,16 +1,15 @@
 The current time is 20:42:33 (HH:MM:SS).
-+--------- Token Usage ---+------+
-| Model                   | n/a  |
-| Prompt tokens           | 2961 |
-| Completion tokens       | 78   |
-| Thinking tokens         | n/a  |
-| Tool tokens             | n/a  |
-| Cached tokens           | n/a  |
-| Cache creation tokens   | n/a  |
-| Cache read tokens       | n/a  |
-| Remaining tokens minute | n/a  |
-| Remaining tokens month  | n/a  |
-| Remaining tokens        | n/a  |
-| Total tokens            | n/a  |
-+-------------------------+------+
++----------------- Token Usage ----------+------+
+| Model                                  | n/a  |
+| Prompt tokens                          | 2961 |
+| Cache read tokens (part of prompt)     | n/a  |
+| Cache creation tokens (part of prompt) | n/a  |
+| Completion tokens                      | 78   |
+| Thinking tokens (part of completion)   | n/a  |
+| Tool tokens                            | n/a  |
+| Remaining tokens minute                | n/a  |
+| Remaining tokens month                 | n/a  |
+| Remaining tokens                       | n/a  |
+| Total tokens                           | n/a  |
++----------------------------------------+------+
 Aggregated token usage from 2 calls.

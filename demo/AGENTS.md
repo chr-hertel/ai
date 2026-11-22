@@ -84,6 +84,11 @@ The `speech` agent demonstrates two composition features:
 - **Memory**: `memory.service: 'App\...'` — a class implementing the memory contract; contributes context, not callable by the model.
 - **`tools: false`** disables tool use entirely for the agent.
 
+### Telemetry (OpenTelemetry → Langfuse)
+Tracing comes from `symfony/ai-telemetry`, there is no telemetry code in `src/`. The `tracing` section of `config/packages/ai.yaml` makes the AI Bundle decorate every platform, agent, toolbox and retriever and export via its `exporter.langfuse` shortcut (`symfony/ai-langfuse-telemetry`) to `LANGFUSE_HOST` (a no-op while empty). The `langfuse-*` services of `compose.yaml` are a local Langfuse v4 (UI on :3000, project and keys created on boot); `.env.test` blanks the host so tests never export.
+
+The other backends are compose profiles, switched by replacing the exporter in `ai.yaml`: `phoenix` (Arize Phoenix with SQLite, UI and OTLP on :6006, protobuf only, traces filed under the `openinference.project.name` resource attribute), `jaeger` (Jaeger v2 with Badger storage from `docker/jaeger.yaml`, OTLP on :4319, UI on :16686, HTTP API `/api/v3/…`) and `grafana` (Tempo with OTLP on :4318, Prometheus and Grafana on :3001 with anonymous admin, configs in `docker/`). Tempo's metrics generator writes span metrics with the GenAI attributes as labels (`gen_ai_request_model`, `gen_ai_agent_name`, `gen_ai_tool_name`, …) to Prometheus, which the provisioned dashboard `docker/grafana/dashboards/symfony-ai.json` is built on.
+
 ## Configuration Notes
 
 - `composer.json` pins Symfony recipes to `8.0.*` — new bundles installed via Flex will target 8.0.

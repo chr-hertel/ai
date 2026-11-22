@@ -13,6 +13,8 @@ namespace Symfony\AI\Agent\Toolbox;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\AI\Agent\Run\RunContext;
+use Symfony\AI\Agent\Run\RunContextAwareInterface;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallFailed;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallRequested;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallSucceeded;
@@ -30,19 +32,26 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-abstract class AbstractToolbox implements ToolboxInterface
+abstract class AbstractToolbox implements ToolboxInterface, RunContextAwareInterface
 {
+    private ?RunContext $runContext = null;
+
     public function __construct(
         protected readonly LoggerInterface $logger = new NullLogger(),
         protected readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
+    public function setRunContext(RunContext $runContext): void
+    {
+        $this->runContext = $runContext;
+    }
+
     final public function execute(ToolCall $toolCall): ToolResult
     {
         $metadata = $this->getMetadata($toolCall);
 
-        $event = new ToolCallRequested($toolCall, $metadata);
+        $event = new ToolCallRequested($toolCall, $metadata, $this->runContext);
         $this->eventDispatcher?->dispatch($event);
 
         if ($event->isDenied()) {
@@ -58,6 +67,10 @@ abstract class AbstractToolbox implements ToolboxInterface
         $tool = $this->getExecutable($metadata);
         $arguments = [];
 
+        if ($tool instanceof RunContextAwareInterface && null !== $this->runContext) {
+            $tool->setRunContext($this->runContext);
+        }
+
         try {
             $this->logger->debug(\sprintf('Executing tool "%s".', $toolCall->getName()), $toolCall->getArguments());
 
@@ -72,14 +85,14 @@ abstract class AbstractToolbox implements ToolboxInterface
                 $sourceCollection,
             );
 
-            $this->eventDispatcher?->dispatch(new ToolCallSucceeded($tool, $metadata, $arguments, $result));
+            $this->eventDispatcher?->dispatch(new ToolCallSucceeded($tool, $metadata, $arguments, $result, $this->runContext));
         } catch (ToolExecutionExceptionInterface $e) {
             $this->logger->warning(\sprintf('Failed to execute tool "%s".', $toolCall->getName()), ['exception' => $e]);
-            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e));
+            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e, $this->runContext));
             throw $e;
         } catch (\Throwable $e) {
             $this->logger->warning(\sprintf('Failed to execute tool "%s".', $toolCall->getName()), ['exception' => $e]);
-            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e));
+            $this->eventDispatcher?->dispatch(new ToolCallFailed($tool, $metadata, $arguments, $e, $this->runContext));
             throw ToolExecutionException::executionFailed($toolCall, $e);
         }
 
