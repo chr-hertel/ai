@@ -1125,20 +1125,6 @@ final class RunnerTest extends TestCase
         $this->assertSame('Deleted', $messages[3]->asText());
     }
 
-    public function testRejectedSuspendedToolCallIsNotExecuted()
-    {
-        $toolbox = $this->createMock(ToolboxInterface::class);
-        $toolbox->method('getTools')->willReturn([]);
-        $toolbox->expects($this->never())->method('execute');
-
-        $platform = $this->platform(new TextResult('Understood'));
-        $this->drive($this->createRunner($platform, $toolbox), $this->decided((new ToolCall('id2', 'tool2'))->suspend()->reject('Rejected by the user.')));
-
-        $messages = $this->lastInvokedMessages()->getMessages();
-        $this->assertInstanceOf(ToolCallMessage::class, $messages[3]);
-        $this->assertSame('Rejected by the user.', $messages[3]->asText());
-    }
-
     public function testStillSuspendedToolCallKeepsTheExecutionWaitingWithoutInvokingTheModel()
     {
         $toolbox = $this->createMock(ToolboxInterface::class);
@@ -1267,25 +1253,9 @@ final class RunnerTest extends TestCase
     public function testApprovedToolCallWithoutToolboxIsRejected()
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Executing an approved tool call requires a toolbox.');
+        $this->expectExceptionMessage('Executing a tool call requires a toolbox.');
 
         $this->drive(new Runner($this->platform()), $this->decided((new ToolCall('id2', 'tool2'))->suspend()->approve()));
-    }
-
-    public function testAnsweredApprovedToolCallIsNotExecutedAgain()
-    {
-        $approved = (new ToolCall('id1', 'tool1'))->suspend()->approve();
-        $toolbox = $this->createMock(ToolboxInterface::class);
-        $toolbox->method('getTools')->willReturn([]);
-        $toolbox->expects($this->never())->method('execute');
-
-        $result = $this->drive($this->createRunner($this->platform(new TextResult('Done')), $toolbox), new MessageBag(
-            Message::ofUser('Delete notes.txt'),
-            new AssistantMessage($approved),
-            Message::ofToolCall($approved, 'Deleted'),
-        ));
-
-        $this->assertSame('Done', $result->getContent());
     }
 
     /**

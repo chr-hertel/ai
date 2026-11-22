@@ -14,26 +14,23 @@ namespace Symfony\AI\Agent;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Cancellation;
+use Symfony\AI\Agent\Execution\Conversation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
+use Symfony\AI\Agent\MessageStore\StoredConversation;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
-use Symfony\AI\Platform\Message\AssistantMessage;
-use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
-use Symfony\AI\Platform\Message\MessageInterface;
-use Symfony\AI\Platform\Message\ToolCallMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
-use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -111,10 +108,10 @@ final class Agent implements AgentInterface
         $factory = function () use ($input, $options, $cancellation): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
-                $input = $this->continueStored($input, $this->messageStore);
+                $input = StoredConversation::continue($this->messageStore->load($input->getId()), $input);
             }
 
-            $input = self::answerAbandonedToolCalls($input);
+            $input = Conversation::answerAbandonedToolCalls($input);
 
             if (null !== $this->messageStore) {
                 $this->messageStore->save($input);
@@ -194,144 +191,5 @@ final class Agent implements AgentInterface
         };
 
         return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
-    }
-
-    /**
-     * Answers the tool calls a suspended execution left unanswered once the conversation moved on, since providers
-     * reject a conversation with an unanswered tool call before a later message.
-     */
-    private static function answerAbandonedToolCalls(MessageBag $messages): MessageBag
-    {
-        $list = $messages->getMessages();
-        $answered = [];
-        $result = [];
-        $abandoned = false;
-
-        foreach ($list as $i => $message) {
-            $result[] = $message;
-
-            if ($message instanceof ToolCallMessage) {
-                $answered[$message->getToolCall()->getId()] = true;
-            }
-
-            $next = $list[$i + 1] ?? null;
-            if (null === $next || $next instanceof ToolCallMessage) {
-                continue;
-            }
-
-            // the next message ends the answers of the last assistant message with tool calls
-            $assistant = self::lastToolCallingMessage($result);
-            if (null === $assistant) {
-                continue;
-            }
-
-            foreach ($assistant->getToolCalls() as $toolCall) {
-                if (!isset($answered[$toolCall->getId()])) {
-                    $result[] = Message::ofToolCall($toolCall, match ($toolCall->getState()) {
-                        ToolCallState::Suspended => 'The tool call was suspended and neither approved nor rejected.',
-                        ToolCallState::Approved => 'The tool call was approved, but not executed.',
-                        ToolCallState::Rejected => $toolCall->getReason() ?? 'The tool call was rejected.',
-                        ToolCallState::Requested => 'The tool call was not answered.',
-                    });
-                    $answered[$toolCall->getId()] = true;
-                    $abandoned = true;
-                }
-            }
-        }
-
-        if (!$abandoned) {
-            return $messages;
-        }
-
-        return (new MessageBag(...$result))->withId($messages->getId());
-    }
-
-    /**
-     * @param list<MessageInterface> $messages
-     */
-    private static function lastToolCallingMessage(array $messages): ?AssistantMessage
-    {
-        foreach (array_reverse($messages) as $message) {
-            if ($message instanceof ToolCallMessage) {
-                continue;
-            }
-
-            if ($message instanceof AssistantMessage && $message->hasToolCalls()) {
-                return $message;
-            }
-
-            return null;
-        }
-
-        return null;
-    }
-
-    /**
-     * Takes over the tool calls of the given message that got approved or rejected while the stored copy of the
-     * message was suspended, the stored conversation stays the source of truth for everything else.
-     *
-     * @throws InvalidArgumentException if a tool call got approved or rejected that was not suspended
-     */
-    private static function withDecidedToolCalls(MessageBag $stored, AssistantMessage $message): MessageBag
-    {
-        $storedMessage = null;
-        foreach ($stored->getMessages() as $candidate) {
-            if ($candidate->getId()->equals($message->getId())) {
-                $storedMessage = $candidate;
-            }
-        }
-
-        if (!$storedMessage instanceof AssistantMessage) {
-            return $stored;
-        }
-
-        $storedToolCalls = [];
-        foreach ($storedMessage->getToolCalls() as $toolCall) {
-            $storedToolCalls[$toolCall->getId()] = $toolCall;
-        }
-
-        $decided = $storedMessage;
-        foreach ($message->getToolCalls() as $toolCall) {
-            $storedToolCall = $storedToolCalls[$toolCall->getId()] ?? null;
-            if (null === $storedToolCall || $storedToolCall->getState() === $toolCall->getState()) {
-                continue;
-            }
-
-            $isDecision = ToolCallState::Approved === $toolCall->getState() || ToolCallState::Rejected === $toolCall->getState();
-            if (!$isDecision) {
-                continue;
-            }
-
-            if (!$storedToolCall->isSuspended() || $storedToolCall->getName() !== $toolCall->getName()) {
-                throw new InvalidArgumentException(\sprintf('The tool call "%s" with id "%s" can only be approved or rejected while it is suspended.', $toolCall->getName(), $toolCall->getId()));
-            }
-
-            $decided = $decided->withToolCall($toolCall);
-        }
-
-        return $decided === $storedMessage ? $stored : $stored->replace($storedMessage->getId(), $decided);
-    }
-
-    /**
-     * The stored conversation followed by the given messages it doesn't contain yet.
-     */
-    private function continueStored(MessageBag $input, MessageStoreInterface $store): MessageBag
-    {
-        $stored = $store->load($input->getId());
-        $storedIds = array_flip(array_map(static fn (MessageInterface $message): string => $message->getId()->toRfc4122(), $stored->getMessages()));
-
-        foreach ($input->getMessages() as $message) {
-            if ($message instanceof AssistantMessage && isset($storedIds[$message->getId()->toRfc4122()])) {
-                $stored = self::withDecidedToolCalls($stored, $message);
-            }
-        }
-
-        $messages = $stored->merge(new MessageBag(...array_filter(
-            $input->getMessages(),
-            static fn (MessageInterface $message): bool => !isset($storedIds[$message->getId()->toRfc4122()]),
-        )));
-        $messages->getMetadata()->set(array_replace($stored->getMetadata()->all(), $input->getMetadata()->all()));
-
-        return $messages;
     }
 }
