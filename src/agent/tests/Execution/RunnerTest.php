@@ -1035,9 +1035,6 @@ final class RunnerTest extends TestCase
         $this->assertSame('Hello world!', $result->getContent());
     }
 
-    /**
-     * @return array{type: 'function', function: array{name: string, description: string, parameters: array{type: 'object', properties: \stdClass}}}
-     */
     public function testSuspendedToolCallIsNotExecutedAndEndsTheExecution()
     {
         $executed = new ToolCall('id1', 'tool1');
@@ -1175,6 +1172,9 @@ final class RunnerTest extends TestCase
         );
     }
 
+    /**
+     * @return array{type: 'function', function: array{name: string, description: string, parameters: array{type: 'object', properties: \stdClass}}}
+     */
     private function functionTool(string $name, string $description): array
     {
         return ['type' => 'function', 'function' => ['name' => $name, 'description' => $description, 'parameters' => ['type' => 'object', 'properties' => new \stdClass()]]];
