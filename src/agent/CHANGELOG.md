@@ -4,6 +4,9 @@ CHANGELOG
 1.0
 ---
 
+ * Add `Toolbox\Event\ToolCallsRequested`, dispatched before the tool calls of a model round are executed, whose listeners can suspend tool calls to end the execution waiting for input
+ * Add `Execution\ToolCallResolution` and the `tool_call_resolutions` option, resolving the tool calls a suspended execution left unanswered
+ * Add `Progress::STAGE_SUSPENSION`, reported when tool calls were suspended
  * Allow the `#[AsTool]` attribute on public methods, making the tool call the method it is placed on
  * [BC BREAK] Accept a `Symfony\AI\Platform\Model` instance as model of `Agent`, `Input`, `Output` and as `model` option of `ModelOverrideInputProcessor`, widening the return type of their `getModel()` methods to `string|Model`
  * Add an optional reason to `ExecutionInterface::cancel()` and `Exception\CancellationException` carrying it, thrown by `getResult()` of a canceled execution
