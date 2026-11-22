@@ -13,6 +13,7 @@ namespace Symfony\AI\Agent;
 
 use Symfony\AI\Agent\Exception\ExceptionInterface;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
+use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
 
@@ -26,13 +27,14 @@ interface AgentInterface
      *
      * The execution is the result it produces: read it eagerly (`->getContent()`, `->getResult()`), iterate it to
      * observe every progress and result update, or register callbacks (`->onProgress(...)`). A plain string and
-     * a single {@see UserMessage} are normalized into a {@see MessageBag}.
+     * a single {@see UserMessage} are normalized into a {@see MessageBag}. {@see ToolCallResolutions} resume an
+     * execution that suspended tool calls.
      *
      * @param array<string, mixed> $options
      *
      * @throws ExceptionInterface When the agent encounters an error (e.g., unsupported model capabilities, invalid arguments, network failures, or processor errors)
      */
-    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface;
+    public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): ExecutionInterface;
 
     /**
      * Get the agent's name, which can be used for debugging or multi-agent configuration.

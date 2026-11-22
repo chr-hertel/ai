@@ -20,6 +20,7 @@ use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
+use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\InputNormalizer;
@@ -68,11 +69,15 @@ final class MultiAgent implements AgentInterface
     /**
      * @throws ExceptionInterface When the agent encounters an error during orchestration or handoffs
      */
-    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
+    public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): ExecutionInterface
     {
         $cancellation = new Cancellation();
 
         return new Execution(function () use ($input, $options, $cancellation): \Generator {
+            if ($input instanceof ToolCallResolutions) {
+                throw new InvalidArgumentException('A multi agent cannot resume suspended tool calls, resume the agent that suspended them.');
+            }
+
             $messages = InputNormalizer::toMessageBag($input);
             $userMessages = $messages->withoutSystemMessage();
 
