@@ -18,6 +18,7 @@ use Symfony\AI\Agent\MessageStore\StoredConversation;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallState;
 
@@ -33,7 +34,12 @@ final class StoredConversationTest extends TestCase
         $messages = StoredConversation::continue($stored, $input);
 
         $this->assertTrue($messages->getId()->equals($stored->getId()));
-        $this->assertSame(['Hello', 'Hi', 'How are you?'], array_map(static fn ($message): ?string => $message->asText(), $messages->getMessages()));
+        $texts = [];
+        foreach ($messages->getMessages() as $message) {
+            $this->assertTrue($message instanceof UserMessage || $message instanceof AssistantMessage);
+            $texts[] = $message->asText();
+        }
+        $this->assertSame(['Hello', 'Hi', 'How are you?'], $texts);
         $this->assertSame(['stored' => true, 'input' => true], $messages->getMetadata()->all());
     }
 

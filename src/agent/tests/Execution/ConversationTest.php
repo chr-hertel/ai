@@ -16,7 +16,9 @@ use Symfony\AI\Agent\Execution\Conversation;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\ToolCallMessage;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\ToolCall;
 
 final class ConversationTest extends TestCase
@@ -81,8 +83,8 @@ final class ConversationTest extends TestCase
             'The tool call was approved, but not executed.',
             'Keep it.',
             'The tool call was rejected.',
-        ], array_map(static fn (ToolCallMessage $message): ?string => $message->asText(), \array_slice($answered->getMessages(), 2, 5)));
-        $this->assertSame('Never mind', $answered->getMessages()[7]->asText());
+        ], $this->texts(\array_slice($answered->getMessages(), 2, 5)));
+        $this->assertSame(['Never mind'], $this->texts([$answered->getMessages()[7]]));
     }
 
     public function testConversationWithoutAbandonedToolCallsStaysUntouched()
@@ -93,5 +95,21 @@ final class ConversationTest extends TestCase
 
         $this->assertSame($answered, Conversation::answerAbandonedToolCalls($answered));
         $this->assertSame($suspended, Conversation::answerAbandonedToolCalls($suspended));
+    }
+
+    /**
+     * @param list<MessageInterface> $messages
+     *
+     * @return list<string|null>
+     */
+    private function texts(array $messages): array
+    {
+        $texts = [];
+        foreach ($messages as $message) {
+            $this->assertTrue($message instanceof ToolCallMessage || $message instanceof UserMessage);
+            $texts[] = $message->asText();
+        }
+
+        return $texts;
     }
 }
