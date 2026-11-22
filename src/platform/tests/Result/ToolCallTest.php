@@ -100,7 +100,7 @@ final class ToolCallTest extends TestCase
     public function testOnlyARequestedToolCallCanBeSuspended()
     {
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Cannot suspend the tool call "name" with id "id" in state "suspended".');
+        $this->expectExceptionMessage('Only a requested tool call can be suspended, the tool call "name" with id "id" is "suspended".');
 
         (new ToolCall('id', 'name'))->suspend()->suspend();
     }
@@ -108,7 +108,7 @@ final class ToolCallTest extends TestCase
     public function testOnlyASuspendedToolCallCanBeApproved()
     {
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Cannot approve the tool call "name" with id "id" in state "requested".');
+        $this->expectExceptionMessage('Only a suspended tool call can be approved, the tool call "name" with id "id" is "requested".');
 
         (new ToolCall('id', 'name'))->approve();
     }
@@ -116,7 +116,7 @@ final class ToolCallTest extends TestCase
     public function testAnApprovedToolCallCannotBeRejected()
     {
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Cannot reject the tool call "name" with id "id" in state "approved".');
+        $this->expectExceptionMessage('Only a requested or suspended tool call can be rejected, the tool call "name" with id "id" is "approved".');
 
         (new ToolCall('id', 'name'))->suspend()->approve()->reject();
     }

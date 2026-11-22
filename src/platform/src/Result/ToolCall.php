@@ -39,7 +39,9 @@ final class ToolCall implements ContentInterface
      */
     public function suspend(?string $reason = null): self
     {
-        $this->assertState(ToolCallState::Requested, 'suspend');
+        if (ToolCallState::Requested !== $this->state) {
+            throw new LogicException(\sprintf('Only a requested tool call can be suspended, the tool call "%s" with id "%s" is "%s".', $this->name, $this->id, $this->state->value));
+        }
 
         return new self($this->id, $this->name, $this->arguments, $this->signature, ToolCallState::Suspended, $reason);
     }
@@ -53,7 +55,9 @@ final class ToolCall implements ContentInterface
      */
     public function approve(?array $arguments = null): self
     {
-        $this->assertState(ToolCallState::Suspended, 'approve');
+        if (ToolCallState::Suspended !== $this->state) {
+            throw new LogicException(\sprintf('Only a suspended tool call can be approved, the tool call "%s" with id "%s" is "%s".', $this->name, $this->id, $this->state->value));
+        }
 
         return new self($this->id, $this->name, $arguments ?? $this->arguments, $this->signature, ToolCallState::Approved);
     }
@@ -65,8 +69,8 @@ final class ToolCall implements ContentInterface
      */
     public function reject(?string $reason = null): self
     {
-        if (ToolCallState::Requested !== $this->state) {
-            $this->assertState(ToolCallState::Suspended, 'reject');
+        if (ToolCallState::Requested !== $this->state && ToolCallState::Suspended !== $this->state) {
+            throw new LogicException(\sprintf('Only a requested or suspended tool call can be rejected, the tool call "%s" with id "%s" is "%s".', $this->name, $this->id, $this->state->value));
         }
 
         return new self($this->id, $this->name, $this->arguments, $this->signature, ToolCallState::Rejected, $reason);
@@ -116,12 +120,5 @@ final class ToolCall implements ContentInterface
     public function getSignature(): ?string
     {
         return $this->signature;
-    }
-
-    private function assertState(ToolCallState $state, string $transition): void
-    {
-        if ($state !== $this->state) {
-            throw new LogicException(\sprintf('Cannot %s the tool call "%s" with id "%s" in state "%s".', $transition, $this->name, $this->id, $this->state->value));
-        }
     }
 }
