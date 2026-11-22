@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Result;
 
+use Symfony\AI\Platform\Exception\LogicException;
 use Symfony\AI\Platform\Message\Content\ContentInterface;
 
 /**
@@ -32,21 +33,43 @@ final class ToolCall implements ContentInterface
     }
 
     /**
-     * A copy of this tool call, held back until it gets resolved.
+     * A copy of this requested tool call, held back until it gets approved or rejected.
+     *
+     * @throws LogicException if the tool call is not requested
      */
     public function suspend(?string $reason = null): self
     {
+        $this->assertState(ToolCallState::Requested, 'suspend');
+
         return new self($this->id, $this->name, $this->arguments, $this->signature, ToolCallState::Suspended, $reason);
     }
 
     /**
-     * A copy of this tool call as requested by the model, e.g. to execute it once it got resolved.
+     * A copy of this suspended tool call, to be executed by the next agent call.
      *
      * @param array<string, mixed>|null $arguments replace the arguments of the model
+     *
+     * @throws LogicException if the tool call is not suspended
      */
-    public function resume(?array $arguments = null): self
+    public function approve(?array $arguments = null): self
     {
-        return new self($this->id, $this->name, $arguments ?? $this->arguments, $this->signature);
+        $this->assertState(ToolCallState::Suspended, 'approve');
+
+        return new self($this->id, $this->name, $arguments ?? $this->arguments, $this->signature, ToolCallState::Approved);
+    }
+
+    /**
+     * A copy of this requested or suspended tool call, answered with the reason instead of being executed.
+     *
+     * @throws LogicException if the tool call is neither requested nor suspended
+     */
+    public function reject(?string $reason = null): self
+    {
+        if (ToolCallState::Requested !== $this->state) {
+            $this->assertState(ToolCallState::Suspended, 'reject');
+        }
+
+        return new self($this->id, $this->name, $this->arguments, $this->signature, ToolCallState::Rejected, $reason);
     }
 
     public function getState(): ToolCallState
@@ -60,7 +83,7 @@ final class ToolCall implements ContentInterface
     }
 
     /**
-     * Why the tool call is suspended.
+     * Why the tool call is suspended or rejected.
      */
     public function getReason(): ?string
     {
@@ -93,5 +116,12 @@ final class ToolCall implements ContentInterface
     public function getSignature(): ?string
     {
         return $this->signature;
+    }
+
+    private function assertState(ToolCallState $state, string $transition): void
+    {
+        if ($state !== $this->state) {
+            throw new LogicException(\sprintf('Cannot %s the tool call "%s" with id "%s" in state "%s".', $transition, $this->name, $this->id, $this->state->value));
+        }
     }
 }

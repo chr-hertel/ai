@@ -11,7 +11,6 @@
 
 namespace Symfony\AI\Agent;
 
-use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
@@ -25,12 +24,8 @@ use Symfony\AI\Platform\Message\UserMessage;
  */
 final class InputNormalizer
 {
-    public static function toMessageBag(string|MessageBag|UserMessage|ToolCallResolutions $input): MessageBag
+    public static function toMessageBag(string|MessageBag|UserMessage $input): MessageBag
     {
-        if ($input instanceof ToolCallResolutions) {
-            return $input->getMessages();
-        }
-
         if ($input instanceof MessageBag) {
             return $input;
         }

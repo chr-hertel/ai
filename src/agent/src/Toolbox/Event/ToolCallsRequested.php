@@ -11,24 +11,27 @@
 
 namespace Symfony\AI\Agent\Toolbox\Event;
 
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\AI\Platform\Tool\Tool;
 
 /**
  * Dispatched by the agent before it executes the tool calls of a model round.
  *
- * Suspended tool calls are not executed: the execution ends waiting for input, and the next call of the
- * agent resolves them with {@see \Symfony\AI\Agent\Execution\ToolCallResolutions}.
+ * Requested tool calls get executed. A suspended call ends the execution waiting for input, until the call gets
+ * approved or rejected in the conversation that is handed to the next agent call. A rejected call is answered
+ * with its reason instead of being executed.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class ToolCallsRequested
 {
     /**
-     * @var array<string, string|null> reasons of the suspended tool calls, keyed by tool call id
+     * @var list<ToolCall>
      */
-    private array $suspensions = [];
+    private array $toolCalls;
 
     /**
      * @param list<ToolCall>      $toolCalls
@@ -36,14 +39,15 @@ final class ToolCallsRequested
      * @param MessageBag          $messages    the conversation the model answered with the tool calls
      */
     public function __construct(
-        private readonly array $toolCalls,
+        array $toolCalls,
         private readonly array $definitions,
         private readonly MessageBag $messages,
     ) {
+        $this->toolCalls = $toolCalls;
     }
 
     /**
-     * @return list<ToolCall>
+     * @return list<ToolCall> the tool calls of the round, in their current state
      */
     public function getToolCalls(): array
     {
@@ -63,35 +67,35 @@ final class ToolCallsRequested
         return $this->messages;
     }
 
+    /**
+     * Holds the tool call back until it gets approved or rejected, a rejected call stays rejected.
+     */
     public function suspend(ToolCall $toolCall, ?string $reason = null): void
     {
-        $this->suspensions[$toolCall->getId()] = $reason;
-    }
-
-    public function isSuspended(ToolCall $toolCall): bool
-    {
-        return \array_key_exists($toolCall->getId(), $this->suspensions);
-    }
-
-    public function getReason(ToolCall $toolCall): ?string
-    {
-        return $this->suspensions[$toolCall->getId()] ?? null;
+        $this->transition($toolCall, static fn (ToolCall $current): ToolCall => ToolCallState::Requested === $current->getState() ? $current->suspend($reason) : $current);
     }
 
     /**
-     * The suspended tool calls, in their suspended state.
-     *
-     * @return list<ToolCall>
+     * Answers the tool call with the reason instead of executing it.
      */
-    public function getSuspendedToolCalls(): array
+    public function reject(ToolCall $toolCall, ?string $reason = null): void
     {
-        $suspended = [];
-        foreach ($this->toolCalls as $toolCall) {
-            if ($this->isSuspended($toolCall)) {
-                $suspended[] = $toolCall->suspend($this->getReason($toolCall));
+        $this->transition($toolCall, static fn (ToolCall $current): ToolCall => ToolCallState::Rejected === $current->getState() ? $current : $current->reject($reason));
+    }
+
+    /**
+     * @param \Closure(ToolCall): ToolCall $transition
+     */
+    private function transition(ToolCall $toolCall, \Closure $transition): void
+    {
+        foreach ($this->toolCalls as $i => $current) {
+            if ($current->getId() === $toolCall->getId()) {
+                $this->toolCalls[$i] = $transition($current);
+
+                return;
             }
         }
 
-        return $suspended;
+        throw new InvalidArgumentException(\sprintf('The round has no tool call with id "%s".', $toolCall->getId()));
     }
 }

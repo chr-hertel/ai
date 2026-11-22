@@ -13,6 +13,7 @@ namespace Symfony\AI\Platform\Message;
 
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Metadata\MetadataAwareTrait;
+use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\TimeBasedUidInterface;
 use Symfony\Component\Uid\Uuid;
@@ -131,6 +132,28 @@ class MessageBag implements \Countable, \IteratorAggregate
         $messages->messages = array_merge($messages->messages, $messageBag->getMessages());
 
         return $messages;
+    }
+
+    /**
+     * A copy of this bag with the tool call of the same id replaced by the given one, e.g. to approve it.
+     *
+     * @throws InvalidArgumentException if no assistant message has a tool call with the id of the given one
+     */
+    public function withToolCall(ToolCall $toolCall): self
+    {
+        foreach (array_reverse($this->messages) as $message) {
+            if (!$message instanceof AssistantMessage) {
+                continue;
+            }
+
+            foreach ($message->getToolCalls() as $part) {
+                if ($part->getId() === $toolCall->getId()) {
+                    return $this->replace($message->getId(), $message->withToolCall($toolCall));
+                }
+            }
+        }
+
+        throw new InvalidArgumentException(\sprintf('No assistant message has a tool call with id "%s".', $toolCall->getId()));
     }
 
     public function replace(AbstractUid&TimeBasedUidInterface $uuid, MessageInterface $newMessage): self

@@ -12,11 +12,13 @@
 namespace Symfony\AI\Platform\Tests\Message;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Role;
 use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\AI\Platform\Tests\Helper\UuidAssertionTrait;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\TimeBasedUidInterface;
@@ -111,5 +113,29 @@ final class AssistantMessageTest extends TestCase
         $this->assertInstanceOf(AbstractUid::class, $message->getId());
         $this->assertInstanceOf(TimeBasedUidInterface::class, $message->getId());
         $this->assertInstanceOf(UuidV7::class, $message->getId());
+    }
+
+    public function testWithToolCallReplacesTheToolCallAndKeepsIdAndMetadata()
+    {
+        $toolCall = (new ToolCall('id1', 'tool1'))->suspend();
+        $message = new AssistantMessage(new Text('Deleting'), $toolCall, new ToolCall('id2', 'tool2'));
+        $message->getMetadata()->add('key', 'value');
+
+        $approved = $message->withToolCall($toolCall->approve());
+
+        $this->assertNotSame($message, $approved);
+        $this->assertTrue($approved->getId()->equals($message->getId()));
+        $this->assertSame('value', $approved->getMetadata()->get('key'));
+        $this->assertSame(ToolCallState::Approved, $approved->getToolCalls()[0]->getState());
+        $this->assertSame(ToolCallState::Requested, $approved->getToolCalls()[1]->getState());
+        $this->assertTrue($message->getToolCalls()[0]->isSuspended());
+    }
+
+    public function testWithToolCallRejectsAnUnknownToolCall()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The message has no tool call with id "id2".');
+
+        (new AssistantMessage(new ToolCall('id1', 'tool1')))->withToolCall(new ToolCall('id2', 'tool2'));
     }
 }

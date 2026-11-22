@@ -17,7 +17,6 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
-use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result;
 use Symfony\AI\Agent\MessageStore\InMemoryMessageStore;
@@ -167,7 +166,7 @@ final class ResearchHandlerTest extends TestCase
             ) {
             }
 
-            public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): Execution
+            public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
             {
                 return new Execution($this->factory, $options['stream'] ?? false);
             }

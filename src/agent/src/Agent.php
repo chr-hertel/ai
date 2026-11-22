@@ -17,7 +17,6 @@ use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\Runner;
-use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
@@ -34,6 +33,7 @@ use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -105,19 +105,16 @@ final class Agent implements AgentInterface
      * @throws RuntimeException         When the platform returns a server error (5xx) or network failure occurs
      * @throws ExceptionInterface       When the platform converter throws an exception
      */
-    public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): ExecutionInterface
+    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
     {
         $cancellation = new Cancellation();
         $factory = function () use ($input, $options, $cancellation): \Generator {
-            $resolutions = $input instanceof ToolCallResolutions ? $input->getResolutions() : null;
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
                 $input = $this->continueStored($input, $this->messageStore);
             }
 
-            if (null === $resolutions) {
-                $input = self::answerAbandonedToolCalls($input);
-            }
+            $input = self::answerAbandonedToolCalls($input);
 
             if (null !== $this->messageStore) {
                 $this->messageStore->save($input);
@@ -148,7 +145,7 @@ final class Agent implements AgentInterface
                 $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
             }
 
-            foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound, $resolutions) as $update) {
+            foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound) as $update) {
                 if ($update instanceof ResultUpdate) {
                     $result = $update->getResult();
                     $resultUpdate = $update;
@@ -230,7 +227,12 @@ final class Agent implements AgentInterface
 
             foreach ($assistant->getToolCalls() as $toolCall) {
                 if (!isset($answered[$toolCall->getId()])) {
-                    $result[] = Message::ofToolCall($toolCall->resume(), $toolCall->isSuspended() ? 'The tool call was suspended and not resolved.' : 'The tool call was not answered.');
+                    $result[] = Message::ofToolCall($toolCall, match ($toolCall->getState()) {
+                        ToolCallState::Suspended => 'The tool call was suspended and neither approved nor rejected.',
+                        ToolCallState::Approved => 'The tool call was approved, but not executed.',
+                        ToolCallState::Rejected => $toolCall->getReason() ?? 'The tool call was rejected.',
+                        ToolCallState::Requested => 'The tool call was not answered.',
+                    });
                     $answered[$toolCall->getId()] = true;
                     $abandoned = true;
                 }
@@ -265,12 +267,64 @@ final class Agent implements AgentInterface
     }
 
     /**
+     * Takes over the tool calls of the given message that got approved or rejected while the stored copy of the
+     * message was suspended, the stored conversation stays the source of truth for everything else.
+     *
+     * @throws InvalidArgumentException if a tool call got approved or rejected that was not suspended
+     */
+    private static function withDecidedToolCalls(MessageBag $stored, AssistantMessage $message): MessageBag
+    {
+        $storedMessage = null;
+        foreach ($stored->getMessages() as $candidate) {
+            if ($candidate->getId()->equals($message->getId())) {
+                $storedMessage = $candidate;
+            }
+        }
+
+        if (!$storedMessage instanceof AssistantMessage) {
+            return $stored;
+        }
+
+        $storedToolCalls = [];
+        foreach ($storedMessage->getToolCalls() as $toolCall) {
+            $storedToolCalls[$toolCall->getId()] = $toolCall;
+        }
+
+        $decided = $storedMessage;
+        foreach ($message->getToolCalls() as $toolCall) {
+            $storedToolCall = $storedToolCalls[$toolCall->getId()] ?? null;
+            if (null === $storedToolCall || $storedToolCall->getState() === $toolCall->getState()) {
+                continue;
+            }
+
+            $isDecision = ToolCallState::Approved === $toolCall->getState() || ToolCallState::Rejected === $toolCall->getState();
+            if (!$isDecision) {
+                continue;
+            }
+
+            if (!$storedToolCall->isSuspended() || $storedToolCall->getName() !== $toolCall->getName()) {
+                throw new InvalidArgumentException(\sprintf('The tool call "%s" with id "%s" can only be approved or rejected while it is suspended.', $toolCall->getName(), $toolCall->getId()));
+            }
+
+            $decided = $decided->withToolCall($toolCall);
+        }
+
+        return $decided === $storedMessage ? $stored : $stored->replace($storedMessage->getId(), $decided);
+    }
+
+    /**
      * The stored conversation followed by the given messages it doesn't contain yet.
      */
     private function continueStored(MessageBag $input, MessageStoreInterface $store): MessageBag
     {
         $stored = $store->load($input->getId());
         $storedIds = array_flip(array_map(static fn (MessageInterface $message): string => $message->getId()->toRfc4122(), $stored->getMessages()));
+
+        foreach ($input->getMessages() as $message) {
+            if ($message instanceof AssistantMessage && isset($storedIds[$message->getId()->toRfc4122()])) {
+                $stored = self::withDecidedToolCalls($stored, $message);
+            }
+        }
 
         $messages = $stored->merge(new MessageBag(...array_filter(
             $input->getMessages(),

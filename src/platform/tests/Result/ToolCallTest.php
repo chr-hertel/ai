@@ -12,6 +12,7 @@
 namespace Symfony\AI\Platform\Tests\Result;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Exception\LogicException;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallState;
 
@@ -74,16 +75,49 @@ final class ToolCallTest extends TestCase
         $this->assertSame('signature', $suspended->getSignature());
     }
 
-    public function testResumeReturnsARequestedCopy()
+    public function testApproveReturnsAnApprovedCopyOfASuspendedToolCall()
     {
         $suspended = (new ToolCall('id', 'name', ['path' => 'notes.txt'], 'signature'))->suspend('Needs approval.');
 
-        $resumed = $suspended->resume();
-        $this->assertSame(ToolCallState::Requested, $resumed->getState());
-        $this->assertNull($resumed->getReason());
-        $this->assertSame(['path' => 'notes.txt'], $resumed->getArguments());
-        $this->assertSame('signature', $resumed->getSignature());
+        $approved = $suspended->approve();
+        $this->assertSame(ToolCallState::Approved, $approved->getState());
+        $this->assertNull($approved->getReason());
+        $this->assertSame(['path' => 'notes.txt'], $approved->getArguments());
+        $this->assertSame('signature', $approved->getSignature());
 
-        $this->assertSame(['path' => 'archive/notes.txt'], $suspended->resume(['path' => 'archive/notes.txt'])->getArguments());
+        $this->assertSame(['path' => 'archive/notes.txt'], $suspended->approve(['path' => 'archive/notes.txt'])->getArguments());
+    }
+
+    public function testRejectReturnsARejectedCopyOfARequestedOrSuspendedToolCall()
+    {
+        $requested = new ToolCall('id', 'name');
+
+        $this->assertSame(ToolCallState::Rejected, $requested->reject('Not allowed.')->getState());
+        $this->assertSame('Not allowed.', $requested->reject('Not allowed.')->getReason());
+        $this->assertSame(ToolCallState::Rejected, $requested->suspend()->reject()->getState());
+    }
+
+    public function testOnlyARequestedToolCallCanBeSuspended()
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Cannot suspend the tool call "name" with id "id" in state "suspended".');
+
+        (new ToolCall('id', 'name'))->suspend()->suspend();
+    }
+
+    public function testOnlyASuspendedToolCallCanBeApproved()
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Cannot approve the tool call "name" with id "id" in state "requested".');
+
+        (new ToolCall('id', 'name'))->approve();
+    }
+
+    public function testAnApprovedToolCallCannotBeRejected()
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Cannot reject the tool call "name" with id "id" in state "approved".');
+
+        (new ToolCall('id', 'name'))->suspend()->approve()->reject();
     }
 }

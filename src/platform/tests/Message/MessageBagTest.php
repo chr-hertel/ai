@@ -25,6 +25,7 @@ use Symfony\AI\Platform\Message\SystemMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Metadata\MetadataAwareTrait;
 use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\TimeBasedUidInterface;
 use Symfony\Component\Uid\Uuid;
@@ -604,6 +605,29 @@ final class MessageBagTest extends TestCase
 
         $this->assertFalse($messageBag->isLastMessageFrom(Role::User));
         $this->assertTrue($messageBag->isLastMessageFrom(Role::Assistant));
+    }
+
+    public function testWithToolCallReplacesTheToolCallInItsAssistantMessage()
+    {
+        $toolCall = (new ToolCall('id1', 'tool1'))->suspend();
+        $assistantMessage = new AssistantMessage($toolCall);
+        $messages = new MessageBag(Message::ofUser('Delete notes.txt'), $assistantMessage);
+
+        $approved = $messages->withToolCall($toolCall->approve());
+
+        $this->assertTrue($approved->getId()->equals($messages->getId()));
+        $this->assertTrue($approved->getMessages()[1]->getId()->equals($assistantMessage->getId()));
+        $this->assertInstanceOf(AssistantMessage::class, $approved->getMessages()[1]);
+        $this->assertSame(ToolCallState::Approved, $approved->getMessages()[1]->getToolCalls()[0]->getState());
+        $this->assertTrue($assistantMessage->getToolCalls()[0]->isSuspended());
+    }
+
+    public function testWithToolCallRejectsAnUnknownToolCall()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('No assistant message has a tool call with id "id1".');
+
+        (new MessageBag(Message::ofUser('Hello')))->withToolCall(new ToolCall('id1', 'tool1'));
     }
 
     private function createCustomUserMessage(): MessageInterface

@@ -14,7 +14,6 @@ namespace Symfony\AI\Agent;
 use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
-use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\Component\Clock\ClockInterface;
@@ -45,7 +44,7 @@ final class TraceableAgent implements AgentInterface, ResetInterface
     ) {
     }
 
-    public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): ExecutionInterface
+    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
     {
         $this->calls[] = [
             'input' => $input,

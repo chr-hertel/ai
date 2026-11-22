@@ -315,6 +315,7 @@ Symfony\AI\Platform\Message\AssistantMessage::getThinking(): public function get
 Symfony\AI\Platform\Message\AssistantMessage::getToolCalls(): public function getToolCalls(): array
 Symfony\AI\Platform\Message\AssistantMessage::hasThinking(): public function hasThinking(): bool
 Symfony\AI\Platform\Message\AssistantMessage::hasToolCalls(): public function hasToolCalls(): bool
+Symfony\AI\Platform\Message\AssistantMessage::withToolCall(): public function withToolCall(Symfony\AI\Platform\Result\ToolCall $toolCall): self
 Symfony\AI\Platform\Message\Content\Audio: final class extends Symfony\AI\Platform\Message\Content\File
 Symfony\AI\Platform\Message\Content\CodeExecution: final class implements Symfony\AI\Platform\Message\Content\ContentInterface
 Symfony\AI\Platform\Message\Content\CodeExecution::__construct(): public function __construct(bool $succeeded, null|string $output = null, null|string $id = null)
@@ -444,6 +445,7 @@ Symfony\AI\Platform\Message\MessageBag::withId(): public function withId(Symfony
 Symfony\AI\Platform\Message\MessageBag::withoutSystemMessage(): public function withoutSystemMessage(): self
 Symfony\AI\Platform\Message\MessageBag::withoutToolMessages(): public function withoutToolMessages(): self
 Symfony\AI\Platform\Message\MessageBag::withSystemMessage(): public function withSystemMessage(Symfony\AI\Platform\Message\SystemMessage $message): self
+Symfony\AI\Platform\Message\MessageBag::withToolCall(): public function withToolCall(Symfony\AI\Platform\Result\ToolCall $toolCall): self
 Symfony\AI\Platform\Message\MessageInterface: interface
 Symfony\AI\Platform\Message\MessageInterface::getContent(): public function getContent(): Symfony\AI\Platform\Message\Template|array|null|string
 Symfony\AI\Platform\Message\MessageInterface::getId(): public function getId(): Symfony\Component\Uid\AbstractUid&Symfony\Component\Uid\TimeBasedUidInterface
@@ -859,6 +861,7 @@ Symfony\AI\Platform\Result\ThinkingResult::getContent(): public function getCont
 Symfony\AI\Platform\Result\ThinkingResult::getSignature(): public function getSignature(): null|string
 Symfony\AI\Platform\Result\ToolCall: final class implements Symfony\AI\Platform\Message\Content\ContentInterface
 Symfony\AI\Platform\Result\ToolCall::__construct(): public function __construct(string $id, string $name, array $arguments = [], null|string $signature = null, Symfony\AI\Platform\Result\ToolCallState $state = \Symfony\AI\Platform\Result\ToolCallState::Requested, null|string $reason = null)
+Symfony\AI\Platform\Result\ToolCall::approve(): public function approve(array|null $arguments = null): self
 Symfony\AI\Platform\Result\ToolCall::getArguments(): public function getArguments(): array
 Symfony\AI\Platform\Result\ToolCall::getId(): public function getId(): string
 Symfony\AI\Platform\Result\ToolCall::getName(): public function getName(): string
@@ -866,12 +869,14 @@ Symfony\AI\Platform\Result\ToolCall::getReason(): public function getReason(): n
 Symfony\AI\Platform\Result\ToolCall::getSignature(): public function getSignature(): null|string
 Symfony\AI\Platform\Result\ToolCall::getState(): public function getState(): Symfony\AI\Platform\Result\ToolCallState
 Symfony\AI\Platform\Result\ToolCall::isSuspended(): public function isSuspended(): bool
-Symfony\AI\Platform\Result\ToolCall::resume(): public function resume(array|null $arguments = null): self
+Symfony\AI\Platform\Result\ToolCall::reject(): public function reject(null|string $reason = null): self
 Symfony\AI\Platform\Result\ToolCall::suspend(): public function suspend(null|string $reason = null): self
 Symfony\AI\Platform\Result\ToolCallResult: final class extends Symfony\AI\Platform\Result\BaseResult
 Symfony\AI\Platform\Result\ToolCallResult::__construct(): public function __construct(array $toolCalls)
 Symfony\AI\Platform\Result\ToolCallResult::getContent(): public function getContent(): array
 Symfony\AI\Platform\Result\ToolCallState: enum
+Symfony\AI\Platform\Result\ToolCallState::Approved: case
+Symfony\AI\Platform\Result\ToolCallState::Rejected: case
 Symfony\AI\Platform\Result\ToolCallState::Requested: case
 Symfony\AI\Platform\Result\ToolCallState::Suspended: case
 Symfony\AI\Platform\Result\VectorResult: final class extends Symfony\AI\Platform\Result\BaseResult

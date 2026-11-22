@@ -4,9 +4,8 @@ CHANGELOG
 1.0
 ---
 
- * Add `Toolbox\Event\ToolCallsRequested`, dispatched before the tool calls of a model round are executed, whose listeners can suspend tool calls to end the execution waiting for input, keeping them in the suspended state in the conversation
- * Add `Execution\ToolCallResolution` and `Execution\ToolCallResolutions`, resolving the suspended tool calls of a conversation
- * [BC BREAK] Accept `Execution\ToolCallResolutions` as input of `AgentInterface::call()`, resuming a suspended execution
+ * Add `Toolbox\Event\ToolCallsRequested`, dispatched before the tool calls of a model round are executed, whose listeners can suspend or reject tool calls; a suspended call ends the execution waiting for input
+ * Execute the approved and answer the rejected tool calls a conversation ends with before invoking the model, taking a decision over from a given conversation only for a call that is suspended in the stored one
  * [BC BREAK] Answer the tool calls a conversation left unanswered before a later message, instead of sending them to the platform unanswered
  * [BC BREAK] Count the tool calling rounds since the last user message towards `maxToolCalls`, including rounds of an earlier, suspended execution
  * Add `Progress::STAGE_SUSPENSION`, reported when tool calls were suspended

@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Message;
 
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Message\Content\ContentInterface;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Content\Thinking;
@@ -59,6 +60,35 @@ final class AssistantMessage implements MessageInterface
         }
 
         return false;
+    }
+
+    /**
+     * A copy of this message, keeping its id, with the tool call of the same id replaced by the given one.
+     *
+     * @throws InvalidArgumentException if the message has no tool call with the id of the given one
+     */
+    public function withToolCall(ToolCall $toolCall): self
+    {
+        $found = false;
+        $content = [];
+        foreach ($this->content as $part) {
+            if ($part instanceof ToolCall && $part->getId() === $toolCall->getId()) {
+                $part = $toolCall;
+                $found = true;
+            }
+
+            $content[] = $part;
+        }
+
+        if (!$found) {
+            throw new InvalidArgumentException(\sprintf('The message has no tool call with id "%s".', $toolCall->getId()));
+        }
+
+        $message = new self(...$content);
+        $message->id = $this->id;
+        $message->getMetadata()->set($this->getMetadata()->all());
+
+        return $message;
     }
 
     /**

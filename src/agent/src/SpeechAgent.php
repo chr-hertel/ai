@@ -15,7 +15,6 @@ use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
-use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
@@ -42,21 +41,20 @@ final class SpeechAgent implements AgentInterface
     ) {
     }
 
-    public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): ExecutionInterface
+    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
     {
         $cancellation = new Cancellation();
 
         return new Execution(function () use ($input, $options, $cancellation): \Generator {
             $messages = InputNormalizer::toMessageBag($input);
 
-            // resuming adds no new speech to transcribe
-            if (!$input instanceof ToolCallResolutions && $this->configuration->supportsSpeechToText() && $this->speechToTextPlatform instanceof PlatformInterface) {
+            if ($this->configuration->supportsSpeechToText() && $this->speechToTextPlatform instanceof PlatformInterface) {
                 $messages = $this->transcribe($messages, $options, $cancellation);
             }
 
             $result = null;
             $agentMessages = null;
-            foreach ($cancellation->forward($this->agent->call($input instanceof ToolCallResolutions ? $input : $messages, $options)) as $update) {
+            foreach ($cancellation->forward($this->agent->call($messages, $options)) as $update) {
                 if ($update instanceof ResultUpdate) {
                     $result = $update->getResult();
                     $agentMessages = $update->getMessages(...);

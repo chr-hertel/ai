@@ -1065,9 +1065,16 @@ Suspending Tool Calls
 ~~~~~~~~~~~~~~~~~~~~~
 
 Denying a call answers it right away. To wait for a decision instead - of a human, a worker or another system -
-suspend the call. The agent dispatches :class:`Symfony\\AI\\Agent\\Toolbox\\Event\\ToolCallsRequested` once per model
-round, before it executes the requested tool calls. Calls a listener suspends are not executed: the agent executes the
-remaining calls of the round and ends the execution, waiting for input::
+suspend the call. Every :class:`Symfony\\AI\\Platform\\Result\\ToolCall` carries a
+:class:`Symfony\\AI\\Platform\\Result\\ToolCallState`: the model *requests* a call, and a requested call gets executed.
+The agent dispatches :class:`Symfony\\AI\\Agent\\Toolbox\\Event\\ToolCallsRequested` once per model round, before it
+executes the requested calls, and its listeners can change their state:
+
+* ``$event->suspend($toolCall, $reason)`` holds the call back. The agent executes the remaining calls of the round and
+  ends the execution, waiting for input.
+* ``$event->reject($toolCall, $reason)`` answers the call with the reason instead of executing it.
+
+::
 
     use Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested;
 
@@ -1090,36 +1097,32 @@ remaining calls of the round and ends the execution, waiting for input::
         $toolCall->getReason();         // 'Needs approval.'
     }
 
-The suspension is part of the :class:`Symfony\\AI\\Platform\\Result\\ToolCall` itself: the conversation keeps the
-assistant message with all its tool calls, the suspended ones in the ``ToolCallState::Suspended`` state with their
-reason, and the answers of the executed ones. A stored conversation therefore still knows which calls wait for a
-resolution, while the platforms never see the state. To resume, call the agent with
-:class:`Symfony\\AI\\Agent\\Execution\\ToolCallResolutions`: the conversation and a
-:class:`Symfony\\AI\\Agent\\Execution\\ToolCallResolution` for every suspended call, keyed by tool call id. They are
-applied before the model is invoked again::
+The conversation keeps the assistant message with all its tool calls in their state, so a stored conversation still
+knows which calls wait for a decision, while the platforms never see the state. To continue, approve or reject the
+suspended calls in the conversation and hand it to the agent again. It executes the approved calls, answers the
+rejected ones with their reason, and invokes the model::
 
-    use Symfony\AI\Agent\Execution\ToolCallResolution;
-    use Symfony\AI\Agent\Execution\ToolCallResolutions;
+    $conversation = $execution->getMessages()
+        ->withToolCall($deleteCall->approve())
+        ->withToolCall($moveCall->approve(['target' => 'archive/notes.txt']))
+        ->withToolCall($mailCall->reject('The user rejected this tool call.'));
 
-    $execution = $agent->call(new ToolCallResolutions($conversation, [
-        'call_1' => ToolCallResolution::execute(),
-        'call_2' => ToolCallResolution::execute(['path' => 'archive/notes.txt']),
-        'call_3' => ToolCallResolution::answer('The user rejected this tool call.'),
-    ]));
+    $execution = $agent->call($conversation);
 
-Continuing the conversation with a new message instead answers the suspended calls with "The tool call was suspended
-and not resolved." The rounds of the suspended execution count towards ``maxToolCalls``, which limits the tool calling rounds
-since the last user message.
+Calls that are still suspended keep the execution waiting without invoking the model. Continuing the conversation
+with a new message instead answers the undecided calls, so the conversation stays valid for the platforms. The rounds
+of the suspended execution count towards ``maxToolCalls``, which limits the tool calling rounds since the last user
+message.
 
-An executed resolution runs through the toolbox like any other call, so its events, argument validation and
-authorization still apply. Resolving a call that is not suspended, or leaving a suspended call unresolved, throws an
-:class:`Symfony\\AI\\Agent\\Exception\\InvalidArgumentException` - which also keeps a resolution from being applied twice.
+An approved call runs through the toolbox like any other call, so its events, argument validation and authorization
+still apply: approving lifts the suspension, not the authorization.
 
 .. caution::
 
-    The conversation carries the tool calls that get executed. Resume from a :ref:`stored conversation
-    <agent-storing-conversations>` by passing only its id, never from messages a client sent back, since those
-    could contain tool calls the model never requested.
+    The approval is part of the conversation. With a :ref:`message store <agent-storing-conversations>`, the agent
+    only takes over the approval or rejection of a call that is suspended in the stored conversation and throws an
+    :class:`Symfony\\AI\\Agent\\Exception\\InvalidArgumentException` otherwise. Without a message store, never hand
+    the agent a conversation a client sent back, since it could approve calls on its own.
 
 * `Suspending Tool Calls Example`_
 
