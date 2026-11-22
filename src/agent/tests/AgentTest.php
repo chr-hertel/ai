@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Tests;
 
+use PHPUnit\Framework\MockObject\Rule\InvocationOrder;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentAwareInterface;
@@ -18,6 +19,7 @@ use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Input;
 use Symfony\AI\Agent\InputProcessor\ModelOverrideInputProcessor;
@@ -616,6 +618,51 @@ final class AgentTest extends TestCase
         $this->assertSame('tool2 done', $stored[3]->asText());
     }
 
+    public function testReplayedApprovalDoesNotExecuteTheToolCallAgain()
+    {
+        [$agent, , $execution] = $this->suspendedDeletion($this->exactly(2), [new TextResult('Deleted notes.txt.'), new TextResult('Already done.')]);
+
+        $approved = $execution->getMessages()->withToolCall($execution->getPendingToolCalls()[0]->approve());
+
+        $agent->call($approved)->getResult();
+        $agent->call($approved)->getResult();
+    }
+
+    public function testStoredConversationTakesOverARejection()
+    {
+        [$agent, , $execution, $store] = $this->suspendedDeletion($this->once(), [new TextResult('Kept notes.txt.')]);
+
+        $rejected = $agent->call($execution->getMessages()->withToolCall($execution->getPendingToolCalls()[0]->reject('Keep it.')));
+
+        $this->assertSame('Kept notes.txt.', $rejected->getContent());
+
+        $stored = $store->load($execution->getMessages()->getId())->getMessages();
+        $this->assertInstanceOf(AssistantMessage::class, $stored[1]);
+        $this->assertSame(ToolCallState::Rejected, $stored[1]->getToolCalls()[1]->getState());
+        $this->assertInstanceOf(ToolCallMessage::class, $stored[3]);
+        $this->assertSame('Keep it.', $stored[3]->asText());
+    }
+
+    public function testStoredConversationTakesOverTheArgumentsOfAnApproval()
+    {
+        $arguments = [];
+        [$agent, , $execution] = $this->suspendedDeletion($this->exactly(2), [new TextResult('Archived notes.txt.')], $arguments);
+
+        $agent->call($execution->getMessages()->withToolCall($execution->getPendingToolCalls()[0]->approve(['path' => 'archive/notes.txt'])))->getResult();
+
+        $this->assertSame([[], ['path' => 'archive/notes.txt']], $arguments);
+    }
+
+    public function testStoredConversationRejectsADecisionForAnotherTool()
+    {
+        [$agent, , $execution] = $this->suspendedDeletion($this->once(), []);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The tool call "tool3" with id "id2" can only be approved or rejected while it is suspended.');
+
+        $agent->call($execution->getMessages()->withToolCall(new ToolCall('id2', 'tool3', state: ToolCallState::Approved)))->getResult();
+    }
+
     public function testStoredConversationRejectsTheApprovalOfAToolCallThatWasNotSuspended()
     {
         $toolCall = new ToolCall('id1', 'tool1');
@@ -694,6 +741,22 @@ final class AgentTest extends TestCase
         $this->assertSame('The tool call was suspended and neither approved nor rejected.', $messages[2]->asText());
     }
 
+    public function testAbandonedDecidedToolCallsAreAnsweredByTheirState()
+    {
+        $agent = new Agent(MockPlatformFactory::createPlatform('Okay'), 'gpt-4');
+        $execution = $agent->call(new MessageBag(
+            Message::ofUser('Delete notes.txt and todo.txt'),
+            new AssistantMessage((new ToolCall('id1', 'tool1'))->suspend()->approve(), (new ToolCall('id2', 'tool1'))->reject('Keep it.')),
+            Message::ofUser('Never mind'),
+        ));
+
+        $messages = $execution->getMessages()->getMessages();
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[2]);
+        $this->assertSame('The tool call was approved, but not executed.', $messages[2]->asText());
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[3]);
+        $this->assertSame('Keep it.', $messages[3]->asText());
+    }
+
     public function testConversationWithoutAbandonedToolCallsStaysUntouched()
     {
         $toolCall = new ToolCall('id1', 'tool1');
@@ -714,6 +777,41 @@ final class AgentTest extends TestCase
         (new Agent($platform, 'gpt-4'))->call($messages)->getResult();
 
         $this->assertSame(['user', 'assistant', 'tool', 'user'], $roles);
+    }
+
+    /**
+     * An agent with a message store whose execution suspended the deletion of notes.txt after listing the files.
+     *
+     * @param list<ResultInterface>      $results   the results of the model requests after the suspension
+     * @param list<array<string, mixed>> $arguments collects the arguments of the executed tool calls
+     *
+     * @return array{Agent, ToolboxInterface, ExecutionInterface, InMemoryMessageStore}
+     */
+    private function suspendedDeletion(InvocationOrder $executions, array $results, array &$arguments = []): array
+    {
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox
+            ->expects($executions)
+            ->method('execute')
+            ->willReturnCallback(static function (ToolCall $toolCall) use (&$arguments): ToolResult {
+                $arguments[] = $toolCall->getArguments();
+
+                return new ToolResult($toolCall, $toolCall->getName().' done');
+            });
+
+        $results = [new ToolCallResult([new ToolCall('id1', 'tool1'), new ToolCall('id2', 'tool2', ['path' => 'notes.txt'])]), ...$results];
+        $platform = MockPlatformFactory::createPlatform(static function () use (&$results): ResultInterface {
+            return array_shift($results);
+        });
+
+        $store = new InMemoryMessageStore();
+        $agent = new Agent($platform, 'gpt-4', toolbox: $toolbox, eventDispatcher: $this->suspending('tool2'), messageStore: $store);
+
+        $execution = $agent->call(new MessageBag(Message::ofUser('List the files, then delete notes.txt')));
+        $execution->getResult();
+
+        return [$agent, $toolbox, $execution, $store];
     }
 
     private function suspending(string $toolName): EventDispatcher

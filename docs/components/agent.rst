@@ -1121,8 +1121,10 @@ still apply: approving lifts the suspension, not the authorization.
 
     The approval is part of the conversation. With a :ref:`message store <agent-storing-conversations>`, the agent
     only takes over the approval or rejection of a call that is suspended in the stored conversation and throws an
-    :class:`Symfony\\AI\\Agent\\Exception\\InvalidArgumentException` otherwise. Without a message store, never hand
-    the agent a conversation a client sent back, since it could approve calls on its own.
+    :class:`Symfony\\AI\\Agent\\Exception\\InvalidArgumentException` otherwise. Two decisions on the same call
+    conflict: the store that saves the second one throws a :class:`Symfony\\AI\\Agent\\Exception\\ConflictException`
+    before its call gets executed. Without a message store, never hand the agent a conversation a client sent back,
+    since it could approve calls on its own.
 
 * `Suspending Tool Calls Example`_
 

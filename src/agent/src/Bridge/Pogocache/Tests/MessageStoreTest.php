@@ -14,8 +14,11 @@ namespace Symfony\AI\Agent\Bridge\Pogocache\Tests;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Bridge\Pogocache\MessageStore;
 use Symfony\AI\Agent\Exception\ConflictException;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\AI\Platform\Serializer\MessageBagNormalizer;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -137,6 +140,49 @@ final class MessageStoreTest extends TestCase
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
 
+    public function testLoadKeepsTheStateOfTheToolCalls()
+    {
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.');
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+        $approved = $suspended->withToolCall($toolCall->approve());
+        $this->assertSuspendedToolCall($this->store(new MockHttpClient([new MockResponse($this->serializer()->serialize($suspended, 'json'))]))->load($suspended->getId()));
+    }
+
+    public function testDecisionOnASuspendedToolCallIsSaved()
+    {
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.');
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+        $approved = $suspended->withToolCall($toolCall->approve());
+        $httpClient = new MockHttpClient([
+            new MockResponse($this->serializer()->serialize($suspended, 'json')),
+            function (string $method, string $url, array $options) use ($approved): MockResponse {
+                $this->assertSame('PUT', $method);
+                $this->assertStringNotContainsString('nx=1', $url);
+                $this->assertSame($this->serializer()->serialize($approved, 'json'), $options['body']);
+
+                return new MockResponse('Stored');
+            },
+        ]);
+
+        $this->store($httpClient)->save($approved);
+
+        $this->assertSame(2, $httpClient->getRequestsCount());
+    }
+
+    public function testDecisionTakenInTheMeantimeConflicts()
+    {
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.');
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+        $approved = $suspended->withToolCall($toolCall->approve());
+        $httpClient = new MockHttpClient([
+            new MockResponse($this->serializer()->serialize($approved, 'json')),
+        ]);
+
+        $this->expectException(ConflictException::class);
+
+        $this->store($httpClient)->save($suspended->withToolCall($toolCall->reject('Keep it.')));
+    }
+
     private function store(MockHttpClient $httpClient): MessageStore
     {
         return new MessageStore($httpClient, 'http://127.0.0.1:9401', 'secret', 'chat');
@@ -145,5 +191,13 @@ final class MessageStoreTest extends TestCase
     private function serializer(): Serializer
     {
         return new Serializer([new MessageBagNormalizer()], [new JsonEncoder()]);
+    }
+
+    private function assertSuspendedToolCall(MessageBag $messages): void
+    {
+        $assistantMessage = $messages->getMessages()[1];
+        $this->assertInstanceOf(AssistantMessage::class, $assistantMessage);
+        $this->assertSame(ToolCallState::Suspended, $assistantMessage->getToolCalls()[0]->getState());
+        $this->assertSame('Needs approval.', $assistantMessage->getToolCalls()[0]->getReason());
     }
 }
