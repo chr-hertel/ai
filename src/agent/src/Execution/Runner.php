@@ -27,6 +27,7 @@ use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
@@ -84,7 +85,7 @@ final class Runner
         $sources = new SourceCollection();
         $metadata = new Metadata();
         // rounds of the current turn that an earlier, suspended execution already ran count as well
-        $iterations = Conversation::toolRoundsOfTurn($messages);
+        $iterations = $this->toolRoundsOfTurn($messages);
         $round = new ToolCallRound($this->toolExecutor, $this->resultConverter);
         $suspended = false;
         $result = null;
@@ -207,7 +208,7 @@ final class Runner
      */
     private function resume(ToolCallRound $round, MessageBag $messages, ?array $allowedTools, SourceCollection $sources, ?\Closure $onToolRound): \Generator
     {
-        $pending = Conversation::pendingToolCalls($messages);
+        $pending = $messages->getPendingToolCalls();
         $decided = ToolCallRound::inState($pending, ToolCallState::Approved, ToolCallState::Rejected);
 
         if ([] !== $decided) {
@@ -234,6 +235,22 @@ final class Runner
         yield new Progress(Progress::STAGE_SUSPENSION, 'Waiting for the suspended tool calls to be approved or rejected.', $toolCalls);
 
         return new ToolCallResult($toolCalls);
+    }
+
+    private function toolRoundsOfTurn(MessageBag $messages): int
+    {
+        $rounds = 0;
+        foreach (array_reverse($messages->getMessages()) as $message) {
+            if ($message instanceof UserMessage) {
+                break;
+            }
+
+            if ($message instanceof AssistantMessage && $message->hasToolCalls()) {
+                ++$rounds;
+            }
+        }
+
+        return $rounds;
     }
 
     /**

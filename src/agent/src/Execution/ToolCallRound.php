@@ -51,7 +51,7 @@ final class ToolCallRound
         // answered in the order the model requested them
         foreach ($toolCalls as $toolCall) {
             if (ToolCallState::Rejected === $toolCall->getState()) {
-                $messages = $messages->with(Message::ofToolCall($toolCall, $toolCall->getReason() ?? 'The tool call was rejected.'));
+                $messages = $messages->with(Message::ofToolCall($toolCall, $toolCall->getDefaultAnswer()));
 
                 continue;
             }

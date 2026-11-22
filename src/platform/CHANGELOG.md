@@ -6,6 +6,7 @@ CHANGELOG
 
  * Add `Result\ToolCallState` and the state of a `Result\ToolCall`, with `suspend()`, `approve()` and `reject()` returning a copy in the new state, kept by `Serializer\MessageNormalizer`
  * Add `AssistantMessage::withToolCall()` and `MessageBag::withToolCall()`, replacing a tool call by its id
+ * Add `MessageBag::getPendingToolCalls()` returning the unanswered tool calls the bag ends with, and `MessageBag::withAnsweredToolCalls()` answering tool calls a later message left behind with `ToolCall::getDefaultAnswer()`
  * Add the status code and the request URL, without its query and credentials, to the message of the exceptions `HttpStatusErrorHandlingTrait` throws
  * Throw a `BadRequestException` on HTTP 422 in `HttpStatusErrorHandlingTrait` and read the `detail` of FastAPI error bodies, which Mistral sends for validation errors
  * Add the serving provider to `InvocationEvent` and `ResultEvent`, as `ResultConvertedEvent` and `ResultErrorEvent` already have it, so a listener can attribute these events to the provider serving the call

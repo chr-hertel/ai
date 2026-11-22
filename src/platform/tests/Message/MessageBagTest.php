@@ -22,6 +22,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\Role;
 use Symfony\AI\Platform\Message\SystemMessage;
+use Symfony\AI\Platform\Message\ToolCallMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Metadata\MetadataAwareTrait;
 use Symfony\AI\Platform\Result\ToolCall;
@@ -628,6 +629,81 @@ final class MessageBagTest extends TestCase
         $this->expectExceptionMessage('No assistant message has a tool call with id "id1".');
 
         (new MessageBag(Message::ofUser('Hello')))->withToolCall(new ToolCall('id1', 'tool1'));
+    }
+
+    public function testPendingToolCallsAreTheUnansweredCallsOfTheLastAssistantMessage()
+    {
+        $answered = new ToolCall('id1', 'tool1');
+        $pending = (new ToolCall('id2', 'tool2'))->suspend();
+
+        $messages = new MessageBag(Message::ofUser('Hello'), new AssistantMessage($answered, $pending), Message::ofToolCall($answered, 'Done'));
+
+        $this->assertSame([$pending], $messages->getPendingToolCalls());
+    }
+
+    public function testAnsweredToolCallsAreNotPending()
+    {
+        $approved = (new ToolCall('id1', 'tool1'))->suspend()->approve();
+
+        $messages = new MessageBag(Message::ofUser('Hello'), new AssistantMessage($approved), Message::ofToolCall($approved, 'Done'));
+
+        $this->assertSame([], $messages->getPendingToolCalls());
+    }
+
+    public function testNoToolCallIsPendingOnceTheConversationMovedOn()
+    {
+        $messages = new MessageBag(Message::ofUser('Hello'), new AssistantMessage(new ToolCall('id1', 'tool1')), Message::ofUser('Never mind'));
+
+        $this->assertSame([], $messages->getPendingToolCalls());
+        $this->assertSame([], (new MessageBag(Message::ofUser('Hello')))->getPendingToolCalls());
+    }
+
+    public function testToolCallsLeftBehindByALaterMessageAreAnsweredWithTheirDefaultAnswer()
+    {
+        $calls = [
+            new ToolCall('id1', 'tool1'),
+            (new ToolCall('id2', 'tool1'))->suspend(),
+            (new ToolCall('id3', 'tool1'))->suspend()->approve(),
+            (new ToolCall('id4', 'tool1'))->reject('Keep it.'),
+            new ToolCall('id5', 'tool1'),
+        ];
+        $messages = new MessageBag(
+            Message::ofUser('Delete the files'),
+            new AssistantMessage(...$calls),
+            Message::ofToolCall($calls[4], 'Deleted'),
+            Message::ofUser('Never mind'),
+        );
+        $messages->getMetadata()->add('key', 'value');
+
+        $answered = $messages->withAnsweredToolCalls();
+
+        $this->assertTrue($answered->getId()->equals($messages->getId()));
+        $this->assertSame('value', $answered->getMetadata()->get('key'));
+
+        $answers = [];
+        foreach (\array_slice($answered->getMessages(), 2, 5) as $message) {
+            $this->assertInstanceOf(ToolCallMessage::class, $message);
+            $answers[$message->getToolCall()->getId()] = $message->asText();
+        }
+
+        $this->assertSame([
+            'id5' => 'Deleted',
+            'id1' => 'The tool call was not answered.',
+            'id2' => 'The tool call was suspended and neither approved nor rejected.',
+            'id3' => 'The tool call was approved, but not executed.',
+            'id4' => 'Keep it.',
+        ], $answers);
+        $this->assertInstanceOf(UserMessage::class, $answered->getMessages()[7]);
+    }
+
+    public function testBagWithoutToolCallsLeftBehindStaysUntouched()
+    {
+        $toolCall = new ToolCall('id1', 'tool1');
+        $answered = new MessageBag(Message::ofUser('Hello'), new AssistantMessage($toolCall), Message::ofToolCall($toolCall, 'Done'), Message::ofUser('Thanks'));
+        $pending = new MessageBag(Message::ofUser('Hello'), new AssistantMessage($toolCall->suspend()));
+
+        $this->assertSame($answered, $answered->withAnsweredToolCalls());
+        $this->assertSame($pending, $pending->withAnsweredToolCalls());
     }
 
     private function createCustomUserMessage(): MessageInterface

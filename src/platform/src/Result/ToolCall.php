@@ -94,6 +94,19 @@ final class ToolCall implements ContentInterface
         return $this->reason;
     }
 
+    /**
+     * The answer to the tool call for the model when it does not get executed.
+     */
+    public function getDefaultAnswer(): string
+    {
+        return match ($this->state) {
+            ToolCallState::Requested => 'The tool call was not answered.',
+            ToolCallState::Suspended => 'The tool call was suspended and neither approved nor rejected.',
+            ToolCallState::Approved => 'The tool call was approved, but not executed.',
+            ToolCallState::Rejected => $this->reason ?? 'The tool call was rejected.',
+        };
+    }
+
     public function getId(): string
     {
         return $this->id;

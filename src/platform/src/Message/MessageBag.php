@@ -135,6 +135,68 @@ class MessageBag implements \Countable, \IteratorAggregate
     }
 
     /**
+     * The unanswered tool calls of the last assistant message, as long as only tool messages follow it.
+     *
+     * @return list<ToolCall>
+     */
+    public function getPendingToolCalls(): array
+    {
+        $answered = [];
+        foreach (array_reverse($this->messages) as $message) {
+            if ($message instanceof ToolCallMessage) {
+                $answered[$message->getToolCall()->getId()] = true;
+
+                continue;
+            }
+
+            if (!$message instanceof AssistantMessage) {
+                return [];
+            }
+
+            return array_values(array_filter($message->getToolCalls(), static fn (ToolCall $toolCall): bool => !isset($answered[$toolCall->getId()])));
+        }
+
+        return [];
+    }
+
+    /**
+     * A copy of this bag answering the tool calls that a later message left behind unanswered, with their default
+     * answer, since platforms reject a conversation with an unanswered tool call before a later message.
+     */
+    public function withAnsweredToolCalls(): self
+    {
+        $messages = [];
+        $answered = [];
+        $toolCalls = [];
+        foreach ($this->messages as $message) {
+            if ($message instanceof ToolCallMessage) {
+                $answered[$message->getToolCall()->getId()] = true;
+                $messages[] = $message;
+
+                continue;
+            }
+
+            foreach ($toolCalls as $toolCall) {
+                if (!isset($answered[$toolCall->getId()])) {
+                    $messages[] = Message::ofToolCall($toolCall, $toolCall->getDefaultAnswer());
+                }
+            }
+
+            $toolCalls = $message instanceof AssistantMessage ? $message->getToolCalls() : [];
+            $messages[] = $message;
+        }
+
+        if (\count($messages) === \count($this->messages)) {
+            return $this;
+        }
+
+        $bag = clone $this;
+        $bag->messages = $messages;
+
+        return $bag;
+    }
+
+    /**
      * A copy of this bag with the tool call of the same id replaced by the given one, e.g. to approve it.
      *
      * @throws InvalidArgumentException if no assistant message has a tool call with the id of the given one

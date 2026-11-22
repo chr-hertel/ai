@@ -1199,6 +1199,26 @@ final class RunnerTest extends TestCase
         $this->assertEquals([$suspended->suspend()], $messages[1]->getToolCalls());
     }
 
+    public function testToolCallingRoundsOfEarlierTurnsDoNotCountTowardsTheMaximumOfToolCalls()
+    {
+        $earlier = new ToolCall('id1', 'tool1');
+        $toolCall = new ToolCall('id2', 'tool1');
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, 'Done'));
+
+        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Done again'));
+        $result = $this->drive($this->createRunner($platform, $toolbox, maxToolCalls: 1), new MessageBag(
+            Message::ofUser('Do it'),
+            new AssistantMessage($earlier),
+            Message::ofToolCall($earlier, 'Done'),
+            Message::ofAssistant('Done'),
+            Message::ofUser('Do it again'),
+        ));
+
+        $this->assertSame('Done again', $result->getContent());
+    }
+
     public function testToolCallsExecutedIsNotDispatchedForASuspendedRound()
     {
         $toolbox = $this->createStub(ToolboxInterface::class);

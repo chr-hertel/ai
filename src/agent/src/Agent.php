@@ -14,7 +14,6 @@ namespace Symfony\AI\Agent;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Cancellation;
-use Symfony\AI\Agent\Execution\Conversation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\Runner;
@@ -111,7 +110,7 @@ final class Agent implements AgentInterface
                 $input = StoredConversation::continue($this->messageStore->load($input->getId()), $input);
             }
 
-            $input = Conversation::answerAbandonedToolCalls($input);
+            $input = $input->withAnsweredToolCalls();
 
             if (null !== $this->messageStore) {
                 $this->messageStore->save($input);

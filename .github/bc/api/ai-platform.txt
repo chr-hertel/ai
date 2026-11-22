@@ -434,6 +434,7 @@ Symfony\AI\Platform\Message\MessageBag::forId(): public static function forId(Sy
 Symfony\AI\Platform\Message\MessageBag::getId(): public function getId(): Symfony\Component\Uid\AbstractUid&Symfony\Component\Uid\TimeBasedUidInterface
 Symfony\AI\Platform\Message\MessageBag::getIterator(): public function getIterator(): ArrayIterator
 Symfony\AI\Platform\Message\MessageBag::getMessages(): public function getMessages(): array
+Symfony\AI\Platform\Message\MessageBag::getPendingToolCalls(): public function getPendingToolCalls(): array
 Symfony\AI\Platform\Message\MessageBag::getSystemMessage(): public function getSystemMessage(string $separator = \PHP_EOL . \PHP_EOL): Symfony\AI\Platform\Message\SystemMessage|null
 Symfony\AI\Platform\Message\MessageBag::getUserMessage(): public function getUserMessage(): Symfony\AI\Platform\Message\UserMessage|null
 Symfony\AI\Platform\Message\MessageBag::isLastMessageFrom(): public function isLastMessageFrom(Symfony\AI\Platform\Message\Role $role): bool
@@ -441,6 +442,7 @@ Symfony\AI\Platform\Message\MessageBag::latestAs(): public function latestAs(Sym
 Symfony\AI\Platform\Message\MessageBag::merge(): public function merge(self $messageBag): self
 Symfony\AI\Platform\Message\MessageBag::replace(): public function replace(Symfony\Component\Uid\AbstractUid&Symfony\Component\Uid\TimeBasedUidInterface $uuid, Symfony\AI\Platform\Message\MessageInterface $newMessage): self
 Symfony\AI\Platform\Message\MessageBag::with(): public function with(Symfony\AI\Platform\Message\MessageInterface $message): self
+Symfony\AI\Platform\Message\MessageBag::withAnsweredToolCalls(): public function withAnsweredToolCalls(): self
 Symfony\AI\Platform\Message\MessageBag::withId(): public function withId(Symfony\Component\Uid\AbstractUid&Symfony\Component\Uid\TimeBasedUidInterface $id): static
 Symfony\AI\Platform\Message\MessageBag::withoutSystemMessage(): public function withoutSystemMessage(): self
 Symfony\AI\Platform\Message\MessageBag::withoutToolMessages(): public function withoutToolMessages(): self
@@ -863,6 +865,7 @@ Symfony\AI\Platform\Result\ToolCall: final class implements Symfony\AI\Platform\
 Symfony\AI\Platform\Result\ToolCall::__construct(): public function __construct(string $id, string $name, array $arguments = [], null|string $signature = null, Symfony\AI\Platform\Result\ToolCallState $state = \Symfony\AI\Platform\Result\ToolCallState::Requested, null|string $reason = null)
 Symfony\AI\Platform\Result\ToolCall::approve(): public function approve(array|null $arguments = null): self
 Symfony\AI\Platform\Result\ToolCall::getArguments(): public function getArguments(): array
+Symfony\AI\Platform\Result\ToolCall::getDefaultAnswer(): public function getDefaultAnswer(): string
 Symfony\AI\Platform\Result\ToolCall::getId(): public function getId(): string
 Symfony\AI\Platform\Result\ToolCall::getName(): public function getName(): string
 Symfony\AI\Platform\Result\ToolCall::getReason(): public function getReason(): null|string

@@ -120,4 +120,15 @@ final class ToolCallTest extends TestCase
 
         (new ToolCall('id', 'name'))->suspend()->approve()->reject();
     }
+
+    public function testDefaultAnswerDependsOnTheState()
+    {
+        $toolCall = new ToolCall('id', 'name');
+
+        $this->assertSame('The tool call was not answered.', $toolCall->getDefaultAnswer());
+        $this->assertSame('The tool call was suspended and neither approved nor rejected.', $toolCall->suspend('Needs approval.')->getDefaultAnswer());
+        $this->assertSame('The tool call was approved, but not executed.', $toolCall->suspend()->approve()->getDefaultAnswer());
+        $this->assertSame('The tool call was rejected.', $toolCall->reject()->getDefaultAnswer());
+        $this->assertSame('Not allowed.', $toolCall->reject('Not allowed.')->getDefaultAnswer());
+    }
 }
