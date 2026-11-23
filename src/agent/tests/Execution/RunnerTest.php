@@ -12,11 +12,14 @@
 namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Runner;
+use Symfony\AI\Agent\Execution\ToolCallResolution;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Execution\UpdateInterface;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Source\Source;
@@ -62,6 +65,8 @@ use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\TokenUsage\TokenUsageAggregation;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class RunnerTest extends TestCase
 {
@@ -1030,6 +1035,133 @@ final class RunnerTest extends TestCase
         $this->assertSame('Hello world!', $result->getContent());
     }
 
+    public function testSuspendedToolCallIsNotExecutedAndEndsTheExecution()
+    {
+        $executed = new ToolCall('id1', 'tool1');
+        $suspended = new ToolCall('id2', 'tool2');
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox
+            ->expects($this->once())
+            ->method('execute')
+            ->with($executed)
+            ->willReturn(new ToolResult($executed, 'Executed'));
+
+        $eventDispatcher = new EventDispatcher();
+        $eventDispatcher->addListener(ToolCallsRequested::class, static function (ToolCallsRequested $event) use ($suspended): void {
+            $event->suspend($suspended, 'Needs approval.');
+        });
+
+        // a second model request would fail, as only one result is configured
+        $platform = $this->platform(new ToolCallResult([$executed, $suspended]));
+        $updates = $this->collectUpdates($this->createRunner($platform, $toolbox, eventDispatcher: $eventDispatcher), new MessageBag(Message::ofUser('Hello')));
+
+        $suspension = array_values(array_filter($updates, static fn (UpdateInterface $update): bool => $update instanceof Progress && Progress::STAGE_SUSPENSION === $update->getStage()));
+        $this->assertCount(1, $suspension);
+        $this->assertSame([$suspended], $suspension[0]->getPayload());
+
+        $resultUpdate = $updates[array_key_last($updates)];
+        $this->assertInstanceOf(ResultUpdate::class, $resultUpdate);
+
+        $result = $resultUpdate->getResult();
+        $this->assertInstanceOf(ToolCallResult::class, $result);
+        $this->assertSame([$suspended], $result->getContent());
+        $this->assertSame(['id2' => 'Needs approval.'], $result->getMetadata()->get('suspensions'));
+
+        $messages = $resultUpdate->getMessages()?->getMessages() ?? [];
+        $this->assertCount(3, $messages);
+        $this->assertInstanceOf(AssistantMessage::class, $messages[1]);
+        $this->assertSame([$executed, $suspended], $messages[1]->getToolCalls());
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[2]);
+        $this->assertSame('id1', $messages[2]->getToolCall()->getId());
+    }
+
+    public function testResolvedToolCallIsExecutedWithItsArgumentsBeforeTheModelIsInvoked()
+    {
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox
+            ->expects($this->once())
+            ->method('execute')
+            ->with(new ToolCall('id2', 'tool2', ['path' => 'edited.txt']))
+            ->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, 'Deleted'));
+
+        $platform = $this->platform(new TextResult('Done'));
+        $result = $this->drive($this->createRunner($platform, $toolbox), $this->suspendedConversation(), resolutions: ['id2' => ToolCallResolution::execute(['path' => 'edited.txt'])]);
+
+        $this->assertSame('Done', $result->getContent());
+
+        $messages = $this->lastInvokedMessages()->getMessages();
+        $this->assertCount(4, $messages);
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[3]);
+        $this->assertSame('id2', $messages[3]->getToolCall()->getId());
+        $this->assertSame('Deleted', $messages[3]->asText());
+    }
+
+    public function testToolCallResolvedWithAnAnswerIsNotExecuted()
+    {
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->expects($this->never())->method('execute');
+
+        $platform = $this->platform(new TextResult('Understood'));
+        $this->drive($this->createRunner($platform, $toolbox), $this->suspendedConversation(), resolutions: ['id2' => ToolCallResolution::answer('Rejected by the user.')]);
+
+        $messages = $this->lastInvokedMessages()->getMessages();
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[3]);
+        $this->assertSame('Rejected by the user.', $messages[3]->asText());
+    }
+
+    public function testResolutionOfAToolCallThatIsNotPendingIsRejected()
+    {
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The conversation has no unanswered tool call with id "id1".');
+
+        $this->drive($this->createRunner($this->platform(), $toolbox), $this->suspendedConversation(), resolutions: ['id1' => ToolCallResolution::execute(), 'id2' => ToolCallResolution::execute()]);
+    }
+
+    public function testPendingToolCallWithoutResolutionIsRejected()
+    {
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+
+        $messages = new MessageBag(Message::ofUser('Hello'), new AssistantMessage(new ToolCall('id1', 'tool1'), new ToolCall('id2', 'tool2')));
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The unanswered call of tool "tool2" with id "id2" has no resolution.');
+
+        $this->drive($this->createRunner($this->platform(), $toolbox), $messages, resolutions: ['id1' => ToolCallResolution::answer('Skipped.')]);
+    }
+
+    public function testRoundsOfTheSuspendedExecutionCountTowardsTheMaximumOfToolCalls()
+    {
+        $toolCall = new ToolCall('id3', 'tool1');
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, 'Done'));
+
+        // the suspended round already used the single allowed round of this turn
+        $platform = $this->platform(new ToolCallResult([$toolCall]));
+
+        $this->expectException(MaxIterationsExceededException::class);
+
+        $this->drive($this->createRunner($platform, $toolbox, maxToolCalls: 1), $this->suspendedConversation(), resolutions: [
+            'id2' => ToolCallResolution::answer('Skipped.'),
+        ]);
+    }
+
+    private function suspendedConversation(): MessageBag
+    {
+        return new MessageBag(
+            Message::ofUser('List the files, then delete notes.txt'),
+            new AssistantMessage(new ToolCall('id1', 'tool1'), new ToolCall('id2', 'tool2', ['path' => 'notes.txt'])),
+            Message::ofToolCall(new ToolCall('id1', 'tool1'), 'notes.txt'),
+        );
+    }
+
     /**
      * @return array{type: 'function', function: array{name: string, description: string, parameters: array{type: 'object', properties: \stdClass}}}
      */
@@ -1060,11 +1192,12 @@ final class RunnerTest extends TestCase
     /**
      * Drives the runner to completion and returns its final result.
      *
-     * @param array<string, mixed> $options
+     * @param array<string, mixed>                   $options
+     * @param array<string, ToolCallResolution>|null $resolutions
      */
-    private function drive(Runner $runner, MessageBag $messages, array $options = []): ResultInterface
+    private function drive(Runner $runner, MessageBag $messages, array $options = [], ?array $resolutions = null): ResultInterface
     {
-        foreach ($runner->run('gpt-4', $messages, $options) as $update) {
+        foreach ($runner->run('gpt-4', $messages, $options, resolutions: $resolutions) as $update) {
             if ($update instanceof ResultUpdate) {
                 return $update->getResult();
             }
@@ -1088,6 +1221,7 @@ final class RunnerTest extends TestCase
         ToolboxInterface $toolbox,
         ?int $maxToolCalls = 50,
         bool $includeSources = false,
+        ?EventDispatcherInterface $eventDispatcher = null,
     ): Runner {
         return new Runner(
             $platform,
@@ -1095,6 +1229,7 @@ final class RunnerTest extends TestCase
             new SequentialToolExecutor($toolbox),
             $maxToolCalls,
             $includeSources,
+            $eventDispatcher,
         );
     }
 

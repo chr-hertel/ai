@@ -4,6 +4,20 @@ UPGRADE FROM 0.15 to 1.0
 Agent
 -----
 
+ * `AgentInterface::call()` accepts `Execution\ToolCallResolutions` as input, resuming an execution that suspended tool
+   calls. Implementers of `AgentInterface` must widen the type of the `$input` argument:
+
+   ```diff
+   -public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
+   +public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): ExecutionInterface
+   ```
+
+ * `Agent` answers tool calls that a conversation left unanswered before a later message with "The tool call was not
+   resolved.", instead of sending the conversation to the platform as is, which providers reject.
+
+ * `maxToolCalls` of `Agent` limits the tool calling rounds since the last user message of the conversation, instead
+   of the rounds of a single call. A conversation that ends with tool calling rounds leaves fewer rounds to the call.
+
  * The default serializer of `Toolbox\ToolResultConverter` includes `BackedEnumNormalizer`, so a backed enum in a tool
    result is serialized as its value (`"open"`) instead of an object with name and value (`{"name":"Open","value":"open"}`).
    To keep the previous output, pass a serializer without `BackedEnumNormalizer` to the constructor.

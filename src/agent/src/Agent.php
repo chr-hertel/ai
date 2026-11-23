@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\Runner;
+use Symfony\AI\Agent\Execution\ToolCallResolutions;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
@@ -24,8 +25,11 @@ use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
+use Symfony\AI\Platform\Message\AssistantMessage;
+use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\MessageInterface;
+use Symfony\AI\Platform\Message\ToolCallMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
@@ -101,13 +105,21 @@ final class Agent implements AgentInterface
      * @throws RuntimeException         When the platform returns a server error (5xx) or network failure occurs
      * @throws ExceptionInterface       When the platform converter throws an exception
      */
-    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
+    public function call(string|MessageBag|UserMessage|ToolCallResolutions $input, array $options = []): ExecutionInterface
     {
         $cancellation = new Cancellation();
         $factory = function () use ($input, $options, $cancellation): \Generator {
+            $resolutions = $input instanceof ToolCallResolutions ? $input->getResolutions() : null;
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
                 $input = $this->continueStored($input, $this->messageStore);
+            }
+
+            if (null === $resolutions) {
+                $input = self::answerAbandonedToolCalls($input);
+            }
+
+            if (null !== $this->messageStore) {
                 $this->messageStore->save($input);
             }
 
@@ -136,7 +148,7 @@ final class Agent implements AgentInterface
                 $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
             }
 
-            foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound) as $update) {
+            foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound, $resolutions) as $update) {
                 if ($update instanceof ResultUpdate) {
                     $result = $update->getResult();
                     $resultUpdate = $update;
@@ -185,6 +197,71 @@ final class Agent implements AgentInterface
         };
 
         return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
+    }
+
+    /**
+     * Answers the tool calls a suspended execution left unanswered once the conversation moved on, since providers
+     * reject a conversation with an unanswered tool call before a later message.
+     */
+    private static function answerAbandonedToolCalls(MessageBag $messages): MessageBag
+    {
+        $list = $messages->getMessages();
+        $answered = [];
+        $result = [];
+        $abandoned = false;
+
+        foreach ($list as $i => $message) {
+            $result[] = $message;
+
+            if ($message instanceof ToolCallMessage) {
+                $answered[$message->getToolCall()->getId()] = true;
+            }
+
+            $next = $list[$i + 1] ?? null;
+            if (null === $next || $next instanceof ToolCallMessage) {
+                continue;
+            }
+
+            // the next message ends the answers of the last assistant message with tool calls
+            $assistant = self::lastToolCallingMessage($result);
+            if (null === $assistant) {
+                continue;
+            }
+
+            foreach ($assistant->getToolCalls() as $toolCall) {
+                if (!isset($answered[$toolCall->getId()])) {
+                    $result[] = Message::ofToolCall($toolCall, 'The tool call was not resolved.');
+                    $answered[$toolCall->getId()] = true;
+                    $abandoned = true;
+                }
+            }
+        }
+
+        if (!$abandoned) {
+            return $messages;
+        }
+
+        return (new MessageBag(...$result))->withId($messages->getId());
+    }
+
+    /**
+     * @param list<MessageInterface> $messages
+     */
+    private static function lastToolCallingMessage(array $messages): ?AssistantMessage
+    {
+        foreach (array_reverse($messages) as $message) {
+            if ($message instanceof ToolCallMessage) {
+                continue;
+            }
+
+            if ($message instanceof AssistantMessage && $message->hasToolCalls()) {
+                return $message;
+            }
+
+            return null;
+        }
+
+        return null;
     }
 
     /**
