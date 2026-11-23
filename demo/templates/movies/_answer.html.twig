@@ -52,6 +52,7 @@
 
 {% macro answer(message, suggestions) %}
     {% import _self as movies %}
+    {% import '_message.html.twig' as chat %}
     {% set steps = message.metadata.get('steps', []) %}
     {% set toolCalls = steps|filter(step => 'tool' == step.type)|length %}
     {# The id matches the answer Turbo inserted, which the next live render would otherwise keep as a duplicate #}
@@ -73,6 +74,9 @@
             </div>
         </div>
     </div>
+    {% if message.metadata.get('run_id') is not null %}
+        {{ chat.rating(message.id.toRfc4122, message.metadata.get('rating')) }}
+    {% endif %}
     </div>
 {% endmacro %}
 

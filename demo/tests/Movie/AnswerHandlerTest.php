@@ -65,6 +65,9 @@ final class AnswerHandlerTest extends TestCase
     public function testStepsAndPartialAnswersArePublished()
     {
         $store = $this->conversationWith(Message::ofUser('Movies by Christopher Nolan'));
+        $result = new ObjectResult($this->answer('Here is one.', ['1' => 'Mind-bending.']));
+        $result->getMetadata()->add('run_id', 'run-1');
+        $result->getMetadata()->add('trace_id', 'trace-1');
 
         $handler = $this->createHandler($store, [
             new Progress(Progress::STAGE_DELTA, payload: new CommentaryStart()),
@@ -74,7 +77,7 @@ final class AnswerHandlerTest extends TestCase
             new Progress(Progress::STAGE_DELTA, payload: new PartialObjectDelta($this->answer('Here'), '')),
             new Progress(Progress::STAGE_DELTA, payload: new PartialObjectDelta($this->answer('Here is one.', ['1']), '')),
             new Progress(Progress::STAGE_DELTA, payload: new PartialObjectDelta($this->answer('Here is one.', ['1' => 'Mind-bending.']), '')),
-            new Result(new ObjectResult($this->answer('Here is one.', ['1' => 'Mind-bending.'])), $this->load($store)->with(Message::ofAssistant('{"answer": "Here is one."}'))),
+            new Result($result, $this->load($store)->with(Message::ofAssistant('{"answer": "Here is one."}'))),
         ]);
 
         $handler(new Answer(self::CONVERSATION_ID, self::TOPIC));
@@ -103,6 +106,8 @@ final class AnswerHandlerTest extends TestCase
             ['type' => 'tool', 'name' => 'search_by_director', 'arguments' => ['director' => 'Christopher Nolan']],
         ], $response->getMetadata()->get('steps'));
         $this->assertCount(1, $response->getMetadata()->get('movies'));
+        $this->assertSame('run-1', $response->getMetadata()->get('run_id'));
+        $this->assertSame('trace-1', $response->getMetadata()->get('trace_id'));
     }
 
     public function testAnsweredQuestionIsNotAnsweredAgain()
@@ -141,6 +146,7 @@ final class AnswerHandlerTest extends TestCase
         $response = $this->load($store)->getMessages()[1];
         $this->assertInstanceOf(AssistantMessage::class, $response);
         $this->assertSame([['type' => 'tool', 'name' => 'search_by_director', 'arguments' => ['director' => 'Christopher Nolan']]], $response->getMetadata()->get('steps'));
+        $this->assertNull($response->getMetadata()->get('run_id'), 'An apology has no run to rate');
     }
 
     /**

@@ -102,6 +102,12 @@ final class TwigComponent
     }
 
     #[LiveAction]
+    public function rate(#[LiveArg] string $messageId, #[LiveArg] bool $positive): void
+    {
+        $this->chat->rate($messageId, $positive);
+    }
+
+    #[LiveAction]
     public function reset(): void
     {
         $this->chat->reset();

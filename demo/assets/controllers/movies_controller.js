@@ -52,10 +52,23 @@ export default class extends Controller {
             };
         };
         document.addEventListener('turbo:before-stream-render', this.onStreamRender);
+
+        // Answers pushed via Mercure keep their markup on re-render, so the rating is shown right away
+        this.onRate = (event) => {
+            const button = event.target.closest('.message-rating button');
+            if (!button) {
+                return;
+            }
+
+            button.classList.replace('btn-outline-secondary', 'btn-secondary');
+            button.parentElement.querySelectorAll('button').forEach((rating) => rating.disabled = true);
+        };
+        this.element.addEventListener('click', this.onRate);
     }
 
     disconnect() {
         document.removeEventListener('turbo:before-stream-render', this.onStreamRender);
+        this.element.removeEventListener('click', this.onRate);
     }
 
     scrollToBottom() {

@@ -111,6 +111,10 @@ final class AnswerHandler
             $answerId = $messages->latestAs(Role::Assistant)->getId();
             $response = Message::ofAssistant($result->answer)->withId($answerId);
             $messages = $messages->replace($answerId, $response);
+
+            // the run is what a thumbs up or down rates, see Chat::rate()
+            $response->getMetadata()->add('run_id', $execution->getMetadata()->get('run_id'));
+            $response->getMetadata()->add('trace_id', $execution->getMetadata()->get('trace_id'));
         } catch (\Throwable $exception) {
             $response = Message::ofAssistant('Sorry, I could not search the collection. Please try again.');
             // continues after the tool results the agent stored before failing

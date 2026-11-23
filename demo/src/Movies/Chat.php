@@ -13,6 +13,10 @@ namespace App\Movies;
 
 use App\Conversation\ConversationIds;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
+use Symfony\AI\Feedback\Feedback;
+use Symfony\AI\Feedback\FeedbackRecorderInterface;
+use Symfony\AI\Feedback\Signal;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\Role;
@@ -37,6 +41,7 @@ final class Chat
         #[Autowire(service: 'ai.message_store.cache.shared_conversations')]
         private readonly MessageStoreInterface $messageStore,
         private readonly MessageBusInterface $bus,
+        private readonly FeedbackRecorderInterface $feedbackRecorder,
     ) {
     }
 
@@ -70,6 +75,39 @@ final class Chat
 
         $this->messageStore->save($messages);
         $this->bus->dispatch(new Answer($messages->getId()->toRfc4122(), $this->getTopic()));
+    }
+
+    /**
+     * Rates an answer once, the first rating counts.
+     */
+    public function rate(string $messageId, bool $positive): void
+    {
+        $messages = $this->loadMessages();
+
+        foreach ($messages->getMessages() as $message) {
+            if (!$message instanceof AssistantMessage || $message->getId()->toRfc4122() !== $messageId) {
+                continue;
+            }
+
+            $metadata = $message->getMetadata();
+            if (null === $metadata->get('run_id') || null !== $metadata->get('rating')) {
+                return;
+            }
+
+            $this->feedbackRecorder->record(new Feedback(
+                $metadata->get('run_id'),
+                Signal::Thumbs,
+                $positive,
+                messageId: $messageId,
+                traceId: $metadata->get('trace_id'),
+                id: $messageId,
+            ));
+
+            $metadata->add('rating', $positive);
+            $this->messageStore->save($messages);
+
+            return;
+        }
     }
 
     public function reset(): void
