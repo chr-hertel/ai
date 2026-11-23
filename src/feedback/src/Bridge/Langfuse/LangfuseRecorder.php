@@ -41,17 +41,12 @@ final class LangfuseRecorder implements FeedbackRecorderInterface
     {
         $response = $this->httpClient->request('POST', rtrim($this->host, '/').'/api/public/scores', [
             'auth_basic' => [$this->publicKey, $this->secretKey],
-            'json' => [$this->payload($feedback)],
+            'json' => $this->payload($feedback),
         ]);
 
         $status = $response->getStatusCode();
         if ($status >= 300) {
             throw new RuntimeException(\sprintf('Langfuse rejected the score "%s" with status %d: "%s"', $feedback->getName(), $status, $response->getContent(false)));
-        }
-
-        // a 207 reports scores of the batch that were rejected
-        if (207 === $status && 0 < ($response->toArray(false)['rejected'] ?? 0)) {
-            throw new RuntimeException(\sprintf('Langfuse rejected the score "%s": "%s"', $feedback->getName(), $response->getContent(false)));
         }
     }
 
