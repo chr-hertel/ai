@@ -41,7 +41,7 @@
                     aria-label="{{ positive ? 'Helpful' : 'Not helpful' }}"
                     {% if rating is not null %}disabled{% endif %}
                     {{ live_action('rate', { messageId, positive: positive ? 1 : 0 }) }}
-            >{{ positive ? '👍' : '👎' }}</button>
+            >{{ ux_icon(positive ? 'mdi:thumbs-up' : 'mdi:thumbs-down') }}</button>
         {% endfor %}
     </div>
 {% endmacro %}
