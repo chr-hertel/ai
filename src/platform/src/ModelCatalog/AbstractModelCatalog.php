@@ -23,7 +23,7 @@ use Symfony\AI\Platform\ModelOptionsParser;
 abstract class AbstractModelCatalog implements ModelCatalogInterface
 {
     /**
-     * @var array<string, array{class: class-string, capabilities: list<Capability>}>
+     * @var array<string, array{class: class-string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}>
      */
     protected array $models;
 
@@ -58,7 +58,7 @@ abstract class AbstractModelCatalog implements ModelCatalogInterface
     }
 
     /**
-     * @return array<string, array{class: class-string, capabilities: list<Capability>}>
+     * @return array<string, array{class: class-string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}>
      */
     public function getModels(): array
     {

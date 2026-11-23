@@ -2,6 +2,9 @@
     {% set text = message.asText %}
     {% if text is not null %}
         {{ _self.bot(text, latest: latest) }}
+        {% if ratable|default(false) %}
+            {{ _self.rating(message.id.toRfc4122, rating|default(null)) }}
+        {% endif %}
     {% endif %}
 {% else %}
     {{ _self.user(message.content) }}
@@ -27,6 +30,19 @@
                 {% endif %}
             </div>
         {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro rating(messageId, rating) %}
+    <div class="message-rating">
+        {% for positive in [true, false] %}
+            <button type="button"
+                    class="btn btn-sm {{ rating is same as(positive) ? 'btn-secondary' : 'btn-outline-secondary' }}"
+                    aria-label="{{ positive ? 'Helpful' : 'Not helpful' }}"
+                    {% if rating is not null %}disabled{% endif %}
+                    {{ live_action('rate', { messageId, positive: positive ? 1 : 0 }) }}
+            >{{ positive ? '👍' : '👎' }}</button>
+        {% endfor %}
     </div>
 {% endmacro %}
 

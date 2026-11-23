@@ -22,6 +22,7 @@ class ProcessorCompilerPass implements CompilerPassInterface
     {
         $inputProcessors = $container->findTaggedServiceIds('ai.agent.input_processor');
         $outputProcessors = $container->findTaggedServiceIds('ai.agent.output_processor');
+        $processorsByAgent = [];
 
         foreach ($container->findTaggedServiceIds('ai.agent') as $serviceId => $tags) {
             $agentDefinition = $container->getDefinition($serviceId);
@@ -68,6 +69,15 @@ class ProcessorCompilerPass implements CompilerPassInterface
             $agentDefinition
                 ->setArgument('$inputProcessors', array_column($agentInputProcessors, 1))
                 ->setArgument('$outputProcessors', array_column($agentOutputProcessors, 1));
+            $processorsByAgent[$serviceId] = [array_column($agentInputProcessors, 1), array_column($agentOutputProcessors, 1)];
+        }
+
+        // the agents of eval suites run with the processors of the agent they test
+        foreach ($container->findTaggedServiceIds('ai.eval.agent_factory') as $serviceId => $tags) {
+            [$input, $output] = $processorsByAgent[$tags[0]['agent']] ?? [[], []];
+            $container->getDefinition($serviceId)
+                ->setArgument('$inputProcessors', $input)
+                ->setArgument('$outputProcessors', $output);
         }
     }
 }

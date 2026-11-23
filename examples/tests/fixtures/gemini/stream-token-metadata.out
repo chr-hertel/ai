@@ -41,18 +41,16 @@ Cats have unique metabolic limitations and cannot synthesize certain critical nu
 * **Cow’s Milk:** Despite the popular trope, most adult cats are **lactose intolerant**. Milk often causes severe gastrointestinal distress (diarrhea and vomiting).
 * **Dog Food:** Lacks sufficient protein, taurine, and arachidonic acid; over time, it will cause severe malnutrition in cats.
 * **Toxic Human Foods:** Onions, garlic, chives, chocolate, grapes, raisins, alcohol, and caffeine are toxic to felines.
-+--------------- Token Usage ----------------+
-| Model                   | gemini-3.8-flash |
-| Prompt tokens           | 17               |
-| Completion tokens       | 785              |
-| Thinking tokens         | 769              |
-| Tool tokens             | n/a              |
-| Cached tokens           | n/a              |
-| Cache creation tokens   | n/a              |
-| Cache read tokens       | n/a              |
-| Remaining tokens minute | n/a              |
-| Remaining tokens month  | n/a              |
-| Remaining tokens        | n/a              |
-| Total tokens            | 1571             |
-+-------------------------+------------------+
-
++----------------------- Token Usage ----+------------------+
+| Model                                  | gemini-3.8-flash |
+| Prompt tokens                          | 17               |
+| Cache read tokens (part of prompt)     | n/a              |
+| Cache creation tokens (part of prompt) | n/a              |
+| Completion tokens                      | 1554             |
+| Thinking tokens (part of completion)   | 769              |
+| Tool tokens                            | n/a              |
+| Remaining tokens minute                | n/a              |
+| Remaining tokens month                 | n/a              |
+| Remaining tokens                       | n/a              |
+| Total tokens                           | 1571             |
++----------------------------------------+------------------+

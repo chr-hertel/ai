@@ -38,6 +38,8 @@ jobs:
                         path: 'src/agent/src/Bridge'
                     -   name: Mate Bridges
                         path: 'src/mate/src/Bridge'
+                    -   name: Feedback & Eval Bridges
+                        path: 'src/feedback/src/Bridge src/eval/src/Bridge'
         steps:
             - name: Checkout
               uses: actions/checkout@v7

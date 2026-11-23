@@ -12,8 +12,10 @@
 namespace Symfony\AI\Platform\Tests\Dev;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Bridge\OpenAi\Gpt;
 use Symfony\AI\Platform\Bridge\OpenAi\ModelCatalog as OpenAiModelCatalog;
 use Symfony\AI\Platform\Bridge\OpenRouter\ModelCatalog;
+use Symfony\AI\Platform\Capability;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -35,6 +37,19 @@ final class UpdateModelCatalogsTest extends TestCase
 
         $this->assertTrue(writeCatalog($io, 'OpenAi', [], true, true));
         $this->assertStringContainsString(\sprintf('%d models (0 new, 0 removed)', \count((new OpenAiModelCatalog())->getModels())), $output->fetch());
+    }
+
+    public function testPriceOfAModelIsRendered()
+    {
+        $block = renderBlock([
+            'gpt-4o' => [
+                'class' => Gpt::class,
+                'capabilities' => [Capability::INPUT_MESSAGES],
+                'price' => ['input' => 2.5, 'output' => 10.0, 'cache_read' => 1.25],
+            ],
+        ]);
+
+        $this->assertStringContainsString("                'price' => ['input' => 2.5, 'output' => 10.0, 'cache_read' => 1.25],\n", $block);
     }
 
     public function testPruneRejectsEmptyAndPartialFeedsWithoutWriting()

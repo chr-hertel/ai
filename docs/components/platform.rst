@@ -764,9 +764,13 @@ result metadata, a :class:`Symfony\\AI\\Platform\\TokenUsage\\TokenUsageInterfac
 
     $usage = $result->getMetadata()->get('token_usage');
 
-    $usage->getPromptTokens();
-    $usage->getCompletionTokens();
-    $usage->getModel(); // "gpt-4o-2024-08-06"
+    $usage->getPromptTokens();       // includes the cached tokens
+    $usage->getCacheReadTokens();    // the part of the prompt tokens read from the prompt cache
+    $usage->getCompletionTokens();   // includes the thinking tokens
+    $usage->getThinkingTokens();     // the part of the completion tokens spent on thinking
+    $usage->getModel();              // "gpt-4o-2024-08-06"
+
+Every bridge reports the numbers this way, so you can compare them across providers.
 
 ``getModel()`` reports the model the provider says consumed the tokens, which is what makes a
 usage priceable: it is usually the resolved snapshot rather than the alias that was requested.
@@ -776,22 +780,52 @@ Cohere and the Vertex AI embeddings endpoint, for instance, report none.
 A run that calls more than one model -- an agent embedding a query before answering it, say --
 aggregates its usages into a
 :class:`Symfony\\AI\\Platform\\TokenUsage\\TokenUsageAggregation`. Its ``getModel()`` answers
-only when every usage agrees on a model, so price a mixed run per call instead::
+only when every usage agrees on a model.
 
-    $usage = $result->getMetadata()->get('token_usage');
+To get the cost of a usage, use the :class:`Symfony\\AI\\Platform\\Cost\\CostCalculator` with a
+:class:`Symfony\\AI\\Platform\\Cost\\PriceTable`. The model catalogs of the OpenAI, Anthropic and
+Gemini bridges contain the standard prices of their text generation models, in USD per one million
+tokens. Build the table from the catalog of your platform. The calculator prices an aggregation per
+call, and it bills cache reads and writes at their own price::
 
-    $usages = $usage instanceof TokenUsageAggregation ? $usage->getTokenUsages() : [$usage];
+    use Symfony\AI\Platform\Bridge\Anthropic\ModelCatalog;
+    use Symfony\AI\Platform\Cost\CostCalculator;
+    use Symfony\AI\Platform\Cost\PriceTable;
 
-    $cost = 0.0;
-    foreach ($usages as $call) {
-        $price = $pricing[$call->getModel()] ?? null;
-        if (null === $price) {
-            continue;
-        }
+    $prices = PriceTable::fromModelCatalog(new ModelCatalog());
 
-        $cost += $call->getPromptTokens() / 1_000_000 * $price['input']
-            + $call->getCompletionTokens() / 1_000_000 * $price['output'];
-    }
+    // the model is used when the usage names none, the cost is null if a model has no price
+    $cost = (new CostCalculator($prices))->calculate('claude-sonnet-4-5', $usage);
+
+    $cost?->getAmount();
+    $cost?->getCurrency(); // "USD"
+
+The catalog prices are the standard prices of the provider. They do not cover batch or priority
+processing, and for models with a higher price for long prompts, they are the price of the shorter
+prompts. To use your own prices, for example negotiated ones, another currency or a model without
+a catalog price, define them yourself::
+
+    $prices = PriceTable::fromArray([
+        // cache_read and cache_write fall back to the input price
+        'gpt-4o' => ['input' => 2.5, 'output' => 10.0, 'cache_read' => 1.25],
+        'claude-sonnet-4-5' => ['input' => 3.0, 'output' => 15.0, 'cache_read' => 0.3, 'cache_write' => 3.75],
+    ]);
+
+You can also add a price to a model of a catalog with the ``price`` key of its definition::
+
+    use Symfony\AI\Platform\Bridge\Anthropic\Claude;
+    use Symfony\AI\Platform\Capability;
+
+    $catalog = new ModelCatalog([
+        'claude-custom' => [
+            'class' => Claude::class,
+            'capabilities' => [Capability::INPUT_MESSAGES, Capability::OUTPUT_TEXT],
+            'price' => ['input' => 3.0, 'output' => 15.0],
+        ],
+    ]);
+
+A dated snapshot like ``gpt-4o-2024-08-06`` or ``claude-sonnet-4-5-20250929`` gets the price of
+``gpt-4o`` or ``claude-sonnet-4-5``, unless the table has its own price for the snapshot.
 
 .. note::
 

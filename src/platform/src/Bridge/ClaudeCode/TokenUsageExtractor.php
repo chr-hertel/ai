@@ -41,7 +41,8 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
         $cachedTokens = (null !== $cacheCreationTokens || null !== $cacheReadTokens) ? ($cacheCreationTokens ?? 0) + ($cacheReadTokens ?? 0) : null;
 
         return new TokenUsage(
-            promptTokens: $usage['input_tokens'] ?? null,
+            // Claude Code reports Anthropic usage, whose input_tokens leave out the cached tokens
+            promptTokens: isset($usage['input_tokens']) ? $usage['input_tokens'] + ($cachedTokens ?? 0) : null,
             completionTokens: $usage['output_tokens'] ?? null,
             cachedTokens: $cachedTokens,
             cacheCreationTokens: $cacheCreationTokens,

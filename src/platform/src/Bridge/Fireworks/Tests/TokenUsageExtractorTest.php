@@ -100,6 +100,7 @@ final class TokenUsageExtractorTest extends TestCase
 
         $this->assertInstanceOf(TokenUsage::class, $tokenUsage);
         $this->assertSame(4, $tokenUsage->getCachedTokens());
+        $this->assertSame(4, $tokenUsage->getCacheReadTokens());
         $this->assertSame(7, $tokenUsage->getThinkingTokens());
         $this->assertSame('accounts/fireworks/models/kimi-k2p6', $tokenUsage->getModel());
     }

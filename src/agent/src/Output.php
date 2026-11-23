@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Agent;
 
+use Symfony\AI\Agent\Execution\Turn;
+use Symfony\AI\Agent\Run\RunContext;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\ResultInterface;
@@ -23,12 +25,15 @@ final class Output
     /**
      * @param non-empty-string|Model $model
      * @param array<string, mixed>   $options
+     * @param list<Turn>             $turns   the model rounds of the run, each with the results of the tools it requested
      */
     public function __construct(
         private readonly string|Model $model,
         private ResultInterface $result,
         private readonly MessageBag $messageBag,
         private readonly array $options = [],
+        private readonly RunContext $runContext = new RunContext(),
+        private readonly array $turns = [],
     ) {
     }
 
@@ -61,5 +66,18 @@ final class Output
     public function getOptions(): array
     {
         return $this->options;
+    }
+
+    public function getRunContext(): RunContext
+    {
+        return $this->runContext;
+    }
+
+    /**
+     * @return list<Turn>
+     */
+    public function getTurns(): array
+    {
+        return $this->turns;
     }
 }

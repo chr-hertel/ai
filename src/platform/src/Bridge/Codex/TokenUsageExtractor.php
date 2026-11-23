@@ -41,6 +41,7 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
             promptTokens: $usage['input_tokens'] ?? null,
             completionTokens: $usage['output_tokens'] ?? null,
             cachedTokens: $usage['cached_input_tokens'] ?? null,
+            cacheReadTokens: $usage['cached_input_tokens'] ?? null,
         );
     }
 }

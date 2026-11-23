@@ -51,12 +51,15 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
         $promptTokensDetails = \is_array($usage['prompt_tokens_details'] ?? null) ? $usage['prompt_tokens_details'] : [];
         $completionTokensDetails = \is_array($usage['completion_tokens_details'] ?? null) ? $usage['completion_tokens_details'] : [];
 
+        $cachedTokens = isset($promptTokensDetails['cached_tokens']) && \is_int($promptTokensDetails['cached_tokens']) ? $promptTokensDetails['cached_tokens'] : null;
+
         return match (true) {
             $isCompletion => new TokenUsage(
                 promptTokens: isset($usage['prompt_tokens']) && \is_int($usage['prompt_tokens']) ? $usage['prompt_tokens'] : null,
                 completionTokens: isset($usage['completion_tokens']) && \is_int($usage['completion_tokens']) ? $usage['completion_tokens'] : null,
                 thinkingTokens: isset($completionTokensDetails['reasoning_tokens']) && \is_int($completionTokensDetails['reasoning_tokens']) ? $completionTokensDetails['reasoning_tokens'] : null,
-                cachedTokens: isset($promptTokensDetails['cached_tokens']) && \is_int($promptTokensDetails['cached_tokens']) ? $promptTokensDetails['cached_tokens'] : null,
+                cachedTokens: $cachedTokens,
+                cacheReadTokens: $cachedTokens,
                 totalTokens: isset($usage['total_tokens']) && \is_int($usage['total_tokens']) ? $usage['total_tokens'] : null,
             ),
             default => new TokenUsage(

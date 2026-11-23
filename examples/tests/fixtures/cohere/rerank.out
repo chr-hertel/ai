@@ -2,17 +2,16 @@ Index: 0, Score: 0.9100
 Index: 2, Score: 0.2665
 Index: 3, Score: 0.0167
 Index: 1, Score: 0.0154
-+--------- Token Usage ---+-----+
-| Model                   | n/a |
-| Prompt tokens           | 1   |
-| Completion tokens       | n/a |
-| Thinking tokens         | n/a |
-| Tool tokens             | n/a |
-| Cached tokens           | n/a |
-| Cache creation tokens   | n/a |
-| Cache read tokens       | n/a |
-| Remaining tokens minute | n/a |
-| Remaining tokens month  | n/a |
-| Remaining tokens        | n/a |
-| Total tokens            | n/a |
-+-------------------------+-----+
++---------------- Token Usage -----------+-----+
+| Model                                  | n/a |
+| Prompt tokens                          | 1   |
+| Cache read tokens (part of prompt)     | n/a |
+| Cache creation tokens (part of prompt) | n/a |
+| Completion tokens                      | n/a |
+| Thinking tokens (part of completion)   | n/a |
+| Tool tokens                            | n/a |
+| Remaining tokens minute                | n/a |
+| Remaining tokens month                 | n/a |
+| Remaining tokens                       | n/a |
+| Total tokens                           | n/a |
++----------------------------------------+-----+

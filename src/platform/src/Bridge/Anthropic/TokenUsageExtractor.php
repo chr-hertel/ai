@@ -40,14 +40,11 @@ final class TokenUsageExtractor implements TokenUsageExtractorInterface
     {
         $cacheCreationTokens = isset($usage['cache_creation_input_tokens']) ? (int) $usage['cache_creation_input_tokens'] : null;
         $cacheReadTokens = isset($usage['cache_read_input_tokens']) ? (int) $usage['cache_read_input_tokens'] : null;
-
-        // cachedTokens is the combined total for callers that only need a
-        // single "how much was cached" number; the two breakdown fields carry
-        // the individual read / creation counts for billing-aware consumers.
         $cachedTokens = (null !== $cacheCreationTokens || null !== $cacheReadTokens) ? ($cacheCreationTokens ?? 0) + ($cacheReadTokens ?? 0) : null;
 
         return new TokenUsage(
-            promptTokens: $usage['input_tokens'] ?? null,
+            // Anthropic's input_tokens leave out the tokens read from or written into the cache
+            promptTokens: isset($usage['input_tokens']) ? (int) $usage['input_tokens'] + ($cachedTokens ?? 0) : null,
             completionTokens: $usage['output_tokens'] ?? null,
             toolTokens: $usage['server_tool_use']['web_search_requests'] ?? null,
             cachedTokens: $cachedTokens,

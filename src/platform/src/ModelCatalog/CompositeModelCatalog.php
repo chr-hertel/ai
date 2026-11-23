@@ -23,7 +23,7 @@ use Symfony\AI\Platform\Model;
 final class CompositeModelCatalog implements ModelCatalogInterface
 {
     /**
-     * @var array<string, array{class: string, capabilities: list<Capability>}>|null
+     * @var array<string, array{class: string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}>|null
      */
     private ?array $mergedModels = null;
 
@@ -49,7 +49,7 @@ final class CompositeModelCatalog implements ModelCatalogInterface
     }
 
     /**
-     * @return array<string, array{class: string, capabilities: list<Capability>}>
+     * @return array<string, array{class: string, capabilities: list<Capability>, price?: array{input: float, output: float, cache_read?: float, cache_write?: float}}>
      */
     public function getModels(): array
     {

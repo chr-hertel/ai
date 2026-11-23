@@ -1,15 +1,14 @@
 Dimensions: 1024
-+-------------- Token Usage --------------+
-| Model                   | mistral-embed |
-| Prompt tokens           | 102           |
-| Completion tokens       | n/a           |
-| Thinking tokens         | n/a           |
-| Tool tokens             | n/a           |
-| Cached tokens           | n/a           |
-| Cache creation tokens   | n/a           |
-| Cache read tokens       | n/a           |
-| Remaining tokens minute | n/a           |
-| Remaining tokens month  | n/a           |
-| Remaining tokens        | n/a           |
-| Total tokens            | 102           |
-+-------------------------+---------------+
++--------------------- Token Usage ------+---------------+
+| Model                                  | mistral-embed |
+| Prompt tokens                          | 102           |
+| Cache read tokens (part of prompt)     | n/a           |
+| Cache creation tokens (part of prompt) | n/a           |
+| Completion tokens                      | n/a           |
+| Thinking tokens (part of completion)   | n/a           |
+| Tool tokens                            | n/a           |
+| Remaining tokens minute                | n/a           |
+| Remaining tokens month                 | n/a           |
+| Remaining tokens                       | n/a           |
+| Total tokens                           | 102           |
++----------------------------------------+---------------+

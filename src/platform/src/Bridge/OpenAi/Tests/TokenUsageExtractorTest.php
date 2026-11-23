@@ -60,6 +60,7 @@ final class TokenUsageExtractorTest extends TestCase
         $this->assertSame(1000, $tokenUsage->getRemainingTokens());
         $this->assertSame(20, $tokenUsage->getThinkingTokens());
         $this->assertSame(40, $tokenUsage->getCachedTokens());
+        $this->assertSame(40, $tokenUsage->getCacheReadTokens());
         $this->assertSame(50, $tokenUsage->getTotalTokens());
         $this->assertSame('gpt-4o-2024-08-06', $tokenUsage->getModel());
     }

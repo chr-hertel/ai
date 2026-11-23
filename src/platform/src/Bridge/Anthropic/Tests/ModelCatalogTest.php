@@ -14,8 +14,11 @@ namespace Symfony\AI\Platform\Bridge\Anthropic\Tests;
 use Symfony\AI\Platform\Bridge\Anthropic\Claude;
 use Symfony\AI\Platform\Bridge\Anthropic\ModelCatalog;
 use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Cost\CostCalculator;
+use Symfony\AI\Platform\Cost\PriceTable;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\Test\ModelCatalogTestCase;
+use Symfony\AI\Platform\TokenUsage\TokenUsage;
 
 /**
  * @author Oskar Stark <oskarstark@googlemail.com>
@@ -39,6 +42,22 @@ final class ModelCatalogTest extends ModelCatalogTestCase
         yield 'claude-opus-4-7' => ['claude-opus-4-7', Claude::class, [Capability::INPUT_MESSAGES, Capability::INPUT_IMAGE, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::THINKING, Capability::TOOL_CALLING]];
         yield 'claude-opus-4-8' => ['claude-opus-4-8', Claude::class, [Capability::INPUT_MESSAGES, Capability::INPUT_IMAGE, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::THINKING, Capability::TOOL_CALLING]];
         yield 'claude-fable-5' => ['claude-fable-5', Claude::class, [Capability::INPUT_MESSAGES, Capability::INPUT_IMAGE, Capability::OUTPUT_TEXT, Capability::OUTPUT_STREAMING, Capability::OUTPUT_STRUCTURED, Capability::THINKING, Capability::TOOL_CALLING]];
+    }
+
+    public function testCatalogPriceIsUsedForTheCost()
+    {
+        $calculator = new CostCalculator(PriceTable::fromModelCatalog(new ModelCatalog()));
+
+        $cost = $calculator->calculate('claude-sonnet-4-5', new TokenUsage(
+            promptTokens: 3_000_000,
+            completionTokens: 1_000_000,
+            cacheCreationTokens: 1_000_000,
+            cacheReadTokens: 1_000_000,
+            model: 'claude-sonnet-4-5-20250929',
+        ));
+
+        $this->assertEqualsWithDelta(3.0 + 15.0 + 0.3 + 3.75, $cost?->getAmount(), 1e-9);
+        $this->assertSame('USD', $cost?->getCurrency());
     }
 
     protected function createModelCatalog(): ModelCatalogInterface
