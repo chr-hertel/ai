@@ -29,7 +29,7 @@ final class LangfuseRecorderTest extends TestCase
         $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$requests): JsonMockResponse {
             $requests[] = [$method, $url, $options];
 
-            return new JsonMockResponse(['message' => 'Accepted'], ['http_code' => 202]);
+            return new JsonMockResponse(['id' => 'score-1']);
         });
 
         $recorder = new LangfuseRecorder($client, 'https://cloud.langfuse.com/', 'pk', 'sk');
@@ -41,9 +41,7 @@ final class LangfuseRecorderTest extends TestCase
         $this->assertSame('https://cloud.langfuse.com/api/public/scores', $url);
         $this->assertContains('Authorization: Basic '.base64_encode('pk:sk'), $options['headers']);
 
-        $batch = json_decode($options['body'], true);
-        $this->assertCount(1, $batch);
-        $payload = $batch[0];
+        $payload = json_decode($options['body'], true);
         $this->assertSame('4bf92f3577b34da6a3ce929d0e0e4736', $payload['traceId']);
         $this->assertSame('2026-11-16T10:00:00.123+00:00', $payload['timestamp']);
         $this->assertSame('run-1', $payload['metadata']['run_id']);
@@ -85,15 +83,6 @@ final class LangfuseRecorderTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         $recorder->payload(new Feedback('0199a1c4-0000-7000-8000-000000000000', Signal::Thumbs, true));
-    }
-
-    public function testPartiallyRejectedBatchThrows()
-    {
-        $recorder = new LangfuseRecorder(new MockHttpClient(new JsonMockResponse(['accepted' => 0, 'rejected' => 1, 'errors' => [['message' => 'Invalid value']]], ['http_code' => 207])), 'https://langfuse', 'pk', 'sk');
-
-        $this->expectException(RuntimeException::class);
-
-        $recorder->record(new Feedback('run', Signal::Thumbs, true, traceId: '4bf92f3577b34da6a3ce929d0e0e4736'));
     }
 
     public function testRejectedScoreThrows()
