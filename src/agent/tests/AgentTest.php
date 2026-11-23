@@ -23,9 +23,11 @@ use Symfony\AI\Agent\Input;
 use Symfony\AI\Agent\InputProcessor\ModelOverrideInputProcessor;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
 use Symfony\AI\Agent\InputProcessorInterface;
+use Symfony\AI\Agent\MessageStore\InMemoryMessageStore;
 use Symfony\AI\Agent\Output;
 use Symfony\AI\Agent\OutputProcessorInterface;
 use Symfony\AI\Agent\Tests\Fixtures\MessageBagCapturingProcessor;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
@@ -51,10 +53,12 @@ use Symfony\AI\Platform\Result\StreamResult;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\AI\Platform\Test\MockPlatformFactory;
 use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -571,5 +575,129 @@ final class AgentTest extends TestCase
         $agent = new Agent($platform, 'gpt-4', [], [], $name);
 
         $this->assertSame($name, $agent->getName());
+    }
+
+    public function testApprovedToolCallResumesTheStoredConversation()
+    {
+        $listed = new ToolCall('id1', 'tool1');
+        $deleted = new ToolCall('id2', 'tool2', ['path' => 'notes.txt']);
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox
+            ->expects($this->exactly(2))
+            ->method('execute')
+            ->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, $toolCall->getName().' done'));
+
+        $results = [new ToolCallResult([$listed, $deleted]), new TextResult('Deleted notes.txt.')];
+        $platform = MockPlatformFactory::createPlatform(static function () use (&$results): ResultInterface {
+            return array_shift($results);
+        });
+
+        $store = new InMemoryMessageStore();
+        $agent = new Agent($platform, 'gpt-4', toolbox: $toolbox, eventDispatcher: $this->suspending('tool2'), messageStore: $store);
+
+        $execution = $agent->call(new MessageBag(Message::ofUser('List the files, then delete notes.txt')));
+        $execution->getResult();
+
+        $this->assertTrue($execution->isSuspended());
+        $pending = $execution->getPendingToolCalls();
+        $this->assertCount(1, $pending);
+        $this->assertTrue($pending[0]->isSuspended());
+
+        $resumed = $agent->call($execution->getMessages()->withToolCall($pending[0]->approve()));
+
+        $this->assertSame('Deleted notes.txt.', $resumed->getContent());
+
+        $stored = $store->load($execution->getMessages()->getId())->getMessages();
+        $this->assertCount(5, $stored);
+        $this->assertInstanceOf(AssistantMessage::class, $stored[1]);
+        $this->assertSame(ToolCallState::Approved, $stored[1]->getToolCalls()[1]->getState());
+        $this->assertInstanceOf(ToolCallMessage::class, $stored[3]);
+        $this->assertSame('tool2 done', $stored[3]->asText());
+    }
+
+    public function testReplayedApprovalDoesNotExecuteTheToolCallAgain()
+    {
+        $toolbox = $this->createMock(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox
+            ->expects($this->exactly(2))
+            ->method('execute')
+            ->willReturnCallback(static fn (ToolCall $toolCall): ToolResult => new ToolResult($toolCall, $toolCall->getName().' done'));
+
+        $results = [
+            new ToolCallResult([new ToolCall('id1', 'tool1'), new ToolCall('id2', 'tool2', ['path' => 'notes.txt'])]),
+            new TextResult('Deleted notes.txt.'),
+            new TextResult('Already done.'),
+        ];
+        $platform = MockPlatformFactory::createPlatform(static function () use (&$results): ResultInterface {
+            return array_shift($results);
+        });
+
+        $agent = new Agent($platform, 'gpt-4', toolbox: $toolbox, eventDispatcher: $this->suspending('tool2'), messageStore: new InMemoryMessageStore());
+
+        $execution = $agent->call(new MessageBag(Message::ofUser('List the files, then delete notes.txt')));
+        $execution->getResult();
+
+        $approved = $execution->getMessages()->withToolCall($execution->getPendingToolCalls()[0]->approve());
+
+        $agent->call($approved)->getResult();
+        $agent->call($approved)->getResult();
+    }
+
+    public function testStoredConversationRejectsTheApprovalOfAToolCallThatWasNotSuspended()
+    {
+        $toolCall = new ToolCall('id1', 'tool1');
+        $conversation = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall), Message::ofToolCall($toolCall, 'Deleted'));
+
+        $store = new InMemoryMessageStore();
+        $store->save($conversation);
+
+        $agent = new Agent(MockPlatformFactory::createPlatform('Okay'), 'gpt-4', messageStore: $store);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The tool call "tool1" with id "id1" can only be approved or rejected while it is suspended.');
+
+        $agent->call($conversation->withToolCall(new ToolCall('id1', 'tool1', state: ToolCallState::Approved)))->getResult();
+    }
+
+    public function testAbandonedToolCallsAreAnsweredBeforeTheNextMessage()
+    {
+        $toolCall = new ToolCall('id1', 'tool1');
+
+        $roles = [];
+        $platform = MockPlatformFactory::createPlatform(static function ($model, array $input) use (&$roles): string {
+            $roles = array_column($input['messages'], 'role');
+
+            return 'Okay';
+        });
+
+        $agent = new Agent($platform, 'gpt-4');
+        $execution = $agent->call(new MessageBag(
+            Message::ofUser('Delete notes.txt'),
+            new AssistantMessage($toolCall),
+            Message::ofUser('Never mind, keep it'),
+        ));
+
+        $this->assertSame('Okay', $execution->getContent());
+        $this->assertSame(['user', 'assistant', 'tool', 'user'], $roles);
+
+        $messages = $execution->getMessages()->getMessages();
+        $this->assertInstanceOf(ToolCallMessage::class, $messages[2]);
+        $this->assertSame('The tool call was not answered.', $messages[2]->asText());
+    }
+
+    private function suspending(string $toolName): EventDispatcher
+    {
+        $eventDispatcher = new EventDispatcher();
+        $eventDispatcher->addListener(ToolCallsRequested::class, static function (ToolCallsRequested $event) use ($toolName): void {
+            foreach ($event->getToolCalls() as $toolCall) {
+                if ($toolName === $toolCall->getName()) {
+                    $event->suspend($toolCall);
+                }
+            }
+        });
+
+        return $eventDispatcher;
     }
 }

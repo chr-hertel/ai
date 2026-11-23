@@ -87,6 +87,12 @@ final class MessageNormalizerTest extends TestCase
             new DocumentUrl('https://example.com/document.pdf'),
         )];
         yield 'user with collection' => [new UserMessage(new Collection(new Text('Hello'), new ImageUrl('https://example.com/image.png')))];
+        yield 'assistant with suspended tool call' => [new AssistantMessage(
+            new ToolCall('call_1', 'weather', ['city' => 'Berlin']),
+            (new ToolCall('call_2', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.'),
+            (new ToolCall('call_3', 'delete_file', ['path' => 'todo.txt']))->suspend()->approve(['path' => 'archive/todo.txt']),
+            (new ToolCall('call_4', 'send_mail'))->reject('Not allowed.'),
+        )];
         yield 'assistant with text signature' => [new AssistantMessage(new Text('Hi', 'text-signature'))];
         yield 'assistant with text phase' => [new AssistantMessage(new Text('Answer.', null, 'final_answer'), new Text('Plain.'))];
         yield 'assistant with thinking and tool call' => [new AssistantMessage(

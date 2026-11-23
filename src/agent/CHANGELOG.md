@@ -4,6 +4,12 @@ CHANGELOG
 1.0
 ---
 
+ * Add `Toolbox\Event\ToolCallsRequested`, dispatched before the tool calls of a model round are executed, whose listeners can suspend or reject tool calls; a suspended call ends the execution waiting for input
+ * Execute the approved and answer the rejected tool calls a conversation ends with before invoking the model, taking a decision over from a given conversation only for a call that is suspended in the stored one
+ * Make `MessageStore\ConflictDetector` cover the state of the tool calls: changing a stored tool call other than by approving or rejecting a suspended one conflicts, and the version changes with the states
+ * [BC BREAK] Answer the tool calls a conversation left unanswered before a later message, instead of sending them to the platform unanswered
+ * [BC BREAK] Count the tool calling rounds since the last user message towards `maxToolCalls`, including rounds of an earlier, suspended execution
+ * Add `Progress::STAGE_SUSPENSION`, reported when tool calls were suspended
  * Allow the `#[AsTool]` attribute on public methods, making the tool call the method it is placed on
  * [BC BREAK] Accept a `Symfony\AI\Platform\Model` instance as model of `Agent`, `Input`, `Output` and as `model` option of `ModelOverrideInputProcessor`, widening the return type of their `getModel()` methods to `string|Model`
  * Add an optional reason to `ExecutionInterface::cancel()` and `Exception\CancellationException` carrying it, thrown by `getResult()` of a canceled execution

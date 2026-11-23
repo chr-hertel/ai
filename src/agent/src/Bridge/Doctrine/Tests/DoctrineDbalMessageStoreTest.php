@@ -19,9 +19,12 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Bridge\Doctrine\DoctrineDbalMessageStore;
 use Symfony\AI\Agent\Exception\ConflictException;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\MessageInterface;
+use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
 
@@ -219,11 +222,53 @@ final class DoctrineDbalMessageStoreTest extends TestCase
         $this->assertCount(1, $messageStore->load($second->getId()));
     }
 
+    public function testDecidedToolCallIsSavedOverItsSuspendedCopy()
+    {
+        $store = new DoctrineDbalMessageStore('foo', DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]));
+        $store->setup();
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.');
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+        $approved = $suspended->withToolCall($toolCall->approve());
+
+        $store->save($suspended);
+        $this->assertToolCallState(ToolCallState::Suspended, 'Needs approval.', $store->load($suspended->getId()));
+
+        $store->save($approved);
+        $store->save($approved->with(Message::ofToolCall($toolCall->approve(), 'Deleted')));
+
+        $loaded = $store->load($suspended->getId());
+        $this->assertCount(3, $loaded);
+        $this->assertToolCallState(ToolCallState::Approved, null, $loaded);
+    }
+
+    public function testDecisionTakenInTheMeantimeConflicts()
+    {
+        $store = new DoctrineDbalMessageStore('foo', DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]));
+        $store->setup();
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend();
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+
+        $store->save($suspended);
+        $store->save($suspended->withToolCall($toolCall->approve()));
+
+        $this->expectException(ConflictException::class);
+
+        $store->save($suspended->withToolCall($toolCall->reject('Keep it.')));
+    }
+
     /**
      * @return list<string>
      */
     private static function ids(MessageBag $messages): array
     {
         return array_map(static fn (MessageInterface $message): string => $message->getId()->toRfc4122(), $messages->getMessages());
+    }
+
+    private function assertToolCallState(ToolCallState $state, ?string $reason, MessageBag $messages): void
+    {
+        $assistantMessage = $messages->getMessages()[1];
+        $this->assertInstanceOf(AssistantMessage::class, $assistantMessage);
+        $this->assertSame($state, $assistantMessage->getToolCalls()[0]->getState());
+        $this->assertSame($reason, $assistantMessage->getToolCalls()[0]->getReason());
     }
 }

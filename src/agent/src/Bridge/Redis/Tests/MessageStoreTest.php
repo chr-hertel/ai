@@ -15,8 +15,11 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\Bridge\Redis\MessageStore;
 use Symfony\AI\Agent\Exception\ConflictException;
 use Symfony\AI\Agent\Exception\RuntimeException;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\AI\Platform\Serializer\MessageBagNormalizer;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Exception\NotEncodableValueException;
@@ -190,8 +193,58 @@ final class MessageStoreTest extends TestCase
         (new MessageStore($redis, 'chat'))->delete($id);
     }
 
+    public function testLoadKeepsTheStateOfTheToolCalls()
+    {
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.');
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+        $approved = $suspended->withToolCall($toolCall->approve());
+        $redis = $this->createStub(\Redis::class);
+        $redis->method('get')->willReturn($this->serializer()->serialize($suspended, 'json'));
+
+        $this->assertSuspendedToolCall((new MessageStore($redis, 'chat'))->load($suspended->getId()));
+    }
+
+    public function testDecisionOnASuspendedToolCallIsSaved()
+    {
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.');
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+        $approved = $suspended->withToolCall($toolCall->approve());
+        $key = 'chat:'.$suspended->getId()->toRfc4122();
+        $redis = $this->createMock(\Redis::class);
+        $redis->expects($this->once())->method('watch')->with($key);
+        $redis->expects($this->once())->method('get')->with($key)->willReturn($this->serializer()->serialize($suspended, 'json'));
+        $redis->expects($this->once())->method('multi')->willReturnSelf();
+        $redis->expects($this->once())->method('set')->with($key, $this->serializer()->serialize($approved, 'json'))->willReturnSelf();
+        $redis->expects($this->once())->method('exec')->willReturn([true]);
+
+        (new MessageStore($redis, 'chat'))->save($approved);
+    }
+
+    public function testDecisionTakenInTheMeantimeConflicts()
+    {
+        $toolCall = (new ToolCall('call_1', 'delete_file', ['path' => 'notes.txt']))->suspend('Needs approval.');
+        $suspended = new MessageBag(Message::ofUser('Delete notes.txt'), new AssistantMessage($toolCall));
+        $approved = $suspended->withToolCall($toolCall->approve());
+        $redis = $this->createMock(\Redis::class);
+        $redis->method('get')->willReturn($this->serializer()->serialize($approved, 'json'));
+        $redis->expects($this->once())->method('unwatch');
+        $redis->expects($this->never())->method('multi');
+
+        $this->expectException(ConflictException::class);
+
+        (new MessageStore($redis, 'chat'))->save($suspended->withToolCall($toolCall->reject('Keep it.')));
+    }
+
     private function serializer(): Serializer
     {
         return new Serializer([new MessageBagNormalizer()], [new JsonEncoder()]);
+    }
+
+    private function assertSuspendedToolCall(MessageBag $messages): void
+    {
+        $assistantMessage = $messages->getMessages()[1];
+        $this->assertInstanceOf(AssistantMessage::class, $assistantMessage);
+        $this->assertSame(ToolCallState::Suspended, $assistantMessage->getToolCalls()[0]->getState());
+        $this->assertSame('Needs approval.', $assistantMessage->getToolCalls()[0]->getReason());
     }
 }

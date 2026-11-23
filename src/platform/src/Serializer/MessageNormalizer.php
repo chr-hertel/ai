@@ -41,6 +41,7 @@ use Symfony\AI\Platform\Message\Template;
 use Symfony\AI\Platform\Message\ToolCallMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
@@ -179,7 +180,7 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
             $part instanceof Text => ['text' => $part->getText(), 'signature' => $part->getSignature(), 'phase' => $part->getPhase()],
             $part instanceof Thinking => ['content' => $part->getContent(), 'signature' => $part->getSignature()],
             $part instanceof Commentary => ['content' => $part->getContent()],
-            $part instanceof ToolCall => ['id' => $part->getId(), 'name' => $part->getName(), 'arguments' => $part->getArguments(), 'signature' => $part->getSignature()],
+            $part instanceof ToolCall => ['id' => $part->getId(), 'name' => $part->getName(), 'arguments' => $part->getArguments(), 'signature' => $part->getSignature(), 'state' => $part->getState()->value, 'reason' => $part->getReason()],
             $part instanceof Template => ['template' => $part->getTemplate(), 'templateType' => $part->getType()],
             $part instanceof File => ['data' => $part->asDataUrl()],
             $part instanceof ImageUrl, $part instanceof DocumentUrl => ['url' => $part->getUrl()],
@@ -243,7 +244,14 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
             );
         }
 
-        return new ToolCall($toolCall['id'], $toolCall['name'], $toolCall['arguments'], $toolCall['signature'] ?? $signature);
+        return new ToolCall(
+            $toolCall['id'],
+            $toolCall['name'],
+            $toolCall['arguments'],
+            $toolCall['signature'] ?? $signature,
+            ToolCallState::tryFrom($toolCall['state'] ?? '') ?? ToolCallState::Requested,
+            $toolCall['reason'] ?? null,
+        );
     }
 
     /**

@@ -13,6 +13,7 @@ namespace Symfony\AI\Platform\Message;
 
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Metadata\MetadataAwareTrait;
+use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\TimeBasedUidInterface;
 use Symfony\Component\Uid\Uuid;
@@ -131,6 +132,90 @@ class MessageBag implements \Countable, \IteratorAggregate
         $messages->messages = array_merge($messages->messages, $messageBag->getMessages());
 
         return $messages;
+    }
+
+    /**
+     * The unanswered tool calls of the last assistant message, as long as only tool messages follow it.
+     *
+     * @return list<ToolCall>
+     */
+    public function getPendingToolCalls(): array
+    {
+        $answered = [];
+        foreach (array_reverse($this->messages) as $message) {
+            if ($message instanceof ToolCallMessage) {
+                $answered[$message->getToolCall()->getId()] = true;
+
+                continue;
+            }
+
+            if (!$message instanceof AssistantMessage) {
+                return [];
+            }
+
+            return array_values(array_filter($message->getToolCalls(), static fn (ToolCall $toolCall): bool => !isset($answered[$toolCall->getId()])));
+        }
+
+        return [];
+    }
+
+    /**
+     * A copy of this bag answering the tool calls that a later message left behind unanswered, with their default
+     * answer, since platforms reject a conversation with an unanswered tool call before a later message.
+     */
+    public function withAnsweredToolCalls(): self
+    {
+        $messages = [];
+        $answered = [];
+        $toolCalls = [];
+        foreach ($this->messages as $message) {
+            if ($message instanceof ToolCallMessage) {
+                $answered[$message->getToolCall()->getId()] = true;
+                $messages[] = $message;
+
+                continue;
+            }
+
+            foreach ($toolCalls as $toolCall) {
+                if (!isset($answered[$toolCall->getId()])) {
+                    $messages[] = Message::ofToolCall($toolCall, $toolCall->getDefaultAnswer());
+                }
+            }
+
+            $toolCalls = $message instanceof AssistantMessage ? $message->getToolCalls() : [];
+            $messages[] = $message;
+        }
+
+        if (\count($messages) === \count($this->messages)) {
+            return $this;
+        }
+
+        $bag = clone $this;
+        $bag->messages = $messages;
+
+        return $bag;
+    }
+
+    /**
+     * A copy of this bag with the tool call of the same id replaced by the given one, e.g. to approve it.
+     *
+     * @throws InvalidArgumentException if no assistant message has a tool call with the id of the given one
+     */
+    public function withToolCall(ToolCall $toolCall): self
+    {
+        foreach (array_reverse($this->messages) as $message) {
+            if (!$message instanceof AssistantMessage) {
+                continue;
+            }
+
+            foreach ($message->getToolCalls() as $part) {
+                if ($part->getId() === $toolCall->getId()) {
+                    return $this->replace($message->getId(), $message->withToolCall($toolCall));
+                }
+            }
+        }
+
+        throw new InvalidArgumentException(\sprintf('No assistant message has a tool call with id "%s".', $toolCall->getId()));
     }
 
     public function replace(AbstractUid&TimeBasedUidInterface $uuid, MessageInterface $newMessage): self

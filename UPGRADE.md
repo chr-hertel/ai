@@ -4,6 +4,12 @@ UPGRADE FROM 0.15 to 1.0
 Agent
 -----
 
+ * `Agent` answers tool calls that a conversation left unanswered before a later message, e.g. with "The tool call was
+   not answered.", instead of sending the conversation to the platform as is, which providers reject.
+
+ * `maxToolCalls` of `Agent` limits the tool calling rounds since the last user message of the conversation, instead
+   of the rounds of a single call. A conversation that ends with tool calling rounds leaves fewer rounds to the call.
+
  * The default serializer of `Toolbox\ToolResultConverter` includes `BackedEnumNormalizer`, so a backed enum in a tool
    result is serialized as its value (`"open"`) instead of an object with name and value (`{"name":"Open","value":"open"}`).
    To keep the previous output, pass a serializer without `BackedEnumNormalizer` to the constructor.

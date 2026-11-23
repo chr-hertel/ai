@@ -43,6 +43,12 @@ final class Progress implements UpdateInterface
     public const STAGE_HANDOFF = 'handoff';
 
     /**
+     * Tool calls were suspended and the execution waits for their resolution; the payload is the list of
+     * suspended {@see \Symfony\AI\Platform\Result\ToolCall}.
+     */
+    public const STAGE_SUSPENSION = 'suspension';
+
+    /**
      * @param non-empty-string $stage   machine-readable stage, one of the STAGE_* constants for a stage this
      *                                  package itself reports, or any other string a decorator or a custom
      *                                  agent chooses for its own

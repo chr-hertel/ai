@@ -12,7 +12,9 @@
 namespace Symfony\AI\Platform\Tests\Result;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Exception\LogicException;
 use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\AI\Platform\Result\ToolCallState;
 
 final class ToolCallTest extends TestCase
 {
@@ -47,5 +49,86 @@ final class ToolCallTest extends TestCase
     {
         $toolCall = new ToolCall('id', 'name');
         $this->assertSame([], $toolCall->getArguments());
+    }
+
+    public function testToolCallIsRequestedByDefault()
+    {
+        $toolCall = new ToolCall('id', 'name');
+
+        $this->assertSame(ToolCallState::Requested, $toolCall->getState());
+        $this->assertFalse($toolCall->isSuspended());
+        $this->assertNull($toolCall->getReason());
+    }
+
+    public function testSuspendReturnsASuspendedCopy()
+    {
+        $toolCall = new ToolCall('id', 'name', ['path' => 'notes.txt'], 'signature');
+        $suspended = $toolCall->suspend('Needs approval.');
+
+        $this->assertFalse($toolCall->isSuspended());
+        $this->assertTrue($suspended->isSuspended());
+        $this->assertSame(ToolCallState::Suspended, $suspended->getState());
+        $this->assertSame('Needs approval.', $suspended->getReason());
+        $this->assertSame('id', $suspended->getId());
+        $this->assertSame('name', $suspended->getName());
+        $this->assertSame(['path' => 'notes.txt'], $suspended->getArguments());
+        $this->assertSame('signature', $suspended->getSignature());
+    }
+
+    public function testApproveReturnsAnApprovedCopyOfASuspendedToolCall()
+    {
+        $suspended = (new ToolCall('id', 'name', ['path' => 'notes.txt'], 'signature'))->suspend('Needs approval.');
+
+        $approved = $suspended->approve();
+        $this->assertSame(ToolCallState::Approved, $approved->getState());
+        $this->assertNull($approved->getReason());
+        $this->assertSame(['path' => 'notes.txt'], $approved->getArguments());
+        $this->assertSame('signature', $approved->getSignature());
+
+        $this->assertSame(['path' => 'archive/notes.txt'], $suspended->approve(['path' => 'archive/notes.txt'])->getArguments());
+    }
+
+    public function testRejectReturnsARejectedCopyOfARequestedOrSuspendedToolCall()
+    {
+        $requested = new ToolCall('id', 'name');
+
+        $this->assertSame(ToolCallState::Rejected, $requested->reject('Not allowed.')->getState());
+        $this->assertSame('Not allowed.', $requested->reject('Not allowed.')->getReason());
+        $this->assertSame(ToolCallState::Rejected, $requested->suspend()->reject()->getState());
+    }
+
+    public function testOnlyARequestedToolCallCanBeSuspended()
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Only a requested tool call can be suspended, the tool call "name" with id "id" is "suspended".');
+
+        (new ToolCall('id', 'name'))->suspend()->suspend();
+    }
+
+    public function testOnlyASuspendedToolCallCanBeApproved()
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Only a suspended tool call can be approved, the tool call "name" with id "id" is "requested".');
+
+        (new ToolCall('id', 'name'))->approve();
+    }
+
+    public function testAnApprovedToolCallCannotBeRejected()
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Only a requested or suspended tool call can be rejected, the tool call "name" with id "id" is "approved".');
+
+        (new ToolCall('id', 'name'))->suspend()->approve()->reject();
+    }
+
+    public function testDefaultAnswerDependsOnTheState()
+    {
+        $toolCall = new ToolCall('id', 'name');
+
+        $this->assertSame('The tool call was not answered.', $toolCall->getDefaultAnswer());
+        $this->assertSame('The tool call was suspended and neither approved nor rejected.', $toolCall->suspend('Needs approval.')->getDefaultAnswer());
+        $this->assertSame('The tool call was approved, but not executed.', $toolCall->suspend()->approve()->getDefaultAnswer());
+        $this->assertSame('The tool call was rejected.', $toolCall->reject()->getDefaultAnswer());
+        $this->assertSame('Not allowed.', $toolCall->reject('Not allowed.')->getDefaultAnswer());
     }
 }

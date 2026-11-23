@@ -1061,6 +1061,73 @@ confirmation system using the ``ToolCallRequested`` event.
 
 * `Human-in-the-Loop Confirmation`_
 
+Suspending Tool Calls
+~~~~~~~~~~~~~~~~~~~~~
+
+Denying a call answers it right away. To wait for a decision instead - of a human, a worker or another system -
+suspend the call. Every :class:`Symfony\\AI\\Platform\\Result\\ToolCall` carries a
+:class:`Symfony\\AI\\Platform\\Result\\ToolCallState`: the model *requests* a call, and a requested call gets executed.
+The agent dispatches :class:`Symfony\\AI\\Agent\\Toolbox\\Event\\ToolCallsRequested` once per model round, before it
+executes the requested calls, and its listeners can change their state:
+
+* ``$event->suspend($toolCall, $reason)`` holds the call back. The agent executes the remaining calls of the round and
+  ends the execution, waiting for input.
+* ``$event->reject($toolCall, $reason)`` answers the call with the reason instead of executing it.
+
+::
+
+    use Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested;
+
+    $eventDispatcher->addListener(ToolCallsRequested::class, function (ToolCallsRequested $event): void {
+        foreach ($event->getToolCalls() as $toolCall) {
+            // fail closed, so a tool without effect hints is suspended as well
+            if (true !== $event->getDefinition($toolCall)?->isReadOnly()) {
+                $event->suspend($toolCall, 'Needs approval.');
+            }
+        }
+    });
+
+    $execution = $agent->call($messages);
+    $execution->getResult();
+
+    $execution->isSuspended();          // true
+
+    foreach ($execution->getPendingToolCalls() as $toolCall) {
+        $toolCall->isSuspended();       // true
+        $toolCall->getReason();         // 'Needs approval.'
+    }
+
+The conversation keeps the assistant message with all its tool calls in their state, so a stored conversation still
+knows which calls wait for a decision, while the platforms never see the state. To continue, approve or reject the
+suspended calls in the conversation and hand it to the agent again. It executes the approved calls, answers the
+rejected ones with their reason, and invokes the model::
+
+    $conversation = $execution->getMessages()
+        ->withToolCall($deleteCall->approve())
+        ->withToolCall($moveCall->approve(['target' => 'archive/notes.txt']))
+        ->withToolCall($mailCall->reject('The user rejected this tool call.'));
+
+    $execution = $agent->call($conversation);
+
+Calls that are still suspended keep the execution waiting without invoking the model. Continuing the conversation
+with a new message instead answers the undecided calls, so the conversation stays valid for the platforms. The rounds
+of the suspended execution count towards ``maxToolCalls``, which limits the tool calling rounds since the last user
+message.
+
+An approved call runs through the toolbox like any other call, so its events, argument validation and authorization
+still apply: approving lifts the suspension, not the authorization.
+
+.. caution::
+
+    The approval is part of the conversation. With a :ref:`message store <agent-storing-conversations>`, the agent
+    only takes over the approval or rejection of a call that is suspended in the stored conversation and throws an
+    :class:`Symfony\\AI\\Agent\\Exception\\InvalidArgumentException` otherwise. Two decisions on the same call
+    conflict: the store that saves the second one throws a :class:`Symfony\\AI\\Agent\\Exception\\ConflictException`
+    before its call gets executed. Without a message store, never hand the agent a conversation a client sent back,
+    since it could approve calls on its own.
+
+* `Suspending Tool Calls Example`_
+
 Customizing Tool Execution
 --------------------------
 
@@ -1619,6 +1686,7 @@ Code Examples
 .. _`Chat with static memory`: https://github.com/symfony/ai/blob/main/examples/memory/static.php
 .. _`Chat with embedding search memory`: https://github.com/symfony/ai/blob/main/examples/memory/mariadb.php
 .. _`Human-in-the-Loop Confirmation`: https://github.com/symfony/ai/blob/main/examples/toolbox/confirmation.php
+.. _`Suspending Tool Calls Example`: https://github.com/symfony/ai/blob/main/examples/toolbox/suspension.php
 .. _`Tool Call Argument Validation`: https://github.com/symfony/ai/blob/main/examples/toolbox/validation.php
 .. _`Parallel Tool Calls with Fibers`: https://github.com/symfony/ai/blob/main/examples/agent/toolcall-fibers.php
 .. _`Cache`: https://symfony.com/doc/current/components/cache.html

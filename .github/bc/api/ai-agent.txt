@@ -98,6 +98,7 @@ Symfony\AI\Agent\Execution\Update\Progress: final class implements Symfony\AI\Ag
 Symfony\AI\Agent\Execution\Update\Progress::STAGE_DELTA: public const
 Symfony\AI\Agent\Execution\Update\Progress::STAGE_HANDOFF: public const
 Symfony\AI\Agent\Execution\Update\Progress::STAGE_MODEL_REQUEST: public const
+Symfony\AI\Agent\Execution\Update\Progress::STAGE_SUSPENSION: public const
 Symfony\AI\Agent\Execution\Update\Progress::STAGE_TOOL_CALL: public const
 Symfony\AI\Agent\Execution\Update\Progress::__construct(): public function __construct(string $stage, string $message = '', mixed $payload = null)
 Symfony\AI\Agent\Execution\Update\Progress::getMessage(): public function getMessage(): string
@@ -277,6 +278,13 @@ Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getResult(): public function g
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::getToolResults(): public function getToolResults(): array
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::hasResult(): public function hasResult(): bool
 Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted::setResult(): public function setResult(Symfony\AI\Platform\Result\ResultInterface $result): void
+Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested: final class
+Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested::__construct(): public function __construct(array $toolCalls, array $definitions, Symfony\AI\Platform\Message\MessageBag $messages)
+Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested::getDefinition(): public function getDefinition(Symfony\AI\Platform\Result\ToolCall $toolCall): Symfony\AI\Platform\Tool\Tool|null
+Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested::getMessages(): public function getMessages(): Symfony\AI\Platform\Message\MessageBag
+Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested::getToolCalls(): public function getToolCalls(): array
+Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested::reject(): public function reject(Symfony\AI\Platform\Result\ToolCall $toolCall, null|string $reason = null): void
+Symfony\AI\Agent\Toolbox\Event\ToolCallsRequested::suspend(): public function suspend(Symfony\AI\Platform\Result\ToolCall $toolCall, null|string $reason = null): void
 Symfony\AI\Agent\Toolbox\Exception\ExceptionInterface: interface extends Symfony\AI\Agent\Exception\ExceptionInterface
 Symfony\AI\Agent\Toolbox\Exception\InvalidToolCallArgumentsException: final class extends RuntimeException implements Symfony\AI\Agent\Toolbox\Exception\ToolExecutionExceptionInterface
 Symfony\AI\Agent\Toolbox\Exception\InvalidToolCallArgumentsException::__construct(): public function __construct(string $message = 'Invalid tool call arguments', int $code = 0, Throwable|null $previous = null, mixed $toolCallResult = null)

@@ -19,13 +19,13 @@ use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
+use Symfony\AI\Agent\MessageStore\StoredConversation;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
 use Symfony\AI\Platform\Message\MessageBag;
-use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\PlatformInterface;
@@ -107,7 +107,12 @@ final class Agent implements AgentInterface
         $factory = function () use ($input, $options, $cancellation): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
-                $input = $this->continueStored($input, $this->messageStore);
+                $input = StoredConversation::continue($this->messageStore->load($input->getId()), $input);
+            }
+
+            $input = $input->withAnsweredToolCalls();
+
+            if (null !== $this->messageStore) {
                 $this->messageStore->save($input);
             }
 
@@ -185,22 +190,5 @@ final class Agent implements AgentInterface
         };
 
         return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
-    }
-
-    /**
-     * The stored conversation followed by the given messages it doesn't contain yet.
-     */
-    private function continueStored(MessageBag $input, MessageStoreInterface $store): MessageBag
-    {
-        $stored = $store->load($input->getId());
-        $storedIds = array_flip(array_map(static fn (MessageInterface $message): string => $message->getId()->toRfc4122(), $stored->getMessages()));
-
-        $messages = $stored->merge(new MessageBag(...array_filter(
-            $input->getMessages(),
-            static fn (MessageInterface $message): bool => !isset($storedIds[$message->getId()->toRfc4122()]),
-        )));
-        $messages->getMetadata()->set(array_replace($stored->getMetadata()->all(), $input->getMetadata()->all()));
-
-        return $messages;
     }
 }
