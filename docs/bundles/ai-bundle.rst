@@ -1679,8 +1679,8 @@ runs, tool calls and retrievals with OpenTelemetry, in every environment:
                 retriever: true
 
 Disabled kinds of spans are not decorated at all, so they cost nothing. Guardrail interventions are recorded as
-span events, and the spans of an OpenTelemetry SDK tracer provider are flushed once the response is sent or the
-command finished.
+span events, and the spans of an OpenTelemetry SDK tracer provider are flushed once the response is sent, the
+command finished or a Messenger worker handled a message.
 
 .. caution::
 
@@ -1749,8 +1749,8 @@ Configure exactly one backend. The other ones are:
                     # "http/protobuf" by default
                     protocol: 'http/json'
 
-The endpoints shown are the defaults. The spans are sent over HTTP in batches, once the response is sent or the
-command finished. For sampling, other protocols or a tracer provider shared with the rest of your application, set up
+The endpoints shown are the defaults. The spans are sent over HTTP in batches, once the response is sent, the
+command finished or a Messenger worker handled a message. For sampling, other protocols or a tracer provider shared with the rest of your application, set up
 OpenTelemetry yourself and pass its ``tracer_provider`` instead.
 
 .. _ai-bundle-feedback:

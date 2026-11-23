@@ -182,6 +182,8 @@ use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpClient\NativeHttpClient;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
+use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
 use Symfony\Component\Serializer\Serializer;
@@ -11391,7 +11393,12 @@ class AiBundleTest extends TestCase
         $listener = $container->getDefinition('ai.tracing.flush_listener');
         $this->assertSame(FlushTracesListener::class, $listener->getClass());
         $this->assertEquals([new Reference('ai.tracing.tracer_provider')], $listener->getArguments());
-        $this->assertSame([['event' => 'kernel.terminate'], ['event' => 'console.terminate']], $listener->getTag('kernel.event_listener'));
+        $this->assertSame([
+            ['event' => 'kernel.terminate'],
+            ['event' => 'console.terminate'],
+            ['event' => WorkerMessageHandledEvent::class],
+            ['event' => WorkerMessageFailedEvent::class],
+        ], $listener->getTag('kernel.event_listener'));
     }
 
     /**

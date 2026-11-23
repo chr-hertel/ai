@@ -263,6 +263,8 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
+use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
@@ -3519,7 +3521,10 @@ final class AiBundle extends AbstractBundle
         // flushes SDK tracer providers only, so a custom one is flushed as well and a no-op one is left alone
         $container->setDefinition('ai.tracing.flush_listener', new Definition(FlushTracesListener::class, [new Reference($tracerProvider)]))
             ->addTag('kernel.event_listener', ['event' => 'kernel.terminate'])
-            ->addTag('kernel.event_listener', ['event' => 'console.terminate']);
+            ->addTag('kernel.event_listener', ['event' => 'console.terminate'])
+            // a worker handles many messages within one command
+            ->addTag('kernel.event_listener', ['event' => WorkerMessageHandledEvent::class])
+            ->addTag('kernel.event_listener', ['event' => WorkerMessageFailedEvent::class]);
 
         $container->setDefinition('ai.tracing.tracer', (new Definition(TracerInterface::class))
             ->setFactory([new Reference($tracerProvider), 'getTracer'])
